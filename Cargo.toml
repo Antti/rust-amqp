@@ -1,0 +1,9 @@
+[package]
+
+name = "rust-amqp"
+version = "0.0.1"
+authors = ["Andrii Dmytrenko <andrey@reevoo.com>"]
+
+[[lib]]
+
+name = "amqp"

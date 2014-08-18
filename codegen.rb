@@ -115,7 +115,8 @@ SPEC["classes"].each do |klass|
   puts "#[allow(unused_imports)]"
   puts "pub mod #{klass["name"]} {"
   puts "use std::io::{MemReader, MemWriter};\n"
-  puts "use framing::{Class, Method, Table, decode_table, encode_table};"
+  puts "use framing::{Class, Method};"
+  puts "use table::{Table, decode_table, encode_table};"
   puts "use std::collections::bitv;"
   puts "use std::collections::bitv::Bitv;"
   puts ""
@@ -133,6 +134,7 @@ SPEC["classes"].each do |klass|
 
   klass["methods"].each do |method|
     method_name = normalize_method titleize(method["name"])
+    properties = method["properties"]
 
     fields = method["arguments"].map do |argument|
       rust_type = map_type_to_rust argument["domain"] ? map_domain(argument["domain"]) : argument["type"]

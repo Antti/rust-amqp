@@ -5,7 +5,8 @@
 #[allow(unused_imports)]
 pub mod connection {
 use std::io::{MemReader, MemWriter};
-use framing::{Class, Method, Table, decode_table, encode_table};
+use framing::{Class, Method};
+use table::{Table, decode_table, encode_table};
 use std::collections::bitv;
 use std::collections::bitv::Bitv;
 
@@ -391,7 +392,8 @@ impl Method for Unblocked {
 #[allow(unused_imports)]
 pub mod channel {
 use std::io::{MemReader, MemWriter};
-use framing::{Class, Method, Table, decode_table, encode_table};
+use framing::{Class, Method};
+use table::{Table, decode_table, encode_table};
 use std::collections::bitv;
 use std::collections::bitv::Bitv;
 
@@ -573,7 +575,8 @@ impl Method for CloseOk {
 #[allow(unused_imports)]
 pub mod access {
 use std::io::{MemReader, MemWriter};
-use framing::{Class, Method, Table, decode_table, encode_table};
+use framing::{Class, Method};
+use table::{Table, decode_table, encode_table};
 use std::collections::bitv;
 use std::collections::bitv::Bitv;
 
@@ -654,7 +657,8 @@ impl Method for RequestOk {
 #[allow(unused_imports)]
 pub mod exchange {
 use std::io::{MemReader, MemWriter};
-use framing::{Class, Method, Table, decode_table, encode_table};
+use framing::{Class, Method};
+use table::{Table, decode_table, encode_table};
 use std::collections::bitv;
 use std::collections::bitv::Bitv;
 
@@ -947,7 +951,8 @@ impl Method for UnbindOk {
 #[allow(unused_imports)]
 pub mod queue {
 use std::io::{MemReader, MemWriter};
-use framing::{Class, Method, Table, decode_table, encode_table};
+use framing::{Class, Method};
+use table::{Table, decode_table, encode_table};
 use std::collections::bitv;
 use std::collections::bitv::Bitv;
 
@@ -1313,7 +1318,8 @@ impl Method for UnbindOk {
 #[allow(unused_imports)]
 pub mod basic {
 use std::io::{MemReader, MemWriter};
-use framing::{Class, Method, Table, decode_table, encode_table};
+use framing::{Class, Method};
+use table::{Table, decode_table, encode_table};
 use std::collections::bitv;
 use std::collections::bitv::Bitv;
 
@@ -1954,7 +1960,8 @@ impl Method for Nack {
 #[allow(unused_imports)]
 pub mod tx {
 use std::io::{MemReader, MemWriter};
-use framing::{Class, Method, Table, decode_table, encode_table};
+use framing::{Class, Method};
+use table::{Table, decode_table, encode_table};
 use std::collections::bitv;
 use std::collections::bitv::Bitv;
 
@@ -2088,7 +2095,8 @@ impl Method for RollbackOk {
 #[allow(unused_imports)]
 pub mod confirm {
 use std::io::{MemReader, MemWriter};
-use framing::{Class, Method, Table, decode_table, encode_table};
+use framing::{Class, Method};
+use table::{Table, decode_table, encode_table};
 use std::collections::bitv;
 use std::collections::bitv::Bitv;
 

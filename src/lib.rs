@@ -5,6 +5,7 @@ pub mod channel;
 pub mod exchange;
 pub mod queue;
 pub mod framing;
+pub mod table;
 pub mod protocol;
 
 #[test]

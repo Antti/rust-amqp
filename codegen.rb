@@ -84,13 +84,13 @@ def write_type(name, type)
   when "bit"
     raise "Cant write bit here..."
   when "shortstr"
-    "writer.write_u8(self.#{name}.len() as u8);
+    "writer.write_u8(self.#{name}.len() as u8).unwrap();
     writer.write(self.#{name}.as_bytes()).unwrap();"
   when "longstr"
-    "writer.write_be_u32(self.#{name}.len() as u32);
+    "writer.write_be_u32(self.#{name}.len() as u32).unwrap();
     writer.write(self.#{name}.as_bytes()).unwrap();"
   when "table"
-    "encode_table(&mut writer, self.#{name}.clone());"
+    "encode_table(&mut writer, self.#{name}.clone()).unwrap();"
   when "timestamp"
     "writer.write_be_u64(self.#{name}).unwrap();"
   else
@@ -193,31 +193,38 @@ SPEC["classes"].each do |klass|
       puts "    fn decode(_: Vec<u8>) -> #{method_name} {"
       puts "        #{method_name}"
       puts "    }"
-    end
+    end#decode
 
     #Encode
-    puts "    fn encode(&self) -> Vec<u8> {"
-    puts "        let mut writer = MemWriter::new();"
-    n_bits = 0
-    method["arguments"].each do |argument|
-      type = argument["domain"] ? map_domain(argument["domain"]) : argument["type"]
-      if type == "bit"
-        if n_bits == 0
-          puts pad_str(8, "let mut bits = Bitv::new();")
+    if method["arguments"].any?
+      puts "    fn encode(&self) -> Vec<u8> {"
+      puts "        let mut writer = MemWriter::new();"
+      n_bits = 0
+      method["arguments"].each do |argument|
+        type = argument["domain"] ? map_domain(argument["domain"]) : argument["type"]
+        if type == "bit"
+          if n_bits == 0
+            puts pad_str(8, "let mut bits = Bitv::new();")
+          end
+          puts pad_str(8, "bits.push(self.#{normalize_argument(argument["name"])});")
+          n_bits += 1
+        else
+          if n_bits > 0
+            puts pad_str(8, "writer.write(bits.to_bytes().as_slice()).unwrap();")
+            n_bits = 0
+          end
+          puts pad_str(8, "#{write_type(normalize_argument(argument["name"]), type)}")
         end
-        puts pad_str(8, "bits.push(self.#{normalize_argument(argument["name"])});")
-        n_bits += 1
-      else
-        if n_bits > 0
-          puts pad_str(8, "writer.write(bits.to_bytes().as_slice()).unwrap();")
-          n_bits = 0
-        end
-        puts pad_str(8, "#{write_type(normalize_argument(argument["name"]), type)}")
       end
-    end
-    puts pad_str(8, "writer.write(bits.to_bytes().as_slice()).unwrap();") if n_bits > 0 #if bits were the last element
-    puts "        writer.unwrap()"
-    puts "    }"
+      puts pad_str(8, "writer.write(bits.to_bytes().as_slice()).unwrap();") if n_bits > 0 #if bits were the last element
+      puts pad_str(8,"writer.unwrap()")
+      puts pad_str(4,"}")
+    else
+      puts pad_str(4, "fn encode(&self) -> Vec<u8> {")
+      puts pad_str(8,"vec!()")
+      puts pad_str(4,"}")
+    end #encode
+
     puts "}"
   end
   puts "}"

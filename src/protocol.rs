@@ -44,10 +44,10 @@ impl Method for Start {
         let mut writer = MemWriter::new();
         writer.write_u8(self.version_major).unwrap();
         writer.write_u8(self.version_minor).unwrap();
-        encode_table(&mut writer, self.server_properties.clone());
-        writer.write_be_u32(self.mechanisms.len() as u32);
+        encode_table(&mut writer, self.server_properties.clone()).unwrap();
+        writer.write_be_u32(self.mechanisms.len() as u32).unwrap();
         writer.write(self.mechanisms.as_bytes()).unwrap();
-        writer.write_be_u32(self.locales.len() as u32);
+        writer.write_be_u32(self.locales.len() as u32).unwrap();
         writer.write(self.locales.as_bytes()).unwrap();
         writer.unwrap()
     }
@@ -83,12 +83,12 @@ impl Method for StartOk {
     }
     fn encode(&self) -> Vec<u8> {
         let mut writer = MemWriter::new();
-        encode_table(&mut writer, self.client_properties.clone());
-        writer.write_u8(self.mechanism.len() as u8);
+        encode_table(&mut writer, self.client_properties.clone()).unwrap();
+        writer.write_u8(self.mechanism.len() as u8).unwrap();
         writer.write(self.mechanism.as_bytes()).unwrap();
-        writer.write_be_u32(self.response.len() as u32);
+        writer.write_be_u32(self.response.len() as u32).unwrap();
         writer.write(self.response.as_bytes()).unwrap();
-        writer.write_u8(self.locale.len() as u8);
+        writer.write_u8(self.locale.len() as u8).unwrap();
         writer.write(self.locale.as_bytes()).unwrap();
         writer.unwrap()
     }
@@ -116,7 +116,7 @@ impl Method for Secure {
     }
     fn encode(&self) -> Vec<u8> {
         let mut writer = MemWriter::new();
-        writer.write_be_u32(self.challenge.len() as u32);
+        writer.write_be_u32(self.challenge.len() as u32).unwrap();
         writer.write(self.challenge.as_bytes()).unwrap();
         writer.unwrap()
     }
@@ -144,7 +144,7 @@ impl Method for SecureOk {
     }
     fn encode(&self) -> Vec<u8> {
         let mut writer = MemWriter::new();
-        writer.write_be_u32(self.response.len() as u32);
+        writer.write_be_u32(self.response.len() as u32).unwrap();
         writer.write(self.response.as_bytes()).unwrap();
         writer.unwrap()
     }
@@ -243,9 +243,9 @@ impl Method for Open {
     }
     fn encode(&self) -> Vec<u8> {
         let mut writer = MemWriter::new();
-        writer.write_u8(self.virtual_host.len() as u8);
+        writer.write_u8(self.virtual_host.len() as u8).unwrap();
         writer.write(self.virtual_host.as_bytes()).unwrap();
-        writer.write_u8(self.capabilities.len() as u8);
+        writer.write_u8(self.capabilities.len() as u8).unwrap();
         writer.write(self.capabilities.as_bytes()).unwrap();
         let mut bits = Bitv::new();
         bits.push(self.insist);
@@ -276,7 +276,7 @@ impl Method for OpenOk {
     }
     fn encode(&self) -> Vec<u8> {
         let mut writer = MemWriter::new();
-        writer.write_u8(self.known_hosts.len() as u8);
+        writer.write_u8(self.known_hosts.len() as u8).unwrap();
         writer.write(self.known_hosts.as_bytes()).unwrap();
         writer.unwrap()
     }
@@ -311,7 +311,7 @@ impl Method for Close {
     fn encode(&self) -> Vec<u8> {
         let mut writer = MemWriter::new();
         writer.write_be_u16(self.reply_code).unwrap();
-        writer.write_u8(self.reply_text.len() as u8);
+        writer.write_u8(self.reply_text.len() as u8).unwrap();
         writer.write(self.reply_text.as_bytes()).unwrap();
         writer.write_be_u16(self.class_id).unwrap();
         writer.write_be_u16(self.method_id).unwrap();
@@ -335,8 +335,7 @@ impl Method for CloseOk {
         CloseOk
     }
     fn encode(&self) -> Vec<u8> {
-        let mut writer = MemWriter::new();
-        writer.unwrap()
+        vec!()
     }
 }
 // Method 60:blocked
@@ -362,7 +361,7 @@ impl Method for Blocked {
     }
     fn encode(&self) -> Vec<u8> {
         let mut writer = MemWriter::new();
-        writer.write_u8(self.reason.len() as u8);
+        writer.write_u8(self.reason.len() as u8).unwrap();
         writer.write(self.reason.as_bytes()).unwrap();
         writer.unwrap()
     }
@@ -384,8 +383,7 @@ impl Method for Unblocked {
         Unblocked
     }
     fn encode(&self) -> Vec<u8> {
-        let mut writer = MemWriter::new();
-        writer.unwrap()
+        vec!()
     }
 }
 }
@@ -420,7 +418,7 @@ impl Method for Open {
     }
     fn encode(&self) -> Vec<u8> {
         let mut writer = MemWriter::new();
-        writer.write_u8(self.out_of_band.len() as u8);
+        writer.write_u8(self.out_of_band.len() as u8).unwrap();
         writer.write(self.out_of_band.as_bytes()).unwrap();
         writer.unwrap()
     }
@@ -448,7 +446,7 @@ impl Method for OpenOk {
     }
     fn encode(&self) -> Vec<u8> {
         let mut writer = MemWriter::new();
-        writer.write_be_u32(self.channel_id.len() as u32);
+        writer.write_be_u32(self.channel_id.len() as u32).unwrap();
         writer.write(self.channel_id.as_bytes()).unwrap();
         writer.unwrap()
     }
@@ -543,7 +541,7 @@ impl Method for Close {
     fn encode(&self) -> Vec<u8> {
         let mut writer = MemWriter::new();
         writer.write_be_u16(self.reply_code).unwrap();
-        writer.write_u8(self.reply_text.len() as u8);
+        writer.write_u8(self.reply_text.len() as u8).unwrap();
         writer.write(self.reply_text.as_bytes()).unwrap();
         writer.write_be_u16(self.class_id).unwrap();
         writer.write_be_u16(self.method_id).unwrap();
@@ -567,8 +565,7 @@ impl Method for CloseOk {
         CloseOk
     }
     fn encode(&self) -> Vec<u8> {
-        let mut writer = MemWriter::new();
-        writer.unwrap()
+        vec!()
     }
 }
 }
@@ -615,7 +612,7 @@ impl Method for Request {
     }
     fn encode(&self) -> Vec<u8> {
         let mut writer = MemWriter::new();
-        writer.write_u8(self.realm.len() as u8);
+        writer.write_u8(self.realm.len() as u8).unwrap();
         writer.write(self.realm.as_bytes()).unwrap();
         let mut bits = Bitv::new();
         bits.push(self.exclusive);
@@ -705,9 +702,9 @@ impl Method for Declare {
     fn encode(&self) -> Vec<u8> {
         let mut writer = MemWriter::new();
         writer.write_be_u16(self.ticket).unwrap();
-        writer.write_u8(self.exchange.len() as u8);
+        writer.write_u8(self.exchange.len() as u8).unwrap();
         writer.write(self.exchange.as_bytes()).unwrap();
-        writer.write_u8(self._type.len() as u8);
+        writer.write_u8(self._type.len() as u8).unwrap();
         writer.write(self._type.as_bytes()).unwrap();
         let mut bits = Bitv::new();
         bits.push(self.passive);
@@ -716,7 +713,7 @@ impl Method for Declare {
         bits.push(self.internal);
         bits.push(self.nowait);
         writer.write(bits.to_bytes().as_slice()).unwrap();
-        encode_table(&mut writer, self.arguments.clone());
+        encode_table(&mut writer, self.arguments.clone()).unwrap();
         writer.unwrap()
     }
 }
@@ -737,8 +734,7 @@ impl Method for DeclareOk {
         DeclareOk
     }
     fn encode(&self) -> Vec<u8> {
-        let mut writer = MemWriter::new();
-        writer.unwrap()
+        vec!()
     }
 }
 // Method 20:delete
@@ -773,7 +769,7 @@ impl Method for Delete {
     fn encode(&self) -> Vec<u8> {
         let mut writer = MemWriter::new();
         writer.write_be_u16(self.ticket).unwrap();
-        writer.write_u8(self.exchange.len() as u8);
+        writer.write_u8(self.exchange.len() as u8).unwrap();
         writer.write(self.exchange.as_bytes()).unwrap();
         let mut bits = Bitv::new();
         bits.push(self.if_unused);
@@ -799,8 +795,7 @@ impl Method for DeleteOk {
         DeleteOk
     }
     fn encode(&self) -> Vec<u8> {
-        let mut writer = MemWriter::new();
-        writer.unwrap()
+        vec!()
     }
 }
 // Method 30:bind
@@ -841,16 +836,16 @@ impl Method for Bind {
     fn encode(&self) -> Vec<u8> {
         let mut writer = MemWriter::new();
         writer.write_be_u16(self.ticket).unwrap();
-        writer.write_u8(self.destination.len() as u8);
+        writer.write_u8(self.destination.len() as u8).unwrap();
         writer.write(self.destination.as_bytes()).unwrap();
-        writer.write_u8(self.source.len() as u8);
+        writer.write_u8(self.source.len() as u8).unwrap();
         writer.write(self.source.as_bytes()).unwrap();
-        writer.write_u8(self.routing_key.len() as u8);
+        writer.write_u8(self.routing_key.len() as u8).unwrap();
         writer.write(self.routing_key.as_bytes()).unwrap();
         let mut bits = Bitv::new();
         bits.push(self.nowait);
         writer.write(bits.to_bytes().as_slice()).unwrap();
-        encode_table(&mut writer, self.arguments.clone());
+        encode_table(&mut writer, self.arguments.clone()).unwrap();
         writer.unwrap()
     }
 }
@@ -871,8 +866,7 @@ impl Method for BindOk {
         BindOk
     }
     fn encode(&self) -> Vec<u8> {
-        let mut writer = MemWriter::new();
-        writer.unwrap()
+        vec!()
     }
 }
 // Method 40:unbind
@@ -913,16 +907,16 @@ impl Method for Unbind {
     fn encode(&self) -> Vec<u8> {
         let mut writer = MemWriter::new();
         writer.write_be_u16(self.ticket).unwrap();
-        writer.write_u8(self.destination.len() as u8);
+        writer.write_u8(self.destination.len() as u8).unwrap();
         writer.write(self.destination.as_bytes()).unwrap();
-        writer.write_u8(self.source.len() as u8);
+        writer.write_u8(self.source.len() as u8).unwrap();
         writer.write(self.source.as_bytes()).unwrap();
-        writer.write_u8(self.routing_key.len() as u8);
+        writer.write_u8(self.routing_key.len() as u8).unwrap();
         writer.write(self.routing_key.as_bytes()).unwrap();
         let mut bits = Bitv::new();
         bits.push(self.nowait);
         writer.write(bits.to_bytes().as_slice()).unwrap();
-        encode_table(&mut writer, self.arguments.clone());
+        encode_table(&mut writer, self.arguments.clone()).unwrap();
         writer.unwrap()
     }
 }
@@ -943,8 +937,7 @@ impl Method for UnbindOk {
         UnbindOk
     }
     fn encode(&self) -> Vec<u8> {
-        let mut writer = MemWriter::new();
-        writer.unwrap()
+        vec!()
     }
 }
 }
@@ -996,7 +989,7 @@ impl Method for Declare {
     fn encode(&self) -> Vec<u8> {
         let mut writer = MemWriter::new();
         writer.write_be_u16(self.ticket).unwrap();
-        writer.write_u8(self.queue.len() as u8);
+        writer.write_u8(self.queue.len() as u8).unwrap();
         writer.write(self.queue.as_bytes()).unwrap();
         let mut bits = Bitv::new();
         bits.push(self.passive);
@@ -1005,7 +998,7 @@ impl Method for Declare {
         bits.push(self.auto_delete);
         bits.push(self.nowait);
         writer.write(bits.to_bytes().as_slice()).unwrap();
-        encode_table(&mut writer, self.arguments.clone());
+        encode_table(&mut writer, self.arguments.clone()).unwrap();
         writer.unwrap()
     }
 }
@@ -1036,7 +1029,7 @@ impl Method for DeclareOk {
     }
     fn encode(&self) -> Vec<u8> {
         let mut writer = MemWriter::new();
-        writer.write_u8(self.queue.len() as u8);
+        writer.write_u8(self.queue.len() as u8).unwrap();
         writer.write(self.queue.as_bytes()).unwrap();
         writer.write_be_u32(self.message_count).unwrap();
         writer.write_be_u32(self.consumer_count).unwrap();
@@ -1081,16 +1074,16 @@ impl Method for Bind {
     fn encode(&self) -> Vec<u8> {
         let mut writer = MemWriter::new();
         writer.write_be_u16(self.ticket).unwrap();
-        writer.write_u8(self.queue.len() as u8);
+        writer.write_u8(self.queue.len() as u8).unwrap();
         writer.write(self.queue.as_bytes()).unwrap();
-        writer.write_u8(self.exchange.len() as u8);
+        writer.write_u8(self.exchange.len() as u8).unwrap();
         writer.write(self.exchange.as_bytes()).unwrap();
-        writer.write_u8(self.routing_key.len() as u8);
+        writer.write_u8(self.routing_key.len() as u8).unwrap();
         writer.write(self.routing_key.as_bytes()).unwrap();
         let mut bits = Bitv::new();
         bits.push(self.nowait);
         writer.write(bits.to_bytes().as_slice()).unwrap();
-        encode_table(&mut writer, self.arguments.clone());
+        encode_table(&mut writer, self.arguments.clone()).unwrap();
         writer.unwrap()
     }
 }
@@ -1111,8 +1104,7 @@ impl Method for BindOk {
         BindOk
     }
     fn encode(&self) -> Vec<u8> {
-        let mut writer = MemWriter::new();
-        writer.unwrap()
+        vec!()
     }
 }
 // Method 30:purge
@@ -1145,7 +1137,7 @@ impl Method for Purge {
     fn encode(&self) -> Vec<u8> {
         let mut writer = MemWriter::new();
         writer.write_be_u16(self.ticket).unwrap();
-        writer.write_u8(self.queue.len() as u8);
+        writer.write_u8(self.queue.len() as u8).unwrap();
         writer.write(self.queue.as_bytes()).unwrap();
         let mut bits = Bitv::new();
         bits.push(self.nowait);
@@ -1213,7 +1205,7 @@ impl Method for Delete {
     fn encode(&self) -> Vec<u8> {
         let mut writer = MemWriter::new();
         writer.write_be_u16(self.ticket).unwrap();
-        writer.write_u8(self.queue.len() as u8);
+        writer.write_u8(self.queue.len() as u8).unwrap();
         writer.write(self.queue.as_bytes()).unwrap();
         let mut bits = Bitv::new();
         bits.push(self.if_unused);
@@ -1283,13 +1275,13 @@ impl Method for Unbind {
     fn encode(&self) -> Vec<u8> {
         let mut writer = MemWriter::new();
         writer.write_be_u16(self.ticket).unwrap();
-        writer.write_u8(self.queue.len() as u8);
+        writer.write_u8(self.queue.len() as u8).unwrap();
         writer.write(self.queue.as_bytes()).unwrap();
-        writer.write_u8(self.exchange.len() as u8);
+        writer.write_u8(self.exchange.len() as u8).unwrap();
         writer.write(self.exchange.as_bytes()).unwrap();
-        writer.write_u8(self.routing_key.len() as u8);
+        writer.write_u8(self.routing_key.len() as u8).unwrap();
         writer.write(self.routing_key.as_bytes()).unwrap();
-        encode_table(&mut writer, self.arguments.clone());
+        encode_table(&mut writer, self.arguments.clone()).unwrap();
         writer.unwrap()
     }
 }
@@ -1310,8 +1302,7 @@ impl Method for UnbindOk {
         UnbindOk
     }
     fn encode(&self) -> Vec<u8> {
-        let mut writer = MemWriter::new();
-        writer.unwrap()
+        vec!()
     }
 }
 }
@@ -1376,8 +1367,7 @@ impl Method for QosOk {
         QosOk
     }
     fn encode(&self) -> Vec<u8> {
-        let mut writer = MemWriter::new();
-        writer.unwrap()
+        vec!()
     }
 }
 // Method 20:consume
@@ -1421,9 +1411,9 @@ impl Method for Consume {
     fn encode(&self) -> Vec<u8> {
         let mut writer = MemWriter::new();
         writer.write_be_u16(self.ticket).unwrap();
-        writer.write_u8(self.queue.len() as u8);
+        writer.write_u8(self.queue.len() as u8).unwrap();
         writer.write(self.queue.as_bytes()).unwrap();
-        writer.write_u8(self.consumer_tag.len() as u8);
+        writer.write_u8(self.consumer_tag.len() as u8).unwrap();
         writer.write(self.consumer_tag.as_bytes()).unwrap();
         let mut bits = Bitv::new();
         bits.push(self.no_local);
@@ -1431,7 +1421,7 @@ impl Method for Consume {
         bits.push(self.exclusive);
         bits.push(self.nowait);
         writer.write(bits.to_bytes().as_slice()).unwrap();
-        encode_table(&mut writer, self.arguments.clone());
+        encode_table(&mut writer, self.arguments.clone()).unwrap();
         writer.unwrap()
     }
 }
@@ -1458,7 +1448,7 @@ impl Method for ConsumeOk {
     }
     fn encode(&self) -> Vec<u8> {
         let mut writer = MemWriter::new();
-        writer.write_u8(self.consumer_tag.len() as u8);
+        writer.write_u8(self.consumer_tag.len() as u8).unwrap();
         writer.write(self.consumer_tag.as_bytes()).unwrap();
         writer.unwrap()
     }
@@ -1490,7 +1480,7 @@ impl Method for Cancel {
     }
     fn encode(&self) -> Vec<u8> {
         let mut writer = MemWriter::new();
-        writer.write_u8(self.consumer_tag.len() as u8);
+        writer.write_u8(self.consumer_tag.len() as u8).unwrap();
         writer.write(self.consumer_tag.as_bytes()).unwrap();
         let mut bits = Bitv::new();
         bits.push(self.nowait);
@@ -1521,7 +1511,7 @@ impl Method for CancelOk {
     }
     fn encode(&self) -> Vec<u8> {
         let mut writer = MemWriter::new();
-        writer.write_u8(self.consumer_tag.len() as u8);
+        writer.write_u8(self.consumer_tag.len() as u8).unwrap();
         writer.write(self.consumer_tag.as_bytes()).unwrap();
         writer.unwrap()
     }
@@ -1561,9 +1551,9 @@ impl Method for Publish {
     fn encode(&self) -> Vec<u8> {
         let mut writer = MemWriter::new();
         writer.write_be_u16(self.ticket).unwrap();
-        writer.write_u8(self.exchange.len() as u8);
+        writer.write_u8(self.exchange.len() as u8).unwrap();
         writer.write(self.exchange.as_bytes()).unwrap();
-        writer.write_u8(self.routing_key.len() as u8);
+        writer.write_u8(self.routing_key.len() as u8).unwrap();
         writer.write(self.routing_key.as_bytes()).unwrap();
         let mut bits = Bitv::new();
         bits.push(self.mandatory);
@@ -1604,11 +1594,11 @@ impl Method for Return {
     fn encode(&self) -> Vec<u8> {
         let mut writer = MemWriter::new();
         writer.write_be_u16(self.reply_code).unwrap();
-        writer.write_u8(self.reply_text.len() as u8);
+        writer.write_u8(self.reply_text.len() as u8).unwrap();
         writer.write(self.reply_text.as_bytes()).unwrap();
-        writer.write_u8(self.exchange.len() as u8);
+        writer.write_u8(self.exchange.len() as u8).unwrap();
         writer.write(self.exchange.as_bytes()).unwrap();
-        writer.write_u8(self.routing_key.len() as u8);
+        writer.write_u8(self.routing_key.len() as u8).unwrap();
         writer.write(self.routing_key.as_bytes()).unwrap();
         writer.unwrap()
     }
@@ -1648,15 +1638,15 @@ impl Method for Deliver {
     }
     fn encode(&self) -> Vec<u8> {
         let mut writer = MemWriter::new();
-        writer.write_u8(self.consumer_tag.len() as u8);
+        writer.write_u8(self.consumer_tag.len() as u8).unwrap();
         writer.write(self.consumer_tag.as_bytes()).unwrap();
         writer.write_be_u64(self.delivery_tag).unwrap();
         let mut bits = Bitv::new();
         bits.push(self.redelivered);
         writer.write(bits.to_bytes().as_slice()).unwrap();
-        writer.write_u8(self.exchange.len() as u8);
+        writer.write_u8(self.exchange.len() as u8).unwrap();
         writer.write(self.exchange.as_bytes()).unwrap();
-        writer.write_u8(self.routing_key.len() as u8);
+        writer.write_u8(self.routing_key.len() as u8).unwrap();
         writer.write(self.routing_key.as_bytes()).unwrap();
         writer.unwrap()
     }
@@ -1691,7 +1681,7 @@ impl Method for Get {
     fn encode(&self) -> Vec<u8> {
         let mut writer = MemWriter::new();
         writer.write_be_u16(self.ticket).unwrap();
-        writer.write_u8(self.queue.len() as u8);
+        writer.write_u8(self.queue.len() as u8).unwrap();
         writer.write(self.queue.as_bytes()).unwrap();
         let mut bits = Bitv::new();
         bits.push(self.no_ack);
@@ -1737,9 +1727,9 @@ impl Method for GetOk {
         let mut bits = Bitv::new();
         bits.push(self.redelivered);
         writer.write(bits.to_bytes().as_slice()).unwrap();
-        writer.write_u8(self.exchange.len() as u8);
+        writer.write_u8(self.exchange.len() as u8).unwrap();
         writer.write(self.exchange.as_bytes()).unwrap();
-        writer.write_u8(self.routing_key.len() as u8);
+        writer.write_u8(self.routing_key.len() as u8).unwrap();
         writer.write(self.routing_key.as_bytes()).unwrap();
         writer.write_be_u32(self.message_count).unwrap();
         writer.unwrap()
@@ -1768,7 +1758,7 @@ impl Method for GetEmpty {
     }
     fn encode(&self) -> Vec<u8> {
         let mut writer = MemWriter::new();
-        writer.write_u8(self.cluster_id.len() as u8);
+        writer.write_u8(self.cluster_id.len() as u8).unwrap();
         writer.write(self.cluster_id.as_bytes()).unwrap();
         writer.unwrap()
     }
@@ -1916,8 +1906,7 @@ impl Method for RecoverOk {
         RecoverOk
     }
     fn encode(&self) -> Vec<u8> {
-        let mut writer = MemWriter::new();
-        writer.unwrap()
+        vec!()
     }
 }
 // Method 120:nack
@@ -1982,8 +1971,7 @@ impl Method for Select {
         Select
     }
     fn encode(&self) -> Vec<u8> {
-        let mut writer = MemWriter::new();
-        writer.unwrap()
+        vec!()
     }
 }
 // Method 11:select-ok
@@ -2003,8 +1991,7 @@ impl Method for SelectOk {
         SelectOk
     }
     fn encode(&self) -> Vec<u8> {
-        let mut writer = MemWriter::new();
-        writer.unwrap()
+        vec!()
     }
 }
 // Method 20:commit
@@ -2024,8 +2011,7 @@ impl Method for Commit {
         Commit
     }
     fn encode(&self) -> Vec<u8> {
-        let mut writer = MemWriter::new();
-        writer.unwrap()
+        vec!()
     }
 }
 // Method 21:commit-ok
@@ -2045,8 +2031,7 @@ impl Method for CommitOk {
         CommitOk
     }
     fn encode(&self) -> Vec<u8> {
-        let mut writer = MemWriter::new();
-        writer.unwrap()
+        vec!()
     }
 }
 // Method 30:rollback
@@ -2066,8 +2051,7 @@ impl Method for Rollback {
         Rollback
     }
     fn encode(&self) -> Vec<u8> {
-        let mut writer = MemWriter::new();
-        writer.unwrap()
+        vec!()
     }
 }
 // Method 31:rollback-ok
@@ -2087,8 +2071,7 @@ impl Method for RollbackOk {
         RollbackOk
     }
     fn encode(&self) -> Vec<u8> {
-        let mut writer = MemWriter::new();
-        writer.unwrap()
+        vec!()
     }
 }
 }
@@ -2147,8 +2130,7 @@ impl Method for SelectOk {
         SelectOk
     }
     fn encode(&self) -> Vec<u8> {
-        let mut writer = MemWriter::new();
-        writer.unwrap()
+        vec!()
     }
 }
 }

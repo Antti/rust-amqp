@@ -22,14 +22,14 @@ impl Frame {
         let channel = try!(header.read_be_u16());
         let size = try!(header.read_be_u32());
         let payload = try!(reader.read_exact(size as uint));
-        let frame_end = try!(reader.read_exact(1));
+        let frame_end = try!(reader.read_u8());
         if payload.len() as u32 != size {
             return Err(IoError{kind: InvalidInput, desc: "Payload didn't read the full size", detail: None});
         }
-        if frame_end[0] != 0xCE {
+        if frame_end != 0xCE {
             return Err(IoError{kind: InvalidInput, desc: "Frame end wasn't right", detail: None});
         }
-        let frame_type = match get_frame_type(frame_type_id){
+        let frame_type = match FromPrimitive::from_u8(frame_type_id){
             Some(ft) => ft,
             None => return Err(IoError{kind: OtherIoError, desc: "Unknown frame type", detail: None})
         };
@@ -44,7 +44,7 @@ impl Frame {
         writer.write_be_u16(self.channel).unwrap();
         writer.write_be_u32(self.payload.len() as u32).unwrap();
         writer.write(self.payload.as_slice()).unwrap();
-        writer.write_u8(0xCE);
+        writer.write_u8(0xCE).unwrap();
         writer.unwrap()
     }
 }
@@ -62,16 +62,21 @@ pub trait Class {
     fn id(&self) -> u16;
 }
 
-pub fn get_frame_type(frame_type: u8) -> Option<FrameType> {
-    FromPrimitive::from_u8(frame_type)
-}
-
 pub fn decode_method_frame(frame: &Frame) -> (u16, u16, Vec<u8>) {
     let mut reader = MemReader::new(frame.payload.clone());
     let class_id = reader.read_be_u16().unwrap();
     let method_id = reader.read_be_u16().unwrap();
     let arguments = reader.read_to_end().unwrap();
     (class_id, method_id, arguments)
+}
+
+pub fn decode_method<T: Method>(frame: &Frame) -> T {
+    let mut reader = MemReader::new(frame.payload.clone());
+    let class_id = reader.read_be_u16().unwrap();
+    let method_id = reader.read_be_u16().unwrap();
+    let arguments = reader.read_to_end().unwrap();
+    // TODO: First need to match if T actually handles class_id & method_id
+    Method::decode(arguments)
 }
 
 pub fn encode_method_frame(method: &Method) -> Vec<u8> {
@@ -94,6 +99,7 @@ pub fn decode_content_header_frame(frame: &Frame) -> (u16, u16, u64, u16, Vec<u8
 
 #[test]
 fn test_encode_decode(){
+    let frame = Frame{frame_type: METHOD, channel: 5, payload: vec!(1,2,3,4,5)};
     assert_eq!(frame, Frame::decode(&mut MemReader::new(frame.encode())).unwrap());
 }
 

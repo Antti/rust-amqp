@@ -127,7 +127,7 @@ pub fn encode_table(writer: &mut Writer, table: Table) -> IoResult<()> {
     for (field_name, table_entry) in table.move_iter() {
         try!(tmp_writer.write_u8(field_name.len() as u8));
         try!(tmp_writer.write(field_name.as_bytes()));
-        write_table_entry(&mut tmp_writer, table_entry);
+        try!(write_table_entry(&mut tmp_writer, table_entry));
     }
     let buffer = tmp_writer.unwrap();
     try!(writer.write_be_u32(buffer.len() as u32));

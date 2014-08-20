@@ -1,5 +1,7 @@
 use std::io::{IoResult};
 use std::io::net::tcp::TcpStream;
+use std::default::Default;
+use std::cmp;
 use framing;
 use framing::{Frame, Method};
 use protocol;
@@ -11,9 +13,31 @@ pub struct Connection {
     socket: TcpStream
 }
 
+pub struct Options <'a>  {
+    host: &'a str,
+    port: u16,
+    login: &'a str,
+    password: &'a str,
+    vhost: &'a str,
+    frame_max_limit: u32,
+    channel_max_limit: u16,
+    locale: &'a str
+}
+
+impl <'a>  Default for Options <'a>  {
+    fn default() -> Options <'a>  {
+        Options {
+            host: "127.0.0.1", port: 5672, vhost: "/",
+            login: "guest", password: "guest",
+            frame_max_limit: 131072, channel_max_limit: 65535,
+            locale: "en_US"
+        }
+    }
+}
+
 impl Connection {
-    pub fn open(host: &str, port: u16, login: &str, password: &str, vhost: &str) -> IoResult<Connection> {
-        let mut socket = try!(TcpStream::connect(host, port));
+    pub fn open(options: Options) -> IoResult<Connection> {
+        let mut socket = try!(TcpStream::connect(options.host, options.port));
         try!(socket.write([b'A', b'M', b'Q', b'P', 0, 0, 9, 1]));
         let mut connection = Connection { socket: socket};
 
@@ -34,22 +58,24 @@ impl Connection {
         client_properties.insert("product".to_string(), LongString("rust-amqp".to_string()));
         client_properties.insert("platform".to_string(), LongString("rust".to_string()));
         client_properties.insert("version".to_string(), LongString("0.1".to_string()));
-        client_properties.insert("information".to_string(), LongString("http://github.com".to_string()));
+        client_properties.insert("information".to_string(), LongString("https://github.com/Antti/rust-amqp".to_string()));
 
         let start_ok = protocol::connection::StartOk {
             client_properties: client_properties, mechanism: "PLAIN".to_string(),
-            response: format!("\0{}\0{}", login, password), locale: "en_US".to_string()};
-        connection.send_method_frame(0, &start_ok);
+            response: format!("\0{}\0{}", options.login, options.password), locale: options.locale.to_string()};
+        try!(connection.send_method_frame(0, &start_ok));
 
         let frame = connection.read();//Tune
         let (class_id, method_id, arguments) = framing::decode_method_frame(&frame.unwrap());
         let tune : protocol::connection::Tune = framing::Method::decode(arguments);
 
-        let tune_ok = protocol::connection::TuneOk {channel_max: tune.channel_max, frame_max: tune.frame_max, heartbeat: 0};
-        connection.send_method_frame(0, &tune_ok);
+        let tune_ok = protocol::connection::TuneOk {
+            channel_max: negotiate(tune.channel_max, options.channel_max_limit),
+            frame_max: negotiate(tune.frame_max, options.frame_max_limit), heartbeat: 0};
+        try!(connection.send_method_frame(0, &tune_ok));
 
-        let open = protocol::connection::Open{virtual_host: vhost.to_string(), capabilities: "".to_string(), insist: false };
-        connection.send_method_frame(0, &open);
+        let open = protocol::connection::Open{virtual_host: options.vhost.to_string(), capabilities: "".to_string(), insist: false };
+        try!(connection.send_method_frame(0, &open));
 
         let frame = connection.read();//Open-ok
         let (class_id, method_id, arguments) = framing::decode_method_frame(&frame.unwrap());
@@ -76,16 +102,14 @@ impl Connection {
     }
     pub fn close(&mut self, reply_code: u16, reply_text: String) {
         let close = protocol::connection::Close{reply_code: reply_code, reply_text: reply_text, class_id: 0, method_id: 0};
-        self.send_method_frame(0, &close);
+        self.send_method_frame(0, &close).unwrap();
 
         let frame = self.read();//close-ok
         let (class_id, method_id, arguments) = framing::decode_method_frame(&frame.unwrap());
         let close_ok : protocol::connection::CloseOk = framing::Method::decode(arguments);
-        self.socket.close_write();
-        self.socket.close_read();
-        //  One peer (client or server) ends the connection (Close).
-        //  The other peer hand-shakes the connection end (Close-Ok).
-        //  The server and the client close their socket connection.
+        self.socket.close_write().unwrap();
+        self.socket.close_read().unwrap();
+        //TODO: Need to drop socket somehow (Maybe have an Option<Socket>)
     }
 
     pub fn write(&mut self, frame: Frame) -> IoResult<()>{
@@ -105,4 +129,8 @@ impl Connection {
         }
         frame
     }
+}
+
+fn negotiate<T : cmp::Ord>(their_value: T, our_value: T) -> T {
+    cmp::min(their_value, our_value)
 }

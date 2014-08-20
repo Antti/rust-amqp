@@ -3,7 +3,7 @@ use std::io::net::tcp::TcpStream;
 use std::default::Default;
 use std::cmp;
 use framing;
-use framing::{Frame, Method};
+use framing::Frame;
 use protocol;
 use table::{FieldTable, Table, Bool, ShortShortInt, ShortShortUint, ShortInt, ShortUint, LongInt, LongUint, LongLongInt, LongLongUint, Float, Double, DecimalValue, LongString, FieldArray, Timestamp};
 use std::collections::TreeMap;
@@ -43,8 +43,8 @@ impl Connection {
 
         let frame = connection.read(); //Start
 
-        let (class_id, method_id, arguments) = framing::decode_method_frame(&frame.unwrap());
-        let start : protocol::connection::Start = framing::Method::decode(arguments);
+        let method_frame = framing::decode_method_frame(frame.unwrap());
+        let start : protocol::connection::Start = protocol::Method::decode(method_frame).unwrap();
 
         let mut client_properties = TreeMap::new();
         let mut capabilities = TreeMap::new();
@@ -66,8 +66,8 @@ impl Connection {
         try!(connection.send_method_frame(0, &start_ok));
 
         let frame = connection.read();//Tune
-        let (class_id, method_id, arguments) = framing::decode_method_frame(&frame.unwrap());
-        let tune : protocol::connection::Tune = framing::Method::decode(arguments);
+        let method_frame = framing::decode_method_frame(frame.unwrap());
+        let tune : protocol::connection::Tune = protocol::Method::decode(method_frame).unwrap();
 
         let tune_ok = protocol::connection::TuneOk {
             channel_max: negotiate(tune.channel_max, options.channel_max_limit),
@@ -78,8 +78,8 @@ impl Connection {
         try!(connection.send_method_frame(0, &open));
 
         let frame = connection.read();//Open-ok
-        let (class_id, method_id, arguments) = framing::decode_method_frame(&frame.unwrap());
-        let open_ok : protocol::connection::OpenOk = framing::Method::decode(arguments);
+        let method_frame = framing::decode_method_frame(frame.unwrap());
+        let open_ok : protocol::connection::OpenOk = protocol::Method::decode(method_frame).unwrap();
 
         Ok(connection)
 
@@ -105,8 +105,8 @@ impl Connection {
         self.send_method_frame(0, &close).unwrap();
 
         let frame = self.read();//close-ok
-        let (class_id, method_id, arguments) = framing::decode_method_frame(&frame.unwrap());
-        let close_ok : protocol::connection::CloseOk = framing::Method::decode(arguments);
+        let method_frame = framing::decode_method_frame(frame.unwrap());
+        let close_ok : protocol::connection::CloseOk = protocol::Method::decode(method_frame).unwrap();
         self.socket.close_write().unwrap();
         self.socket.close_read().unwrap();
         //TODO: Need to drop socket somehow (Maybe have an Option<Socket>)
@@ -116,7 +116,7 @@ impl Connection {
         self.socket.write(frame.encode().as_slice())
     }
 
-    pub fn send_method_frame(&mut self, channel: u16, method: &Method)  -> IoResult<()> {
+    pub fn send_method_frame(&mut self, channel: u16, method: &protocol::Method)  -> IoResult<()> {
         println!("Sending method {} to channel {}", method.name(), channel);
         self.write(Frame {frame_type: framing::METHOD, channel: channel, payload: framing::encode_method_frame(method) })
     }

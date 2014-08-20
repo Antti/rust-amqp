@@ -1,4 +1,5 @@
 use std::io::{MemReader, MemWriter, IoResult, IoError, InvalidInput, OtherIoError};
+use protocol::{Method, MethodFrame};
 
 #[deriving(Show, Clone, Eq, PartialEq, FromPrimitive)]
 pub enum FrameType {
@@ -49,34 +50,13 @@ impl Frame {
     }
 }
 
-pub trait Method {
-    fn decode(data: Vec<u8>) -> Self;
-    fn encode(&self) -> Vec<u8>;
-    fn name(&self) -> &'static str;
-    fn id(&self) -> u16;
-    fn class_id(&self) -> u16;
-}
-
-pub trait Class {
-    fn name(&self) -> &'static str;
-    fn id(&self) -> u16;
-}
-
-pub fn decode_method_frame(frame: &Frame) -> (u16, u16, Vec<u8>) {
-    let mut reader = MemReader::new(frame.payload.clone());
+// We need this method, so we can match on class_id & method_id
+pub fn decode_method_frame(frame: Frame) -> MethodFrame {
+    let mut reader = MemReader::new(frame.payload);
     let class_id = reader.read_be_u16().unwrap();
     let method_id = reader.read_be_u16().unwrap();
     let arguments = reader.read_to_end().unwrap();
-    (class_id, method_id, arguments)
-}
-
-pub fn decode_method<T: Method>(frame: &Frame) -> T {
-    let mut reader = MemReader::new(frame.payload.clone());
-    let class_id = reader.read_be_u16().unwrap();
-    let method_id = reader.read_be_u16().unwrap();
-    let arguments = reader.read_to_end().unwrap();
-    // TODO: First need to match if T actually handles class_id & method_id
-    Method::decode(arguments)
+    MethodFrame{class_id: class_id, method_id: method_id, arguments: arguments}
 }
 
 pub fn encode_method_frame(method: &Method) -> Vec<u8> {
@@ -86,6 +66,7 @@ pub fn encode_method_frame(method: &Method) -> Vec<u8> {
     writer.write(method.encode().as_slice()).unwrap();
     writer.unwrap()
 }
+
 //                                                    class_id, weight, body_size, property flags, property list
 pub fn decode_content_header_frame(frame: &Frame) -> (u16, u16, u64, u16, Vec<u8>) {
     let mut reader = MemReader::new(frame.payload.clone());

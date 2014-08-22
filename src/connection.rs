@@ -44,7 +44,16 @@ impl Connection {
         let frame = connection.read(); //Start
 
         let method_frame = framing::decode_method_frame(frame.unwrap());
-        let start : protocol::connection::Start = protocol::Method::decode(method_frame).unwrap();
+        let start : protocol::connection::Start = match method_frame.method_name(){
+            "connection.start" => protocol::Method::decode(method_frame).unwrap(),
+            meth => fail!("Unexpected method frame: {}", meth) //In reality you would probably skip the frame and try to read another?
+        };
+        //  The client selects a security mechanism (Start-Ok).
+        //  The server starts the authentication process, which uses the SASL challenge-response model. It sends
+        // the client a challenge (Secure).
+        //  The client sends an authentication response (Secure-Ok). For example using the "plain" mechanism,
+        // the response consist of a login name and password.
+        //  The server repeats the challenge (Secure) or moves to negotiation, sending a set of parameters such as
 
         let mut client_properties = TreeMap::new();
         let mut capabilities = TreeMap::new();
@@ -67,7 +76,10 @@ impl Connection {
 
         let frame = connection.read();//Tune
         let method_frame = framing::decode_method_frame(frame.unwrap());
-        let tune : protocol::connection::Tune = protocol::Method::decode(method_frame).unwrap();
+        let tune : protocol::connection::Tune = match method_frame.method_name(){
+            "connection.tune" => protocol::Method::decode(method_frame).unwrap(),
+            meth => fail!("Unexpected method frame: {}", meth)
+        };
 
         let tune_ok = protocol::connection::TuneOk {
             channel_max: negotiate(tune.channel_max, options.channel_max_limit),
@@ -79,27 +91,14 @@ impl Connection {
 
         let frame = connection.read();//Open-ok
         let method_frame = framing::decode_method_frame(frame.unwrap());
-        let open_ok : protocol::connection::OpenOk = protocol::Method::decode(method_frame).unwrap();
+        let open_ok : protocol::connection::OpenOk = match method_frame.method_name(){
+            "connection.open-ok" => protocol::Method::decode(method_frame).unwrap(),
+            meth => fail!("Unexpected method frame: {}", meth)
+        };
 
         Ok(connection)
-
-        //  The client opens a TCP/IP connection to the server and sends a protocol header. This is the only data
-        // the client sends that is not formatted as a method.
-        //  The server responds with its protocol version and other properties, including a list of the security
-        // mechanisms that it supports (the Start method).
-        //  The client selects a security mechanism (Start-Ok).
-        //  The server starts the authentication process, which uses the SASL challenge-response model. It sends
-        // the client a challenge (Secure).
-        //  The client sends an authentication response (Secure-Ok). For example using the "plain" mechanism,
-        // the response consist of a login name and password.
-        // Advanced Message Queuing Protocol Specification v0-9-1 Page 19 of 39 Copyright (c) 2006-2008. All rights reserved. See Notice and License. General Architecture
-        //  The server repeats the challenge (Secure) or moves to negotiation, sending a set of parameters such as
-        // maximum frame size (Tune).
-        //  The client accepts or lowers these parameters (Tune-Ok).
-        //  The client formally opens the connection and selects a virtual host (Open).
-        //  The server confirms that the virtual host is a valid choice (Open-Ok).
-        //  The client now uses the connection as desired
     }
+
     pub fn close(&mut self, reply_code: u16, reply_text: String) {
         let close = protocol::connection::Close{reply_code: reply_code, reply_text: reply_text, class_id: 0, method_id: 0};
         self.send_method_frame(0, &close).unwrap();
@@ -112,13 +111,13 @@ impl Connection {
         //TODO: Need to drop socket somehow (Maybe have an Option<Socket>)
     }
 
-    pub fn write(&mut self, frame: Frame) -> IoResult<()>{
-        self.socket.write(frame.encode().as_slice())
-    }
-
     pub fn send_method_frame(&mut self, channel: u16, method: &protocol::Method)  -> IoResult<()> {
         println!("Sending method {} to channel {}", method.name(), channel);
         self.write(Frame {frame_type: framing::METHOD, channel: channel, payload: framing::encode_method_frame(method) })
+    }
+
+    pub fn write(&mut self, frame: Frame) -> IoResult<()>{
+        self.socket.write(frame.encode().as_slice())
     }
 
     pub fn read(&mut self) -> IoResult<Frame> {

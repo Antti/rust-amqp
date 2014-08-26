@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::io::{IoResult, IoError, EndOfFile};
+use std::cmp;
 
 use connection;
 use framing;
@@ -59,12 +60,16 @@ impl Channel {
 			properties_flags: properties_flags, properties: properties.encode() };
 		let content_header_frame = framing::Frame {frame_type: framing::HEADERS, channel: self.id,
 			payload: framing::encode_content_header_frame(&content_header) };
-		let content_frame = framing::Frame { frame_type: framing::BODY, channel: self.id, payload: content };
 
-		//TODO: Slice content by connection.frame_max_limit and send one by one content frame.
+		//TODO: Check if need to include frame header + end octet into calculation. (9 bytes extra)
+		let content_frames = Channel::split_content_into_frames(content, connection.frame_max_limit as uint);
+
 		connection.send_method_frame(self.id, publish);
 		connection.write(content_header_frame);
-		connection.write(content_frame);
+
+		for content_frame in content_frames.move_iter() {
+			connection.write(framing::Frame { frame_type: framing::BODY, channel: self.id, payload: content_frame});
+		}
 	}
 
 	pub fn basic_get(&self, ticket: u16, queue: &str, no_ack: bool) -> IoResult<(protocol::basic::BasicProperties, Vec<u8>)> {
@@ -83,7 +88,26 @@ impl Channel {
   		}
 	}
 
+	fn split_content_into_frames(content: Vec<u8>, frame_limit: uint) -> Vec<Vec<u8>> {
+		let mut content_frames = vec!();
+		let mut current_pos = 0;
+		while current_pos < content.len() {
+			let new_pos = current_pos + cmp::min(content.len() - current_pos, frame_limit);
+			content_frames.push(content.slice(current_pos, new_pos).into_vec());
+			current_pos = new_pos;
+		}
+		content_frames
+	}
+
 	// exchangeDeclare
 	// queueDeclare
 	// queueBind
+}
+
+
+#[test]
+fn test_split_content_into_frames() {
+	let content = vec!(1,2,3,4,5,6,7,8,9,10);
+	let frames = Channel::split_content_into_frames(content, 3);
+	assert_eq!(frames, vec!(vec!(1, 2, 3), vec!(4, 5, 6), vec!(7, 8, 9), vec!(10)));
 }

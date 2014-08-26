@@ -10,7 +10,7 @@ fn main() {
     let channel = session.open_channel(1).unwrap();
     println!("Openned channel: {}", channel.id);
 
-    let queue_name = "fast_response_reviews";
+    let queue_name = "test_queue";
     loop {
     	match channel.basic_get(0, queue_name, true){
     		Ok((headers, body)) => {

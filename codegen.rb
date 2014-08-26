@@ -44,28 +44,32 @@ def map_type_to_rust(type)
   end
 end
 
-def read_type(name, type)
+def read_type(type)
   case type
   when "octet"
-    "let #{name} = try!(reader.read_byte());"
+    "try!(reader.read_byte())"
   when "long"
-    "let #{name} = try!(reader.read_be_u32());"
+    "try!(reader.read_be_u32())"
   when "longlong"
-    "let #{name} = try!(reader.read_be_u64());"
+    "try!(reader.read_be_u64())"
   when "short"
-    "let #{name} = try!(reader.read_be_u16());"
+    "try!(reader.read_be_u16())"
   when "bit"
     raise "Cant read bit here..."
   when "shortstr"
-    "let size = try!(reader.read_byte()) as uint;
-    let #{name} = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();"
+    "{
+        let size = try!(reader.read_byte()) as uint;
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     }"
   when "longstr"
-    "let size = try!(reader.read_be_u32()) as uint;
-    let #{name} = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();"
+    "{
+       let size = try!(reader.read_be_u32()) as uint;
+       String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+      }"
   when "table"
-    "let #{name} = try!(decode_table(&mut reader));"
+    "try!(decode_table(&mut reader))"
   when "timestamp"
-    "let #{name} = try!(reader.read_be_u64());"
+    "try!(reader.read_be_u64())"
   else
     raise "Unknown type: #{type}"
   end
@@ -102,6 +106,51 @@ def map_domain(domain)
   DOMAINS[domain]
 end
 
+def generate_reader_body(arguments)
+    puts "        let mut reader = MemReader::new(method_frame.arguments);"
+    n_bits = 0
+    arguments.each do |argument|
+      type = argument["domain"] ? map_domain(argument["domain"]) : argument["type"]
+      if type == "bit"
+        if n_bits == 0
+          puts pad_str(8, "let byte = try!(reader.read_byte());")
+          puts pad_str(8, "let bits = bitv::from_bytes([byte]);")
+        end
+        puts pad_str(8, "let #{normalize_argument(argument["name"])} = bits.get(#{n_bits});")
+        n_bits += 1
+        if n_bits == 8
+          n_bits = 0
+        end
+      else
+        n_bits = 0
+        puts pad_str(8, "let #{normalize_argument(argument["name"])} = #{read_type(type)};")
+      end
+    end
+end
+
+def generate_writer_body(arguments)
+    puts "        let mut writer = MemWriter::new();"
+    n_bits = 0
+    arguments.each do |argument|
+      type = argument["domain"] ? map_domain(argument["domain"]) : argument["type"]
+      if type == "bit"
+        if n_bits == 0
+          puts pad_str(8, "let mut bits = Bitv::new();")
+        end
+        puts pad_str(8, "bits.push(self.#{normalize_argument(argument["name"])});")
+        n_bits += 1
+      else
+        if n_bits > 0
+          puts pad_str(8, "writer.write(bits.to_bytes().as_slice()).unwrap();")
+          n_bits = 0
+        end
+        puts pad_str(8, write_type(normalize_argument(argument["name"]), type))
+      end
+    end
+    puts pad_str(8, "writer.write(bits.to_bytes().as_slice()).unwrap();") if n_bits > 0 #if bits were the last element
+    puts pad_str(8, "writer.unwrap()")
+end
+
 spec_file = 'amqp-rabbitmq-0.9.1.json'
 SPEC = JSON.load(File.read(spec_file))
 DOMAINS = Hash[SPEC["domains"]]
@@ -122,6 +171,7 @@ pub trait Method {
     fn class_id(&self) -> u16;
 }
 
+#[deriving(Show, Clone)]
 pub struct MethodFrame {
     pub class_id: u16,
     pub method_id: u16,
@@ -144,30 +194,79 @@ puts <<-RUST
         }
     }
 }
+
+#[deriving(Show, Clone)]
+pub struct ContentHeaderFrame {
+    pub content_class: u16,
+    pub weight: u16,
+    pub body_size: u64,
+    pub properties_flags: u16,
+    pub properties: Vec<u8>
+}
+
 RUST
 
 SPEC["classes"].each do |klass|
   struct_name = titleize(klass["name"])
   puts "#[allow(unused_imports)]"
   puts "pub mod #{klass["name"]} {"
-  puts "use std::io::{MemReader, MemWriter, InvalidInput, IoResult, IoError};\n"
-  puts "use table::{Table, decode_table, encode_table};"
   puts "use std::collections::bitv;"
   puts "use std::collections::bitv::Bitv;"
+  puts "use std::io::{MemReader, MemWriter, InvalidInput, IoResult, IoError};"
+  puts
+  puts "use table::{Table, decode_table, encode_table};"
   puts "use protocol;"
   puts "use protocol::Method;"
-  puts ""
+  puts
+
+  #properties struct definition
+  if klass["properties"]
+    props = klass["properties"].map do |prop|
+      rust_type = map_type_to_rust prop["domain"] ? map_domain(prop["domain"]) : prop["type"]
+      "pub #{normalize_argument prop["name"]}: Option<#{rust_type}>"
+    end
+    puts "//properties struct for #{klass["name"]}"
+    properties_struct_name = "#{struct_name}Properties"
+    if klass["properties"].any?
+      puts "#[deriving(Show, Default)]"
+      puts "pub struct #{properties_struct_name} {"
+      puts pad_str(4, props.join(",\n"))
+      puts "}"
+      puts
+      puts "impl #{properties_struct_name} {"
+      puts "    pub fn decode(content_header_frame: protocol::ContentHeaderFrame) -> IoResult<#{properties_struct_name}> {"
+      puts "        let mut reader = MemReader::new(content_header_frame.properties);"
+      puts "        let properties_flags = bitv::from_bytes([((content_header_frame.properties_flags >> 8) & 0xff) as u8,
+        (content_header_frame.properties_flags & 0xff) as u8]);"
+      klass["properties"].each.with_index do |prop, idx|
+        prop_name = normalize_argument prop["name"]
+        puts pad_str(8, "let #{prop_name} = if properties_flags.get(#{idx}) {")
+          type = prop["domain"] ? map_domain(prop["domain"]) : prop["type"]
+          puts pad_str(12, "Some(#{read_type(type)})")
+        puts pad_str(8, "} else {")
+          puts pad_str(12, "None")
+        puts pad_str(8, "};")
+      end
+      fields = klass["properties"].map{|arg| "#{normalize_argument arg["name"]}: #{normalize_argument arg["name"]}"}
+      puts "        Ok(#{properties_struct_name} { #{fields.join(", ")} })"
+      puts "    }"
+      puts "}"
+    else
+      puts "pub struct #{struct_name}Properties;"
+    end
+  end
+
 
   klass["methods"].each do |method|
     method_name = normalize_method titleize(method["name"])
     properties = method["properties"]
+    arguments = method["arguments"]
 
-    fields = method["arguments"].map do |argument|
+    fields = arguments.map do |argument|
       rust_type = map_type_to_rust argument["domain"] ? map_domain(argument["domain"]) : argument["type"]
       "pub #{normalize_argument argument["name"]}: #{rust_type}"
     end
 
-    #struct definition
     puts "// Method #{method["id"]}:#{method["name"]}"
     puts "#[deriving(Show)]"
     if fields.any?
@@ -191,71 +290,27 @@ SPEC["classes"].each do |klass|
     puts "    }"
 
     #Decode
-    if method["arguments"].any?
-      puts "    fn decode(method_frame: protocol::MethodFrame) -> IoResult<#{method_name}> {"
-      puts "        if method_frame.class_id != #{klass["id"]} || method_frame.method_id != #{method["id"]} {"
-      puts "           return Err(IoError{kind: InvalidInput, desc: \"Frame class_id & method_id didn't match\", detail: None});"
-      puts "        }"
-      puts "        let mut reader = MemReader::new(method_frame.arguments);"
-      n_bits = 0
-      method["arguments"].each do |argument|
-        type = argument["domain"] ? map_domain(argument["domain"]) : argument["type"]
-        if type == "bit"
-          if n_bits == 0
-            puts pad_str(8, "let byte = try!(reader.read_byte());")
-            puts pad_str(8, "let bits = bitv::from_bytes([byte]);")
-          end
-          puts pad_str(8, "let #{normalize_argument(argument["name"])} = bits.get(#{n_bits});")
-          n_bits += 1
-          if n_bits == 8
-            n_bits = 0
-          end
-        else
-          n_bits = 0
-          puts pad_str(8, "#{read_type(normalize_argument(argument["name"]), type)}")
-        end
-      end
-      fields = method["arguments"].map{|arg| "#{normalize_argument arg["name"]}: #{normalize_argument arg["name"]}"}
+    puts "    fn decode(method_frame: protocol::MethodFrame) -> IoResult<#{method_name}> {"
+    puts "        if method_frame.class_id != #{klass["id"]} || method_frame.method_id != #{method["id"]} {"
+    puts "           return Err(IoError{kind: InvalidInput, desc: \"Frame class_id & method_id didn't match\", detail: None});"
+    puts "        }"
+    if arguments.any?
+      generate_reader_body(arguments)
+      fields = arguments.map{|arg| "#{normalize_argument arg["name"]}: #{normalize_argument arg["name"]}"}
       puts "        Ok(#{method_name} { #{fields.join(", ")} })"
-      puts "    }"
     else
-      puts "    fn decode(method_frame: protocol::MethodFrame) -> IoResult<#{method_name}> {"
-      puts "        if method_frame.class_id != #{klass["id"]} || method_frame.method_id != #{method["id"]} {"
-      puts "           return Err(IoError{kind: InvalidInput, desc: \"Frame class_id & method_id didn't match\", detail: None});"
-      puts "        }"
       puts "        Ok(#{method_name})"
-      puts "    }"
-    end#decode
+    end
+    puts "    }"
 
     #Encode
-    if method["arguments"].any?
-      puts "    fn encode(&self) -> Vec<u8> {"
-      puts "        let mut writer = MemWriter::new();"
-      n_bits = 0
-      method["arguments"].each do |argument|
-        type = argument["domain"] ? map_domain(argument["domain"]) : argument["type"]
-        if type == "bit"
-          if n_bits == 0
-            puts pad_str(8, "let mut bits = Bitv::new();")
-          end
-          puts pad_str(8, "bits.push(self.#{normalize_argument(argument["name"])});")
-          n_bits += 1
-        else
-          if n_bits > 0
-            puts pad_str(8, "writer.write(bits.to_bytes().as_slice()).unwrap();")
-            n_bits = 0
-          end
-          puts pad_str(8, "#{write_type(normalize_argument(argument["name"]), type)}")
-        end
-      end
-      puts pad_str(8, "writer.write(bits.to_bytes().as_slice()).unwrap();") if n_bits > 0 #if bits were the last element
-      puts pad_str(8,"writer.unwrap()")
-      puts pad_str(4,"}")
+    puts "    fn encode(&self) -> Vec<u8> {"
+    if arguments.any?
+      generate_writer_body(arguments)
     else
-      puts pad_str(4, "fn encode(&self) -> Vec<u8> {")
-      puts pad_str(8,"vec!()")
-      puts pad_str(4,"}")
-    end #encode
+      puts(pad_str(8, "vec!()"))
+    end
+    puts pad_str(4, "}")
 
     puts "}"
   end

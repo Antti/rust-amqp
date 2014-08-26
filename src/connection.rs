@@ -4,10 +4,10 @@ use std::default::Default;
 use std::cmp;
 use framing;
 use framing::Frame;
+use channel;
 use protocol;
 use table::{FieldTable, Table, Bool, ShortShortInt, ShortShortUint, ShortInt, ShortUint, LongInt, LongUint, LongLongInt, LongLongUint, Float, Double, DecimalValue, LongString, FieldArray, Timestamp};
 use std::collections::TreeMap;
-
 
 pub struct Connection {
     socket: TcpStream
@@ -36,6 +36,11 @@ impl <'a>  Default for Options <'a>  {
 }
 
 impl Connection {
+    // pub fn from_url(url_string: &str) -> IoResult<Connection> {
+    //     let url = URL::parse(url_string);
+    //     let opts = Options { host: url.host, port: url.port, login: url.login, password: url.password, vhost: url.path, ..Options::default()};
+    //     Connection::open(opts)
+    // }
     pub fn open(options: Options) -> IoResult<Connection> {
         let mut socket = try!(TcpStream::connect(options.host, options.port));
         try!(socket.write([b'A', b'M', b'Q', b'P', 0, 0, 9, 1]));
@@ -72,14 +77,7 @@ impl Connection {
         let start_ok = protocol::connection::StartOk {
             client_properties: client_properties, mechanism: "PLAIN".to_string(),
             response: format!("\0{}\0{}", options.login, options.password), locale: options.locale.to_string()};
-        try!(connection.send_method_frame(0, &start_ok));
-
-        let frame = connection.read();//Tune
-        let method_frame = framing::decode_method_frame(frame.unwrap());
-        let tune : protocol::connection::Tune = match method_frame.method_name(){
-            "connection.tune" => protocol::Method::decode(method_frame).unwrap(),
-            meth => fail!("Unexpected method frame: {}", meth)
-        };
+        let tune : protocol::connection::Tune = try!(connection.rpc(0, &start_ok, "connection.tune"));
 
         let tune_ok = protocol::connection::TuneOk {
             channel_max: negotiate(tune.channel_max, options.channel_max_limit),
@@ -87,25 +85,15 @@ impl Connection {
         try!(connection.send_method_frame(0, &tune_ok));
 
         let open = protocol::connection::Open{virtual_host: options.vhost.to_string(), capabilities: "".to_string(), insist: false };
-        try!(connection.send_method_frame(0, &open));
-
-        let frame = connection.read();//Open-ok
-        let method_frame = framing::decode_method_frame(frame.unwrap());
-        let open_ok : protocol::connection::OpenOk = match method_frame.method_name(){
-            "connection.open-ok" => protocol::Method::decode(method_frame).unwrap(),
-            meth => fail!("Unexpected method frame: {}", meth)
-        };
+        let open_ok : protocol::connection::OpenOk = try!(connection.rpc(0, &open, "connection.open-ok"));
 
         Ok(connection)
     }
 
     pub fn close(&mut self, reply_code: u16, reply_text: String) {
         let close = protocol::connection::Close{reply_code: reply_code, reply_text: reply_text, class_id: 0, method_id: 0};
-        self.send_method_frame(0, &close).unwrap();
+        let close_ok : protocol::connection::CloseOk = self.rpc(0, &close, "connection.close-ok").unwrap();
 
-        let frame = self.read();//close-ok
-        let method_frame = framing::decode_method_frame(frame.unwrap());
-        let close_ok : protocol::connection::CloseOk = protocol::Method::decode(method_frame).unwrap();
         self.socket.close_write().unwrap();
         self.socket.close_read().unwrap();
         //TODO: Need to drop socket somehow (Maybe have an Option<Socket>)
@@ -114,6 +102,19 @@ impl Connection {
     pub fn send_method_frame(&mut self, channel: u16, method: &protocol::Method)  -> IoResult<()> {
         println!("Sending method {} to channel {}", method.name(), channel);
         self.write(Frame {frame_type: framing::METHOD, channel: channel, payload: framing::encode_method_frame(method) })
+    }
+
+    pub fn rpc<T: protocol::Method>(&mut self, channel: u16, method: &protocol::Method, expected_reply: &str) -> IoResult<T> {
+        let method_frame = try!(self.raw_rpc(channel, method));
+        match method_frame.method_name() {
+            m_name if m_name == expected_reply => protocol::Method::decode(method_frame),
+            m_name => fail!("Unexpected method frame: {}, expected: {}", m_name, expected_reply)
+        }
+    }
+
+    pub fn raw_rpc(&mut self, channel: u16, method: &protocol::Method) -> IoResult<protocol::MethodFrame> {
+        self.send_method_frame(channel, method);
+        self.read().map(|frame| framing::decode_method_frame(frame))
     }
 
     pub fn write(&mut self, frame: Frame) -> IoResult<()>{

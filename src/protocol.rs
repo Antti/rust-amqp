@@ -11,6 +11,7 @@ pub trait Method {
     fn class_id(&self) -> u16;
 }
 
+#[deriving(Show, Clone)]
 pub struct MethodFrame {
     pub class_id: u16,
     pub method_id: u16,
@@ -88,15 +89,28 @@ impl MethodFrame {
         }
     }
 }
+
+#[deriving(Show, Clone)]
+pub struct ContentHeaderFrame {
+    pub content_class: u16,
+    pub weight: u16,
+    pub body_size: u64,
+    pub properties_flags: u16,
+    pub properties: Vec<u8>
+}
+
 #[allow(unused_imports)]
 pub mod connection {
-use std::io::{MemReader, MemWriter, InvalidInput, IoResult, IoError};
-use table::{Table, decode_table, encode_table};
 use std::collections::bitv;
 use std::collections::bitv::Bitv;
+use std::io::{MemReader, MemWriter, InvalidInput, IoResult, IoError};
+
+use table::{Table, decode_table, encode_table};
 use protocol;
 use protocol::Method;
 
+//properties struct for connection
+pub struct ConnectionProperties;
 // Method 10:start
 #[deriving(Show)]
 pub struct Start {
@@ -124,10 +138,14 @@ impl Method for Start {
         let version_major = try!(reader.read_byte());
         let version_minor = try!(reader.read_byte());
         let server_properties = try!(decode_table(&mut reader));
+        let mechanisms = {
         let size = try!(reader.read_be_u32()) as uint;
-        let mechanisms = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+        };
+        let locales = {
         let size = try!(reader.read_be_u32()) as uint;
-        let locales = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+        };
         Ok(Start { version_major: version_major, version_minor: version_minor, server_properties: server_properties, mechanisms: mechanisms, locales: locales })
     }
     fn encode(&self) -> Vec<u8> {
@@ -166,12 +184,18 @@ impl Method for StartOk {
         }
         let mut reader = MemReader::new(method_frame.arguments);
         let client_properties = try!(decode_table(&mut reader));
+        let mechanism = {
         let size = try!(reader.read_byte()) as uint;
-        let mechanism = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+        };
+        let response = {
         let size = try!(reader.read_be_u32()) as uint;
-        let response = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+        };
+        let locale = {
         let size = try!(reader.read_byte()) as uint;
-        let locale = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+        };
         Ok(StartOk { client_properties: client_properties, mechanism: mechanism, response: response, locale: locale })
     }
     fn encode(&self) -> Vec<u8> {
@@ -206,8 +230,10 @@ impl Method for Secure {
            return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
         }
         let mut reader = MemReader::new(method_frame.arguments);
+        let challenge = {
         let size = try!(reader.read_be_u32()) as uint;
-        let challenge = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+        };
         Ok(Secure { challenge: challenge })
     }
     fn encode(&self) -> Vec<u8> {
@@ -237,8 +263,10 @@ impl Method for SecureOk {
            return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
         }
         let mut reader = MemReader::new(method_frame.arguments);
+        let response = {
         let size = try!(reader.read_be_u32()) as uint;
-        let response = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+        };
         Ok(SecureOk { response: response })
     }
     fn encode(&self) -> Vec<u8> {
@@ -340,10 +368,14 @@ impl Method for Open {
            return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
         }
         let mut reader = MemReader::new(method_frame.arguments);
+        let virtual_host = {
         let size = try!(reader.read_byte()) as uint;
-        let virtual_host = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+        };
+        let capabilities = {
         let size = try!(reader.read_byte()) as uint;
-        let capabilities = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+        };
         let byte = try!(reader.read_byte());
         let bits = bitv::from_bytes([byte]);
         let insist = bits.get(0);
@@ -381,8 +413,10 @@ impl Method for OpenOk {
            return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
         }
         let mut reader = MemReader::new(method_frame.arguments);
+        let known_hosts = {
         let size = try!(reader.read_byte()) as uint;
-        let known_hosts = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+        };
         Ok(OpenOk { known_hosts: known_hosts })
     }
     fn encode(&self) -> Vec<u8> {
@@ -416,8 +450,10 @@ impl Method for Close {
         }
         let mut reader = MemReader::new(method_frame.arguments);
         let reply_code = try!(reader.read_be_u16());
+        let reply_text = {
         let size = try!(reader.read_byte()) as uint;
-        let reply_text = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+        };
         let class_id = try!(reader.read_be_u16());
         let method_id = try!(reader.read_be_u16());
         Ok(Close { reply_code: reply_code, reply_text: reply_text, class_id: class_id, method_id: method_id })
@@ -475,8 +511,10 @@ impl Method for Blocked {
            return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
         }
         let mut reader = MemReader::new(method_frame.arguments);
+        let reason = {
         let size = try!(reader.read_byte()) as uint;
-        let reason = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+        };
         Ok(Blocked { reason: reason })
     }
     fn encode(&self) -> Vec<u8> {
@@ -512,10 +550,11 @@ impl Method for Unblocked {
 }
 #[allow(unused_imports)]
 pub mod channel {
-use std::io::{MemReader, MemWriter, InvalidInput, IoResult, IoError};
-use table::{Table, decode_table, encode_table};
 use std::collections::bitv;
 use std::collections::bitv::Bitv;
+use std::io::{MemReader, MemWriter, InvalidInput, IoResult, IoError};
+
+use table::{Table, decode_table, encode_table};
 use protocol;
 use protocol::Method;
 
@@ -539,8 +578,10 @@ impl Method for Open {
            return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
         }
         let mut reader = MemReader::new(method_frame.arguments);
+        let out_of_band = {
         let size = try!(reader.read_byte()) as uint;
-        let out_of_band = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+        };
         Ok(Open { out_of_band: out_of_band })
     }
     fn encode(&self) -> Vec<u8> {
@@ -570,8 +611,10 @@ impl Method for OpenOk {
            return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
         }
         let mut reader = MemReader::new(method_frame.arguments);
+        let channel_id = {
         let size = try!(reader.read_be_u32()) as uint;
-        let channel_id = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+        };
         Ok(OpenOk { channel_id: channel_id })
     }
     fn encode(&self) -> Vec<u8> {
@@ -671,8 +714,10 @@ impl Method for Close {
         }
         let mut reader = MemReader::new(method_frame.arguments);
         let reply_code = try!(reader.read_be_u16());
+        let reply_text = {
         let size = try!(reader.read_byte()) as uint;
-        let reply_text = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+        };
         let class_id = try!(reader.read_be_u16());
         let method_id = try!(reader.read_be_u16());
         Ok(Close { reply_code: reply_code, reply_text: reply_text, class_id: class_id, method_id: method_id })
@@ -713,10 +758,11 @@ impl Method for CloseOk {
 }
 #[allow(unused_imports)]
 pub mod access {
-use std::io::{MemReader, MemWriter, InvalidInput, IoResult, IoError};
-use table::{Table, decode_table, encode_table};
 use std::collections::bitv;
 use std::collections::bitv::Bitv;
+use std::io::{MemReader, MemWriter, InvalidInput, IoResult, IoError};
+
+use table::{Table, decode_table, encode_table};
 use protocol;
 use protocol::Method;
 
@@ -745,8 +791,10 @@ impl Method for Request {
            return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
         }
         let mut reader = MemReader::new(method_frame.arguments);
+        let realm = {
         let size = try!(reader.read_byte()) as uint;
-        let realm = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+        };
         let byte = try!(reader.read_byte());
         let bits = bitv::from_bytes([byte]);
         let exclusive = bits.get(0);
@@ -802,10 +850,11 @@ impl Method for RequestOk {
 }
 #[allow(unused_imports)]
 pub mod exchange {
-use std::io::{MemReader, MemWriter, InvalidInput, IoResult, IoError};
-use table::{Table, decode_table, encode_table};
 use std::collections::bitv;
 use std::collections::bitv::Bitv;
+use std::io::{MemReader, MemWriter, InvalidInput, IoResult, IoError};
+
+use table::{Table, decode_table, encode_table};
 use protocol;
 use protocol::Method;
 
@@ -838,10 +887,14 @@ impl Method for Declare {
         }
         let mut reader = MemReader::new(method_frame.arguments);
         let ticket = try!(reader.read_be_u16());
+        let exchange = {
         let size = try!(reader.read_byte()) as uint;
-        let exchange = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+        };
+        let _type = {
         let size = try!(reader.read_byte()) as uint;
-        let _type = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+        };
         let byte = try!(reader.read_byte());
         let bits = bitv::from_bytes([byte]);
         let passive = bits.get(0);
@@ -917,8 +970,10 @@ impl Method for Delete {
         }
         let mut reader = MemReader::new(method_frame.arguments);
         let ticket = try!(reader.read_be_u16());
+        let exchange = {
         let size = try!(reader.read_byte()) as uint;
-        let exchange = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+        };
         let byte = try!(reader.read_byte());
         let bits = bitv::from_bytes([byte]);
         let if_unused = bits.get(0);
@@ -986,12 +1041,18 @@ impl Method for Bind {
         }
         let mut reader = MemReader::new(method_frame.arguments);
         let ticket = try!(reader.read_be_u16());
+        let destination = {
         let size = try!(reader.read_byte()) as uint;
-        let destination = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+        };
+        let source = {
         let size = try!(reader.read_byte()) as uint;
-        let source = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+        };
+        let routing_key = {
         let size = try!(reader.read_byte()) as uint;
-        let routing_key = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+        };
         let byte = try!(reader.read_byte());
         let bits = bitv::from_bytes([byte]);
         let nowait = bits.get(0);
@@ -1063,12 +1124,18 @@ impl Method for Unbind {
         }
         let mut reader = MemReader::new(method_frame.arguments);
         let ticket = try!(reader.read_be_u16());
+        let destination = {
         let size = try!(reader.read_byte()) as uint;
-        let destination = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+        };
+        let source = {
         let size = try!(reader.read_byte()) as uint;
-        let source = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+        };
+        let routing_key = {
         let size = try!(reader.read_byte()) as uint;
-        let routing_key = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+        };
         let byte = try!(reader.read_byte());
         let bits = bitv::from_bytes([byte]);
         let nowait = bits.get(0);
@@ -1117,10 +1184,11 @@ impl Method for UnbindOk {
 }
 #[allow(unused_imports)]
 pub mod queue {
-use std::io::{MemReader, MemWriter, InvalidInput, IoResult, IoError};
-use table::{Table, decode_table, encode_table};
 use std::collections::bitv;
 use std::collections::bitv::Bitv;
+use std::io::{MemReader, MemWriter, InvalidInput, IoResult, IoError};
+
+use table::{Table, decode_table, encode_table};
 use protocol;
 use protocol::Method;
 
@@ -1152,8 +1220,10 @@ impl Method for Declare {
         }
         let mut reader = MemReader::new(method_frame.arguments);
         let ticket = try!(reader.read_be_u16());
+        let queue = {
         let size = try!(reader.read_byte()) as uint;
-        let queue = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+        };
         let byte = try!(reader.read_byte());
         let bits = bitv::from_bytes([byte]);
         let passive = bits.get(0);
@@ -1202,8 +1272,10 @@ impl Method for DeclareOk {
            return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
         }
         let mut reader = MemReader::new(method_frame.arguments);
+        let queue = {
         let size = try!(reader.read_byte()) as uint;
-        let queue = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+        };
         let message_count = try!(reader.read_be_u32());
         let consumer_count = try!(reader.read_be_u32());
         Ok(DeclareOk { queue: queue, message_count: message_count, consumer_count: consumer_count })
@@ -1243,12 +1315,18 @@ impl Method for Bind {
         }
         let mut reader = MemReader::new(method_frame.arguments);
         let ticket = try!(reader.read_be_u16());
+        let queue = {
         let size = try!(reader.read_byte()) as uint;
-        let queue = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+        };
+        let exchange = {
         let size = try!(reader.read_byte()) as uint;
-        let exchange = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+        };
+        let routing_key = {
         let size = try!(reader.read_byte()) as uint;
-        let routing_key = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+        };
         let byte = try!(reader.read_byte());
         let bits = bitv::from_bytes([byte]);
         let nowait = bits.get(0);
@@ -1317,8 +1395,10 @@ impl Method for Purge {
         }
         let mut reader = MemReader::new(method_frame.arguments);
         let ticket = try!(reader.read_be_u16());
+        let queue = {
         let size = try!(reader.read_byte()) as uint;
-        let queue = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+        };
         let byte = try!(reader.read_byte());
         let bits = bitv::from_bytes([byte]);
         let nowait = bits.get(0);
@@ -1389,8 +1469,10 @@ impl Method for Delete {
         }
         let mut reader = MemReader::new(method_frame.arguments);
         let ticket = try!(reader.read_be_u16());
+        let queue = {
         let size = try!(reader.read_byte()) as uint;
-        let queue = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+        };
         let byte = try!(reader.read_byte());
         let bits = bitv::from_bytes([byte]);
         let if_unused = bits.get(0);
@@ -1465,12 +1547,18 @@ impl Method for Unbind {
         }
         let mut reader = MemReader::new(method_frame.arguments);
         let ticket = try!(reader.read_be_u16());
+        let queue = {
         let size = try!(reader.read_byte()) as uint;
-        let queue = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+        };
+        let exchange = {
         let size = try!(reader.read_byte()) as uint;
-        let exchange = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+        };
+        let routing_key = {
         let size = try!(reader.read_byte()) as uint;
-        let routing_key = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+        };
         let arguments = try!(decode_table(&mut reader));
         Ok(Unbind { ticket: ticket, queue: queue, exchange: exchange, routing_key: routing_key, arguments: arguments })
     }
@@ -1513,13 +1601,141 @@ impl Method for UnbindOk {
 }
 #[allow(unused_imports)]
 pub mod basic {
-use std::io::{MemReader, MemWriter, InvalidInput, IoResult, IoError};
-use table::{Table, decode_table, encode_table};
 use std::collections::bitv;
 use std::collections::bitv::Bitv;
+use std::io::{MemReader, MemWriter, InvalidInput, IoResult, IoError};
+
+use table::{Table, decode_table, encode_table};
 use protocol;
 use protocol::Method;
 
+//properties struct for basic
+#[deriving(Show, Default)]
+pub struct BasicProperties {
+    pub content_type: Option<String>,
+    pub content_encoding: Option<String>,
+    pub headers: Option<Table>,
+    pub delivery_mode: Option<u8>,
+    pub priority: Option<u8>,
+    pub correlation_id: Option<String>,
+    pub reply_to: Option<String>,
+    pub expiration: Option<String>,
+    pub message_id: Option<String>,
+    pub timestamp: Option<u64>,
+    pub _type: Option<String>,
+    pub user_id: Option<String>,
+    pub app_id: Option<String>,
+    pub cluster_id: Option<String>
+}
+
+impl BasicProperties {
+    pub fn decode(content_header_frame: protocol::ContentHeaderFrame) -> IoResult<BasicProperties> {
+        let mut reader = MemReader::new(content_header_frame.properties);
+        let properties_flags = bitv::from_bytes([((content_header_frame.properties_flags >> 8) & 0xff) as u8,
+        (content_header_frame.properties_flags & 0xff) as u8]);
+        let content_type = if properties_flags.get(0) {
+            Some({
+            let size = try!(reader.read_byte()) as uint;
+            String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+            })
+        } else {
+            None
+        };
+        let content_encoding = if properties_flags.get(1) {
+            Some({
+            let size = try!(reader.read_byte()) as uint;
+            String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+            })
+        } else {
+            None
+        };
+        let headers = if properties_flags.get(2) {
+            Some(try!(decode_table(&mut reader)))
+        } else {
+            None
+        };
+        let delivery_mode = if properties_flags.get(3) {
+            Some(try!(reader.read_byte()))
+        } else {
+            None
+        };
+        let priority = if properties_flags.get(4) {
+            Some(try!(reader.read_byte()))
+        } else {
+            None
+        };
+        let correlation_id = if properties_flags.get(5) {
+            Some({
+            let size = try!(reader.read_byte()) as uint;
+            String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+            })
+        } else {
+            None
+        };
+        let reply_to = if properties_flags.get(6) {
+            Some({
+            let size = try!(reader.read_byte()) as uint;
+            String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+            })
+        } else {
+            None
+        };
+        let expiration = if properties_flags.get(7) {
+            Some({
+            let size = try!(reader.read_byte()) as uint;
+            String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+            })
+        } else {
+            None
+        };
+        let message_id = if properties_flags.get(8) {
+            Some({
+            let size = try!(reader.read_byte()) as uint;
+            String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+            })
+        } else {
+            None
+        };
+        let timestamp = if properties_flags.get(9) {
+            Some(try!(reader.read_be_u64()))
+        } else {
+            None
+        };
+        let _type = if properties_flags.get(10) {
+            Some({
+            let size = try!(reader.read_byte()) as uint;
+            String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+            })
+        } else {
+            None
+        };
+        let user_id = if properties_flags.get(11) {
+            Some({
+            let size = try!(reader.read_byte()) as uint;
+            String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+            })
+        } else {
+            None
+        };
+        let app_id = if properties_flags.get(12) {
+            Some({
+            let size = try!(reader.read_byte()) as uint;
+            String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+            })
+        } else {
+            None
+        };
+        let cluster_id = if properties_flags.get(13) {
+            Some({
+            let size = try!(reader.read_byte()) as uint;
+            String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+            })
+        } else {
+            None
+        };
+        Ok(BasicProperties { content_type: content_type, content_encoding: content_encoding, headers: headers, delivery_mode: delivery_mode, priority: priority, correlation_id: correlation_id, reply_to: reply_to, expiration: expiration, message_id: message_id, timestamp: timestamp, _type: _type, user_id: user_id, app_id: app_id, cluster_id: cluster_id })
+    }
+}
 // Method 10:qos
 #[deriving(Show)]
 pub struct Qos {
@@ -1610,10 +1826,14 @@ impl Method for Consume {
         }
         let mut reader = MemReader::new(method_frame.arguments);
         let ticket = try!(reader.read_be_u16());
+        let queue = {
         let size = try!(reader.read_byte()) as uint;
-        let queue = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+        };
+        let consumer_tag = {
         let size = try!(reader.read_byte()) as uint;
-        let consumer_tag = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+        };
         let byte = try!(reader.read_byte());
         let bits = bitv::from_bytes([byte]);
         let no_local = bits.get(0);
@@ -1660,8 +1880,10 @@ impl Method for ConsumeOk {
            return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
         }
         let mut reader = MemReader::new(method_frame.arguments);
+        let consumer_tag = {
         let size = try!(reader.read_byte()) as uint;
-        let consumer_tag = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+        };
         Ok(ConsumeOk { consumer_tag: consumer_tag })
     }
     fn encode(&self) -> Vec<u8> {
@@ -1692,8 +1914,10 @@ impl Method for Cancel {
            return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
         }
         let mut reader = MemReader::new(method_frame.arguments);
+        let consumer_tag = {
         let size = try!(reader.read_byte()) as uint;
-        let consumer_tag = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+        };
         let byte = try!(reader.read_byte());
         let bits = bitv::from_bytes([byte]);
         let nowait = bits.get(0);
@@ -1729,8 +1953,10 @@ impl Method for CancelOk {
            return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
         }
         let mut reader = MemReader::new(method_frame.arguments);
+        let consumer_tag = {
         let size = try!(reader.read_byte()) as uint;
-        let consumer_tag = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+        };
         Ok(CancelOk { consumer_tag: consumer_tag })
     }
     fn encode(&self) -> Vec<u8> {
@@ -1765,10 +1991,14 @@ impl Method for Publish {
         }
         let mut reader = MemReader::new(method_frame.arguments);
         let ticket = try!(reader.read_be_u16());
+        let exchange = {
         let size = try!(reader.read_byte()) as uint;
-        let exchange = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+        };
+        let routing_key = {
         let size = try!(reader.read_byte()) as uint;
-        let routing_key = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+        };
         let byte = try!(reader.read_byte());
         let bits = bitv::from_bytes([byte]);
         let mandatory = bits.get(0);
@@ -1813,12 +2043,18 @@ impl Method for Return {
         }
         let mut reader = MemReader::new(method_frame.arguments);
         let reply_code = try!(reader.read_be_u16());
+        let reply_text = {
         let size = try!(reader.read_byte()) as uint;
-        let reply_text = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+        };
+        let exchange = {
         let size = try!(reader.read_byte()) as uint;
-        let exchange = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+        };
+        let routing_key = {
         let size = try!(reader.read_byte()) as uint;
-        let routing_key = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+        };
         Ok(Return { reply_code: reply_code, reply_text: reply_text, exchange: exchange, routing_key: routing_key })
     }
     fn encode(&self) -> Vec<u8> {
@@ -1857,16 +2093,22 @@ impl Method for Deliver {
            return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
         }
         let mut reader = MemReader::new(method_frame.arguments);
+        let consumer_tag = {
         let size = try!(reader.read_byte()) as uint;
-        let consumer_tag = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+        };
         let delivery_tag = try!(reader.read_be_u64());
         let byte = try!(reader.read_byte());
         let bits = bitv::from_bytes([byte]);
         let redelivered = bits.get(0);
+        let exchange = {
         let size = try!(reader.read_byte()) as uint;
-        let exchange = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+        };
+        let routing_key = {
         let size = try!(reader.read_byte()) as uint;
-        let routing_key = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+        };
         Ok(Deliver { consumer_tag: consumer_tag, delivery_tag: delivery_tag, redelivered: redelivered, exchange: exchange, routing_key: routing_key })
     }
     fn encode(&self) -> Vec<u8> {
@@ -1907,8 +2149,10 @@ impl Method for Get {
         }
         let mut reader = MemReader::new(method_frame.arguments);
         let ticket = try!(reader.read_be_u16());
+        let queue = {
         let size = try!(reader.read_byte()) as uint;
-        let queue = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+        };
         let byte = try!(reader.read_byte());
         let bits = bitv::from_bytes([byte]);
         let no_ack = bits.get(0);
@@ -1953,10 +2197,14 @@ impl Method for GetOk {
         let byte = try!(reader.read_byte());
         let bits = bitv::from_bytes([byte]);
         let redelivered = bits.get(0);
+        let exchange = {
         let size = try!(reader.read_byte()) as uint;
-        let exchange = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+        };
+        let routing_key = {
         let size = try!(reader.read_byte()) as uint;
-        let routing_key = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+        };
         let message_count = try!(reader.read_be_u32());
         Ok(GetOk { delivery_tag: delivery_tag, redelivered: redelivered, exchange: exchange, routing_key: routing_key, message_count: message_count })
     }
@@ -1994,8 +2242,10 @@ impl Method for GetEmpty {
            return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
         }
         let mut reader = MemReader::new(method_frame.arguments);
+        let cluster_id = {
         let size = try!(reader.read_byte()) as uint;
-        let cluster_id = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string();
+        String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+        };
         Ok(GetEmpty { cluster_id: cluster_id })
     }
     fn encode(&self) -> Vec<u8> {
@@ -2208,10 +2458,11 @@ impl Method for Nack {
 }
 #[allow(unused_imports)]
 pub mod tx {
-use std::io::{MemReader, MemWriter, InvalidInput, IoResult, IoError};
-use table::{Table, decode_table, encode_table};
 use std::collections::bitv;
 use std::collections::bitv::Bitv;
+use std::io::{MemReader, MemWriter, InvalidInput, IoResult, IoError};
+
+use table::{Table, decode_table, encode_table};
 use protocol;
 use protocol::Method;
 
@@ -2356,10 +2607,11 @@ impl Method for RollbackOk {
 }
 #[allow(unused_imports)]
 pub mod confirm {
-use std::io::{MemReader, MemWriter, InvalidInput, IoResult, IoError};
-use table::{Table, decode_table, encode_table};
 use std::collections::bitv;
 use std::collections::bitv::Bitv;
+use std::io::{MemReader, MemWriter, InvalidInput, IoResult, IoError};
+
+use table::{Table, decode_table, encode_table};
 use protocol;
 use protocol::Method;
 

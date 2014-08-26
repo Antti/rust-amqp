@@ -1,5 +1,5 @@
 use std::io::{MemReader, MemWriter, IoResult, IoError, InvalidInput, OtherIoError};
-use protocol::{Method, MethodFrame};
+use protocol::{Method, MethodFrame, ContentHeaderFrame};
 
 #[deriving(Show, Clone, Eq, PartialEq, FromPrimitive)]
 pub enum FrameType {
@@ -52,6 +52,9 @@ impl Frame {
 
 // We need this method, so we can match on class_id & method_id
 pub fn decode_method_frame(frame: Frame) -> MethodFrame {
+    if frame.frame_type != METHOD {
+        fail!("Not a method frame");
+    }
     let mut reader = MemReader::new(frame.payload);
     let class_id = reader.read_be_u16().unwrap();
     let method_id = reader.read_be_u16().unwrap();
@@ -67,15 +70,17 @@ pub fn encode_method_frame(method: &Method) -> Vec<u8> {
     writer.unwrap()
 }
 
-//                                                    class_id, weight, body_size, property flags, property list
-pub fn decode_content_header_frame(frame: &Frame) -> (u16, u16, u64, u16, Vec<u8>) {
+pub fn decode_content_header_frame(frame: Frame) -> IoResult<ContentHeaderFrame> {
     let mut reader = MemReader::new(frame.payload.clone());
-    let content_class = reader.read_be_u16().unwrap();
-    let weight = reader.read_be_u16().unwrap(); //0 all the time for now
-    let body_size = reader.read_be_u64().unwrap();
-    let property_flags = reader.read_be_u16().unwrap(); //compressed_index in ruby amq-protocol
-    let properties = reader.read_to_end().unwrap();
-    (content_class, weight, body_size, property_flags, properties)
+    let content_class = try!(reader.read_be_u16());
+    let weight = try!(reader.read_be_u16()); //0 all the time for now
+    let body_size = try!(reader.read_be_u64());
+    let properties_flags = try!(reader.read_be_u16());
+    let properties = try!(reader.read_to_end());
+    Ok(ContentHeaderFrame {
+        content_class: content_class, weight: weight, body_size: body_size,
+        properties_flags: properties_flags, properties: properties
+    })
 }
 
 #[test]

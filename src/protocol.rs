@@ -1610,7 +1610,7 @@ use protocol;
 use protocol::Method;
 
 //properties struct for basic
-#[deriving(Show, Default)]
+#[deriving(Show, Default, Clone)]
 pub struct BasicProperties {
     pub content_type: Option<String>,
     pub content_encoding: Option<String>,
@@ -1734,6 +1734,98 @@ impl BasicProperties {
             None
         };
         Ok(BasicProperties { content_type: content_type, content_encoding: content_encoding, headers: headers, delivery_mode: delivery_mode, priority: priority, correlation_id: correlation_id, reply_to: reply_to, expiration: expiration, message_id: message_id, timestamp: timestamp, _type: _type, user_id: user_id, app_id: app_id, cluster_id: cluster_id })
+    }
+
+    pub fn encode(&self) -> Vec<u8> {
+        let mut writer = MemWriter::new();
+        let __props = (*self).clone();
+        if self.content_type.is_some() {
+        let content_type = __props.content_type.unwrap();
+            writer.write_u8(content_type.len() as u8).unwrap();
+            writer.write(content_type.as_bytes()).unwrap();
+        };
+        if self.content_encoding.is_some() {
+        let content_encoding = __props.content_encoding.unwrap();
+            writer.write_u8(content_encoding.len() as u8).unwrap();
+            writer.write(content_encoding.as_bytes()).unwrap();
+        };
+        if self.headers.is_some() {
+        let headers = __props.headers.unwrap();
+            encode_table(&mut writer, headers.clone()).unwrap();
+        };
+        if self.delivery_mode.is_some() {
+        let delivery_mode = __props.delivery_mode.unwrap();
+            writer.write_u8(delivery_mode).unwrap();
+        };
+        if self.priority.is_some() {
+        let priority = __props.priority.unwrap();
+            writer.write_u8(priority).unwrap();
+        };
+        if self.correlation_id.is_some() {
+        let correlation_id = __props.correlation_id.unwrap();
+            writer.write_u8(correlation_id.len() as u8).unwrap();
+            writer.write(correlation_id.as_bytes()).unwrap();
+        };
+        if self.reply_to.is_some() {
+        let reply_to = __props.reply_to.unwrap();
+            writer.write_u8(reply_to.len() as u8).unwrap();
+            writer.write(reply_to.as_bytes()).unwrap();
+        };
+        if self.expiration.is_some() {
+        let expiration = __props.expiration.unwrap();
+            writer.write_u8(expiration.len() as u8).unwrap();
+            writer.write(expiration.as_bytes()).unwrap();
+        };
+        if self.message_id.is_some() {
+        let message_id = __props.message_id.unwrap();
+            writer.write_u8(message_id.len() as u8).unwrap();
+            writer.write(message_id.as_bytes()).unwrap();
+        };
+        if self.timestamp.is_some() {
+        let timestamp = __props.timestamp.unwrap();
+            writer.write_be_u64(timestamp).unwrap();
+        };
+        if self._type.is_some() {
+        let _type = __props._type.unwrap();
+            writer.write_u8(_type.len() as u8).unwrap();
+            writer.write(_type.as_bytes()).unwrap();
+        };
+        if self.user_id.is_some() {
+        let user_id = __props.user_id.unwrap();
+            writer.write_u8(user_id.len() as u8).unwrap();
+            writer.write(user_id.as_bytes()).unwrap();
+        };
+        if self.app_id.is_some() {
+        let app_id = __props.app_id.unwrap();
+            writer.write_u8(app_id.len() as u8).unwrap();
+            writer.write(app_id.as_bytes()).unwrap();
+        };
+        if self.cluster_id.is_some() {
+        let cluster_id = __props.cluster_id.unwrap();
+            writer.write_u8(cluster_id.len() as u8).unwrap();
+            writer.write(cluster_id.as_bytes()).unwrap();
+        };
+        writer.unwrap()
+    }
+
+    pub fn flags(&self) -> u16 {
+        let mut bits = Bitv::with_capacity(16, false);
+        bits.set(0, self.content_type.is_some());
+        bits.set(1, self.content_encoding.is_some());
+        bits.set(2, self.headers.is_some());
+        bits.set(3, self.delivery_mode.is_some());
+        bits.set(4, self.priority.is_some());
+        bits.set(5, self.correlation_id.is_some());
+        bits.set(6, self.reply_to.is_some());
+        bits.set(7, self.expiration.is_some());
+        bits.set(8, self.message_id.is_some());
+        bits.set(9, self.timestamp.is_some());
+        bits.set(10, self._type.is_some());
+        bits.set(11, self.user_id.is_some());
+        bits.set(12, self.app_id.is_some());
+        bits.set(13, self.cluster_id.is_some());
+        let flags : u16 = bits.to_bytes()[0].clone() as u16;
+        (flags << 8 | bits.to_bytes()[1] as u16) as u16
     }
 }
 // Method 10:qos

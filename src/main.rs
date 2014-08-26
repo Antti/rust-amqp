@@ -2,6 +2,7 @@ extern crate amqp;
 
 use amqp::connection::Options;
 use amqp::session::Session;
+use amqp::protocol;
 use std::default::Default;
 
 fn main() {
@@ -19,6 +20,10 @@ fn main() {
     		Err(err) => {println!("Basic get error: {}", err); break;}
     	}
     }
+
+    channel.basic_publish(0, "", queue_name, true, true,
+    	protocol::basic::BasicProperties{ content_type: Some("text".to_string()), ..Default::default()},
+    	(b"Hello from rust!").into_vec());
     channel.close(200, "Bye");
     session.close(200, "Good Bye".to_string());
 }

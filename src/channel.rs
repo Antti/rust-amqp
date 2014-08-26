@@ -6,6 +6,7 @@ use connection;
 use framing;
 use protocol;
 use protocol::channel;
+use protocol::basic;
 
 pub struct Channel{
 	connection: Rc<RefCell<connection::Connection>>,
@@ -47,17 +48,33 @@ impl Channel {
     	Ok(body)
 	}
 
-	pub fn basic_publish() {
+	pub fn basic_publish(&self, ticket: u16, exchange: &str, routing_key: &str, mandatory: bool, immediate: bool,
+						 properties: basic::BasicProperties, content: Vec<u8>) {
+		let mut connection = self.connection.borrow_mut();
+		let publish = &protocol::basic::Publish {
+			ticket: ticket, exchange: exchange.to_string(),
+			routing_key: routing_key.to_string(), mandatory: mandatory, immediate: immediate};
+		let properties_flags = properties.flags();
+		let content_header = protocol::ContentHeaderFrame { content_class: 60, weight: 0, body_size: content.len() as u64,
+			properties_flags: properties_flags, properties: properties.encode() };
+		let content_header_frame = framing::Frame {frame_type: framing::HEADERS, channel: self.id,
+			payload: framing::encode_content_header_frame(&content_header) };
+		let content_frame = framing::Frame { frame_type: framing::BODY, channel: self.id, payload: content };
 
+		//TODO: Slice content by connection.frame_max_limit and send one by one content frame.
+		connection.send_method_frame(self.id, publish);
+		connection.write(content_header_frame);
+		connection.write(content_frame);
 	}
+
 	pub fn basic_get(&self, ticket: u16, queue: &str, no_ack: bool) -> IoResult<(protocol::basic::BasicProperties, Vec<u8>)> {
-  		let get = &protocol::basic::Get{ ticket: ticket, queue: queue.to_string(), no_ack: no_ack };
+  		let get = &basic::Get{ ticket: ticket, queue: queue.to_string(), no_ack: no_ack };
   		let method_frame = try!(self.raw_rpc(get));
   		match method_frame.method_name() {
   			"basic.get-ok" => {
-			    let reply: protocol::basic::GetOk = try!(protocol::Method::decode(method_frame));
+			    let reply: basic::GetOk = try!(protocol::Method::decode(method_frame));
 			    let headers = try!(self.read_headers());
-			    let properties = try!(protocol::basic::BasicProperties::decode(headers.clone()));
+			    let properties = try!(basic::BasicProperties::decode(headers.clone()));
 			    let body = try!(self.read_body(headers.body_size));
 			    Ok((properties, body))
   			}
@@ -65,4 +82,8 @@ impl Channel {
   			method => fail!(format!("Not expected method: {}", method))
   		}
 	}
+
+	// exchangeDeclare
+	// queueDeclare
+	// queueBind
 }

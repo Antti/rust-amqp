@@ -83,6 +83,17 @@ pub fn decode_content_header_frame(frame: Frame) -> IoResult<ContentHeaderFrame>
     })
 }
 
+pub fn encode_content_header_frame(frame: &ContentHeaderFrame) -> Vec<u8> {
+    let mut writer = MemWriter::new();
+    writer.write_be_u16(frame.content_class).unwrap();
+    writer.write_be_u16(frame.weight).unwrap(); //0 all the time for now
+    writer.write_be_u64(frame.body_size).unwrap();
+    writer.write_be_u16(frame.properties_flags).unwrap();
+    writer.write(frame.properties.as_slice()).unwrap();
+    writer.unwrap()
+}
+
+
 #[test]
 fn test_encode_decode(){
     let frame = Frame{frame_type: METHOD, channel: 5, payload: vec!(1,2,3,4,5)};

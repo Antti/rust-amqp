@@ -9,11 +9,11 @@ def titleize(name)
   name[0].upcase+name[1..-1]
 end
 
-def normalize_argument(argument_name)
-  argument_name.tr("-","_").gsub(/^type$/, "_type")
+def snake_name(name)
+  name.tr("-","_").gsub(/^type$/, "_type")
 end
 
-def normalize_method(klass)
+def camel_name(klass)
   klass.gsub(/(\-.)/){|c| c[1].upcase}
 end
 
@@ -78,25 +78,25 @@ end
 def write_type(name, type)
   case type
   when "octet"
-    "writer.write_u8(self.#{name}).unwrap();"
+    "writer.write_u8(#{name}).unwrap();"
   when "long"
-    "writer.write_be_u32(self.#{name}).unwrap();"
+    "writer.write_be_u32(#{name}).unwrap();"
   when "longlong"
-    "writer.write_be_u64(self.#{name}).unwrap();"
+    "writer.write_be_u64(#{name}).unwrap();"
   when "short"
-    "writer.write_be_u16(self.#{name}).unwrap();"
+    "writer.write_be_u16(#{name}).unwrap();"
   when "bit"
     raise "Cant write bit here..."
   when "shortstr"
-    "writer.write_u8(self.#{name}.len() as u8).unwrap();
-    writer.write(self.#{name}.as_bytes()).unwrap();"
+    "writer.write_u8(#{name}.len() as u8).unwrap();
+    writer.write(#{name}.as_bytes()).unwrap();"
   when "longstr"
-    "writer.write_be_u32(self.#{name}.len() as u32).unwrap();
-    writer.write(self.#{name}.as_bytes()).unwrap();"
+    "writer.write_be_u32(#{name}.len() as u32).unwrap();
+    writer.write(#{name}.as_bytes()).unwrap();"
   when "table"
-    "encode_table(&mut writer, self.#{name}.clone()).unwrap();"
+    "encode_table(&mut writer, #{name}.clone()).unwrap();"
   when "timestamp"
-    "writer.write_be_u64(self.#{name}).unwrap();"
+    "writer.write_be_u64(#{name}).unwrap();"
   else
     raise "Unknown type: #{type}"
   end
@@ -116,14 +116,14 @@ def generate_reader_body(arguments)
           puts pad_str(8, "let byte = try!(reader.read_byte());")
           puts pad_str(8, "let bits = bitv::from_bytes([byte]);")
         end
-        puts pad_str(8, "let #{normalize_argument(argument["name"])} = bits.get(#{n_bits});")
+        puts pad_str(8, "let #{snake_name(argument["name"])} = bits.get(#{n_bits});")
         n_bits += 1
         if n_bits == 8
           n_bits = 0
         end
       else
         n_bits = 0
-        puts pad_str(8, "let #{normalize_argument(argument["name"])} = #{read_type(type)};")
+        puts pad_str(8, "let #{snake_name(argument["name"])} = #{read_type(type)};")
       end
     end
 end
@@ -137,14 +137,14 @@ def generate_writer_body(arguments)
         if n_bits == 0
           puts pad_str(8, "let mut bits = Bitv::new();")
         end
-        puts pad_str(8, "bits.push(self.#{normalize_argument(argument["name"])});")
+        puts pad_str(8, "bits.push(self.#{snake_name(argument["name"])});")
         n_bits += 1
       else
         if n_bits > 0
           puts pad_str(8, "writer.write(bits.to_bytes().as_slice()).unwrap();")
           n_bits = 0
         end
-        puts pad_str(8, write_type(normalize_argument(argument["name"]), type))
+        puts pad_str(8, write_type("self."+snake_name(argument["name"]), type))
       end
     end
     puts pad_str(8, "writer.write(bits.to_bytes().as_slice()).unwrap();") if n_bits > 0 #if bits were the last element
@@ -223,12 +223,12 @@ SPEC["classes"].each do |klass|
   if klass["properties"]
     props = klass["properties"].map do |prop|
       rust_type = map_type_to_rust prop["domain"] ? map_domain(prop["domain"]) : prop["type"]
-      "pub #{normalize_argument prop["name"]}: Option<#{rust_type}>"
+      "pub #{snake_name prop["name"]}: Option<#{rust_type}>"
     end
     puts "//properties struct for #{klass["name"]}"
     properties_struct_name = "#{struct_name}Properties"
     if klass["properties"].any?
-      puts "#[deriving(Show, Default)]"
+      puts "#[deriving(Show, Default, Clone)]"
       puts "pub struct #{properties_struct_name} {"
       puts pad_str(4, props.join(",\n"))
       puts "}"
@@ -239,7 +239,7 @@ SPEC["classes"].each do |klass|
       puts "        let properties_flags = bitv::from_bytes([((content_header_frame.properties_flags >> 8) & 0xff) as u8,
         (content_header_frame.properties_flags & 0xff) as u8]);"
       klass["properties"].each.with_index do |prop, idx|
-        prop_name = normalize_argument prop["name"]
+        prop_name = snake_name prop["name"]
         puts pad_str(8, "let #{prop_name} = if properties_flags.get(#{idx}) {")
           type = prop["domain"] ? map_domain(prop["domain"]) : prop["type"]
           puts pad_str(12, "Some(#{read_type(type)})")
@@ -247,8 +247,32 @@ SPEC["classes"].each do |klass|
           puts pad_str(12, "None")
         puts pad_str(8, "};")
       end
-      fields = klass["properties"].map{|arg| "#{normalize_argument arg["name"]}: #{normalize_argument arg["name"]}"}
+      fields = klass["properties"].map{|arg| "#{snake_name arg["name"]}: #{snake_name arg["name"]}"}
       puts "        Ok(#{properties_struct_name} { #{fields.join(", ")} })"
+      puts "    }"
+      puts
+      puts "    pub fn encode(&self) -> Vec<u8> {"
+      puts "        let mut writer = MemWriter::new();"
+      puts "        let __props = (*self).clone();"
+      klass["properties"].each.with_index do |prop, idx|
+        type = prop["domain"] ? map_domain(prop["domain"]) : prop["type"]
+        prop_name = snake_name prop["name"]
+        puts pad_str(8, "if self.#{prop_name}.is_some() {")
+        puts pad_str(8, "let #{prop_name} = __props.#{prop_name}.unwrap();")
+        puts pad_str(12, write_type("#{prop_name}", type))
+        puts pad_str(8, "};")
+      end
+      puts "        writer.unwrap()"
+      puts "    }"
+      puts
+      puts "    pub fn flags(&self) -> u16 {"
+      puts "        let mut bits = Bitv::with_capacity(16, false);"
+      klass["properties"].each.with_index do |prop, idx|
+        prop_name = snake_name prop["name"]
+        puts "        bits.set(#{idx}, self.#{prop_name}.is_some());"
+      end
+      puts "        let flags : u16 = bits.to_bytes()[0].clone() as u16;"
+      puts "        (flags << 8 | bits.to_bytes()[1] as u16) as u16"
       puts "    }"
       puts "}"
     else
@@ -258,13 +282,13 @@ SPEC["classes"].each do |klass|
 
 
   klass["methods"].each do |method|
-    method_name = normalize_method titleize(method["name"])
+    method_name = camel_name titleize(method["name"])
     properties = method["properties"]
     arguments = method["arguments"]
 
     fields = arguments.map do |argument|
       rust_type = map_type_to_rust argument["domain"] ? map_domain(argument["domain"]) : argument["type"]
-      "pub #{normalize_argument argument["name"]}: #{rust_type}"
+      "pub #{snake_name argument["name"]}: #{rust_type}"
     end
 
     puts "// Method #{method["id"]}:#{method["name"]}"
@@ -296,7 +320,7 @@ SPEC["classes"].each do |klass|
     puts "        }"
     if arguments.any?
       generate_reader_body(arguments)
-      fields = arguments.map{|arg| "#{normalize_argument arg["name"]}: #{normalize_argument arg["name"]}"}
+      fields = arguments.map{|arg| "#{snake_name arg["name"]}: #{snake_name arg["name"]}"}
       puts "        Ok(#{method_name} { #{fields.join(", ")} })"
     else
       puts "        Ok(#{method_name})"

@@ -4,13 +4,14 @@ use std::default::Default;
 use std::cmp;
 use framing;
 use framing::Frame;
-use channel;
 use protocol;
 use table::{FieldTable, Table, Bool, ShortShortInt, ShortShortUint, ShortInt, ShortUint, LongInt, LongUint, LongLongInt, LongLongUint, Float, Double, DecimalValue, LongString, FieldArray, Timestamp};
 use std::collections::TreeMap;
 
 pub struct Connection {
-    socket: TcpStream
+    socket: TcpStream,
+    pub channel_max_limit: u16,
+    pub frame_max_limit: u32
 }
 
 pub struct Options <'a>  {
@@ -44,7 +45,7 @@ impl Connection {
     pub fn open(options: Options) -> IoResult<Connection> {
         let mut socket = try!(TcpStream::connect(options.host, options.port));
         try!(socket.write([b'A', b'M', b'Q', b'P', 0, 0, 9, 1]));
-        let mut connection = Connection { socket: socket};
+        let mut connection = Connection { socket: socket, channel_max_limit: options.channel_max_limit, frame_max_limit: options.frame_max_limit };
 
         let frame = connection.read(); //Start
 
@@ -79,9 +80,11 @@ impl Connection {
             response: format!("\0{}\0{}", options.login, options.password), locale: options.locale.to_string()};
         let tune : protocol::connection::Tune = try!(connection.rpc(0, &start_ok, "connection.tune"));
 
+        connection.channel_max_limit = negotiate(tune.channel_max, connection.channel_max_limit);
+        connection.frame_max_limit = negotiate(tune.frame_max, connection.frame_max_limit);
         let tune_ok = protocol::connection::TuneOk {
-            channel_max: negotiate(tune.channel_max, options.channel_max_limit),
-            frame_max: negotiate(tune.frame_max, options.frame_max_limit), heartbeat: 0};
+            channel_max: connection.channel_max_limit,
+            frame_max: connection.frame_max_limit, heartbeat: 0};
         try!(connection.send_method_frame(0, &tune_ok));
 
         let open = protocol::connection::Open{virtual_host: options.vhost.to_string(), capabilities: "".to_string(), insist: false };

@@ -2,6 +2,8 @@
 // To make some changes, edit codegen.rb and run make
 
 use std::io::IoResult;
+use framing;
+use framing::{MethodFrame, ContentHeaderFrame};
 
 pub trait Method {
     fn decode(method_frame: MethodFrame) -> IoResult<Self>;
@@ -11,23 +13,7 @@ pub trait Method {
     fn class_id(&self) -> u16;
 }
 
-#[deriving(Show, Clone)]
-pub struct ContentHeaderFrame {
-    pub content_class: u16,
-    pub weight: u16,
-    pub body_size: u64,
-    pub properties_flags: u16,
-    pub properties: Vec<u8>
-}
-
-#[deriving(Show, Clone)]
-pub struct MethodFrame {
-    pub class_id: u16,
-    pub method_id: u16,
-    pub arguments: Vec<u8>
-}
-
-impl MethodFrame {
+impl framing::MethodFrame {
     pub fn method_name(&self) -> &'static str {
         match (self.class_id, self.method_id) {
           (10, 10) => "connection.start",
@@ -108,6 +94,7 @@ pub mod connection {
     use table::{Table, decode_table, encode_table};
     use protocol;
     use protocol::Method;
+    use framing::{MethodFrame, ContentHeaderFrame};
 
 
     // Method 10:start
@@ -133,7 +120,7 @@ pub mod connection {
             10
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<Start> {
+        fn decode(method_frame: MethodFrame) -> IoResult<Start> {
             if method_frame.class_id != 10 || method_frame.method_id != 10 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
@@ -142,13 +129,13 @@ pub mod connection {
             let version_minor = try!(reader.read_byte());
             let server_properties = try!(decode_table(&mut reader));
             let mechanisms = {
-			    let size = try!(reader.read_be_u32()) as uint;
-			    String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-			};
+          let size = try!(reader.read_be_u32()) as uint;
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+      };
             let locales = {
-			    let size = try!(reader.read_be_u32()) as uint;
-			    String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-			};
+          let size = try!(reader.read_be_u32()) as uint;
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+      };
             Ok(Start { version_major: version_major, version_minor: version_minor, server_properties: server_properties, mechanisms: mechanisms, locales: locales })
           }
 
@@ -158,9 +145,9 @@ pub mod connection {
             writer.write_u8(self.version_minor).unwrap();
             encode_table(&mut writer, self.server_properties.clone()).unwrap();
             writer.write_be_u32(self.mechanisms.len() as u32).unwrap();
-		writer.write(self.mechanisms.as_bytes()).unwrap();
+    writer.write(self.mechanisms.as_bytes()).unwrap();
             writer.write_be_u32(self.locales.len() as u32).unwrap();
-		writer.write(self.locales.as_bytes()).unwrap();
+    writer.write(self.locales.as_bytes()).unwrap();
             writer.unwrap()
         }
     }
@@ -186,7 +173,7 @@ pub mod connection {
             10
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<StartOk> {
+        fn decode(method_frame: MethodFrame) -> IoResult<StartOk> {
             if method_frame.class_id != 10 || method_frame.method_id != 11 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
@@ -194,16 +181,16 @@ pub mod connection {
             let client_properties = try!(decode_table(&mut reader));
             let mechanism = {
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 };
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     };
             let response = {
-			    let size = try!(reader.read_be_u32()) as uint;
-			    String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-			};
+          let size = try!(reader.read_be_u32()) as uint;
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+      };
             let locale = {
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 };
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     };
             Ok(StartOk { client_properties: client_properties, mechanism: mechanism, response: response, locale: locale })
           }
 
@@ -211,11 +198,11 @@ pub mod connection {
             let mut writer = MemWriter::new();
             encode_table(&mut writer, self.client_properties.clone()).unwrap();
             writer.write_u8(self.mechanism.len() as u8).unwrap();
-		writer.write(self.mechanism.as_bytes()).unwrap();
+    writer.write(self.mechanism.as_bytes()).unwrap();
             writer.write_be_u32(self.response.len() as u32).unwrap();
-		writer.write(self.response.as_bytes()).unwrap();
+    writer.write(self.response.as_bytes()).unwrap();
             writer.write_u8(self.locale.len() as u8).unwrap();
-		writer.write(self.locale.as_bytes()).unwrap();
+    writer.write(self.locale.as_bytes()).unwrap();
             writer.unwrap()
         }
     }
@@ -238,22 +225,22 @@ pub mod connection {
             10
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<Secure> {
+        fn decode(method_frame: MethodFrame) -> IoResult<Secure> {
             if method_frame.class_id != 10 || method_frame.method_id != 20 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
             let mut reader = MemReader::new(method_frame.arguments);
             let challenge = {
-			    let size = try!(reader.read_be_u32()) as uint;
-			    String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-			};
+          let size = try!(reader.read_be_u32()) as uint;
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+      };
             Ok(Secure { challenge: challenge })
           }
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = MemWriter::new();
             writer.write_be_u32(self.challenge.len() as u32).unwrap();
-		writer.write(self.challenge.as_bytes()).unwrap();
+    writer.write(self.challenge.as_bytes()).unwrap();
             writer.unwrap()
         }
     }
@@ -276,22 +263,22 @@ pub mod connection {
             10
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<SecureOk> {
+        fn decode(method_frame: MethodFrame) -> IoResult<SecureOk> {
             if method_frame.class_id != 10 || method_frame.method_id != 21 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
             let mut reader = MemReader::new(method_frame.arguments);
             let response = {
-			    let size = try!(reader.read_be_u32()) as uint;
-			    String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-			};
+          let size = try!(reader.read_be_u32()) as uint;
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+      };
             Ok(SecureOk { response: response })
           }
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = MemWriter::new();
             writer.write_be_u32(self.response.len() as u32).unwrap();
-		writer.write(self.response.as_bytes()).unwrap();
+    writer.write(self.response.as_bytes()).unwrap();
             writer.unwrap()
         }
     }
@@ -316,7 +303,7 @@ pub mod connection {
             10
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<Tune> {
+        fn decode(method_frame: MethodFrame) -> IoResult<Tune> {
             if method_frame.class_id != 10 || method_frame.method_id != 30 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
@@ -356,7 +343,7 @@ pub mod connection {
             10
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<TuneOk> {
+        fn decode(method_frame: MethodFrame) -> IoResult<TuneOk> {
             if method_frame.class_id != 10 || method_frame.method_id != 31 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
@@ -396,19 +383,19 @@ pub mod connection {
             10
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<Open> {
+        fn decode(method_frame: MethodFrame) -> IoResult<Open> {
             if method_frame.class_id != 10 || method_frame.method_id != 40 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
             let mut reader = MemReader::new(method_frame.arguments);
             let virtual_host = {
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 };
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     };
             let capabilities = {
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 };
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     };
             let byte = try!(reader.read_byte());
             let bits = bitv::from_bytes([byte]);
             let insist = bits.get(0);
@@ -418,9 +405,9 @@ pub mod connection {
         fn encode(&self) -> Vec<u8> {
             let mut writer = MemWriter::new();
             writer.write_u8(self.virtual_host.len() as u8).unwrap();
-		writer.write(self.virtual_host.as_bytes()).unwrap();
+    writer.write(self.virtual_host.as_bytes()).unwrap();
             writer.write_u8(self.capabilities.len() as u8).unwrap();
-		writer.write(self.capabilities.as_bytes()).unwrap();
+    writer.write(self.capabilities.as_bytes()).unwrap();
             let mut bits = Bitv::new();
             bits.push(self.insist);
             writer.write(bits.to_bytes().as_slice()).unwrap();
@@ -446,22 +433,22 @@ pub mod connection {
             10
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<OpenOk> {
+        fn decode(method_frame: MethodFrame) -> IoResult<OpenOk> {
             if method_frame.class_id != 10 || method_frame.method_id != 41 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
             let mut reader = MemReader::new(method_frame.arguments);
             let known_hosts = {
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 };
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     };
             Ok(OpenOk { known_hosts: known_hosts })
           }
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = MemWriter::new();
             writer.write_u8(self.known_hosts.len() as u8).unwrap();
-		writer.write(self.known_hosts.as_bytes()).unwrap();
+    writer.write(self.known_hosts.as_bytes()).unwrap();
             writer.unwrap()
         }
     }
@@ -487,7 +474,7 @@ pub mod connection {
             10
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<Close> {
+        fn decode(method_frame: MethodFrame) -> IoResult<Close> {
             if method_frame.class_id != 10 || method_frame.method_id != 50 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
@@ -495,8 +482,8 @@ pub mod connection {
             let reply_code = try!(reader.read_be_u16());
             let reply_text = {
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 };
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     };
             let class_id = try!(reader.read_be_u16());
             let method_id = try!(reader.read_be_u16());
             Ok(Close { reply_code: reply_code, reply_text: reply_text, class_id: class_id, method_id: method_id })
@@ -506,7 +493,7 @@ pub mod connection {
             let mut writer = MemWriter::new();
             writer.write_be_u16(self.reply_code).unwrap();
             writer.write_u8(self.reply_text.len() as u8).unwrap();
-		writer.write(self.reply_text.as_bytes()).unwrap();
+    writer.write(self.reply_text.as_bytes()).unwrap();
             writer.write_be_u16(self.class_id).unwrap();
             writer.write_be_u16(self.method_id).unwrap();
             writer.unwrap()
@@ -529,7 +516,7 @@ pub mod connection {
             10
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<CloseOk> {
+        fn decode(method_frame: MethodFrame) -> IoResult<CloseOk> {
             if method_frame.class_id != 10 || method_frame.method_id != 51 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
@@ -559,22 +546,22 @@ pub mod connection {
             10
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<Blocked> {
+        fn decode(method_frame: MethodFrame) -> IoResult<Blocked> {
             if method_frame.class_id != 10 || method_frame.method_id != 60 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
             let mut reader = MemReader::new(method_frame.arguments);
             let reason = {
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 };
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     };
             Ok(Blocked { reason: reason })
           }
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = MemWriter::new();
             writer.write_u8(self.reason.len() as u8).unwrap();
-		writer.write(self.reason.as_bytes()).unwrap();
+    writer.write(self.reason.as_bytes()).unwrap();
             writer.unwrap()
         }
     }
@@ -595,7 +582,7 @@ pub mod connection {
             10
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<Unblocked> {
+        fn decode(method_frame: MethodFrame) -> IoResult<Unblocked> {
             if method_frame.class_id != 10 || method_frame.method_id != 61 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
@@ -616,6 +603,7 @@ pub mod channel {
     use table::{Table, decode_table, encode_table};
     use protocol;
     use protocol::Method;
+    use framing::{MethodFrame, ContentHeaderFrame};
 
 
     // Method 10:open
@@ -637,22 +625,22 @@ pub mod channel {
             20
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<Open> {
+        fn decode(method_frame: MethodFrame) -> IoResult<Open> {
             if method_frame.class_id != 20 || method_frame.method_id != 10 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
             let mut reader = MemReader::new(method_frame.arguments);
             let out_of_band = {
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 };
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     };
             Ok(Open { out_of_band: out_of_band })
           }
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = MemWriter::new();
             writer.write_u8(self.out_of_band.len() as u8).unwrap();
-		writer.write(self.out_of_band.as_bytes()).unwrap();
+    writer.write(self.out_of_band.as_bytes()).unwrap();
             writer.unwrap()
         }
     }
@@ -675,22 +663,22 @@ pub mod channel {
             20
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<OpenOk> {
+        fn decode(method_frame: MethodFrame) -> IoResult<OpenOk> {
             if method_frame.class_id != 20 || method_frame.method_id != 11 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
             let mut reader = MemReader::new(method_frame.arguments);
             let channel_id = {
-			    let size = try!(reader.read_be_u32()) as uint;
-			    String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-			};
+          let size = try!(reader.read_be_u32()) as uint;
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+      };
             Ok(OpenOk { channel_id: channel_id })
           }
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = MemWriter::new();
             writer.write_be_u32(self.channel_id.len() as u32).unwrap();
-		writer.write(self.channel_id.as_bytes()).unwrap();
+    writer.write(self.channel_id.as_bytes()).unwrap();
             writer.unwrap()
         }
     }
@@ -713,7 +701,7 @@ pub mod channel {
             20
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<Flow> {
+        fn decode(method_frame: MethodFrame) -> IoResult<Flow> {
             if method_frame.class_id != 20 || method_frame.method_id != 20 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
@@ -751,7 +739,7 @@ pub mod channel {
             20
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<FlowOk> {
+        fn decode(method_frame: MethodFrame) -> IoResult<FlowOk> {
             if method_frame.class_id != 20 || method_frame.method_id != 21 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
@@ -792,7 +780,7 @@ pub mod channel {
             20
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<Close> {
+        fn decode(method_frame: MethodFrame) -> IoResult<Close> {
             if method_frame.class_id != 20 || method_frame.method_id != 40 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
@@ -800,8 +788,8 @@ pub mod channel {
             let reply_code = try!(reader.read_be_u16());
             let reply_text = {
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 };
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     };
             let class_id = try!(reader.read_be_u16());
             let method_id = try!(reader.read_be_u16());
             Ok(Close { reply_code: reply_code, reply_text: reply_text, class_id: class_id, method_id: method_id })
@@ -811,7 +799,7 @@ pub mod channel {
             let mut writer = MemWriter::new();
             writer.write_be_u16(self.reply_code).unwrap();
             writer.write_u8(self.reply_text.len() as u8).unwrap();
-		writer.write(self.reply_text.as_bytes()).unwrap();
+    writer.write(self.reply_text.as_bytes()).unwrap();
             writer.write_be_u16(self.class_id).unwrap();
             writer.write_be_u16(self.method_id).unwrap();
             writer.unwrap()
@@ -834,7 +822,7 @@ pub mod channel {
             20
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<CloseOk> {
+        fn decode(method_frame: MethodFrame) -> IoResult<CloseOk> {
             if method_frame.class_id != 20 || method_frame.method_id != 41 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
@@ -855,6 +843,7 @@ pub mod access {
     use table::{Table, decode_table, encode_table};
     use protocol;
     use protocol::Method;
+    use framing::{MethodFrame, ContentHeaderFrame};
 
 
     // Method 10:request
@@ -881,15 +870,15 @@ pub mod access {
             30
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<Request> {
+        fn decode(method_frame: MethodFrame) -> IoResult<Request> {
             if method_frame.class_id != 30 || method_frame.method_id != 10 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
             let mut reader = MemReader::new(method_frame.arguments);
             let realm = {
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 };
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     };
             let byte = try!(reader.read_byte());
             let bits = bitv::from_bytes([byte]);
             let exclusive = bits.get(0);
@@ -903,7 +892,7 @@ pub mod access {
         fn encode(&self) -> Vec<u8> {
             let mut writer = MemWriter::new();
             writer.write_u8(self.realm.len() as u8).unwrap();
-		writer.write(self.realm.as_bytes()).unwrap();
+    writer.write(self.realm.as_bytes()).unwrap();
             let mut bits = Bitv::new();
             bits.push(self.exclusive);
             bits.push(self.passive);
@@ -933,7 +922,7 @@ pub mod access {
             30
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<RequestOk> {
+        fn decode(method_frame: MethodFrame) -> IoResult<RequestOk> {
             if method_frame.class_id != 30 || method_frame.method_id != 11 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
@@ -958,6 +947,7 @@ pub mod exchange {
     use table::{Table, decode_table, encode_table};
     use protocol;
     use protocol::Method;
+    use framing::{MethodFrame, ContentHeaderFrame};
 
 
     // Method 10:declare
@@ -987,7 +977,7 @@ pub mod exchange {
             40
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<Declare> {
+        fn decode(method_frame: MethodFrame) -> IoResult<Declare> {
             if method_frame.class_id != 40 || method_frame.method_id != 10 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
@@ -995,12 +985,12 @@ pub mod exchange {
             let ticket = try!(reader.read_be_u16());
             let exchange = {
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 };
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     };
             let _type = {
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 };
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     };
             let byte = try!(reader.read_byte());
             let bits = bitv::from_bytes([byte]);
             let passive = bits.get(0);
@@ -1016,9 +1006,9 @@ pub mod exchange {
             let mut writer = MemWriter::new();
             writer.write_be_u16(self.ticket).unwrap();
             writer.write_u8(self.exchange.len() as u8).unwrap();
-		writer.write(self.exchange.as_bytes()).unwrap();
+    writer.write(self.exchange.as_bytes()).unwrap();
             writer.write_u8(self._type.len() as u8).unwrap();
-		writer.write(self._type.as_bytes()).unwrap();
+    writer.write(self._type.as_bytes()).unwrap();
             let mut bits = Bitv::new();
             bits.push(self.passive);
             bits.push(self.durable);
@@ -1047,7 +1037,7 @@ pub mod exchange {
             40
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<DeclareOk> {
+        fn decode(method_frame: MethodFrame) -> IoResult<DeclareOk> {
             if method_frame.class_id != 40 || method_frame.method_id != 11 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
@@ -1080,7 +1070,7 @@ pub mod exchange {
             40
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<Delete> {
+        fn decode(method_frame: MethodFrame) -> IoResult<Delete> {
             if method_frame.class_id != 40 || method_frame.method_id != 20 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
@@ -1088,8 +1078,8 @@ pub mod exchange {
             let ticket = try!(reader.read_be_u16());
             let exchange = {
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 };
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     };
             let byte = try!(reader.read_byte());
             let bits = bitv::from_bytes([byte]);
             let if_unused = bits.get(0);
@@ -1101,7 +1091,7 @@ pub mod exchange {
             let mut writer = MemWriter::new();
             writer.write_be_u16(self.ticket).unwrap();
             writer.write_u8(self.exchange.len() as u8).unwrap();
-		writer.write(self.exchange.as_bytes()).unwrap();
+    writer.write(self.exchange.as_bytes()).unwrap();
             let mut bits = Bitv::new();
             bits.push(self.if_unused);
             bits.push(self.nowait);
@@ -1126,7 +1116,7 @@ pub mod exchange {
             40
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<DeleteOk> {
+        fn decode(method_frame: MethodFrame) -> IoResult<DeleteOk> {
             if method_frame.class_id != 40 || method_frame.method_id != 21 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
@@ -1161,7 +1151,7 @@ pub mod exchange {
             40
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<Bind> {
+        fn decode(method_frame: MethodFrame) -> IoResult<Bind> {
             if method_frame.class_id != 40 || method_frame.method_id != 30 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
@@ -1169,16 +1159,16 @@ pub mod exchange {
             let ticket = try!(reader.read_be_u16());
             let destination = {
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 };
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     };
             let source = {
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 };
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     };
             let routing_key = {
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 };
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     };
             let byte = try!(reader.read_byte());
             let bits = bitv::from_bytes([byte]);
             let nowait = bits.get(0);
@@ -1190,11 +1180,11 @@ pub mod exchange {
             let mut writer = MemWriter::new();
             writer.write_be_u16(self.ticket).unwrap();
             writer.write_u8(self.destination.len() as u8).unwrap();
-		writer.write(self.destination.as_bytes()).unwrap();
+    writer.write(self.destination.as_bytes()).unwrap();
             writer.write_u8(self.source.len() as u8).unwrap();
-		writer.write(self.source.as_bytes()).unwrap();
+    writer.write(self.source.as_bytes()).unwrap();
             writer.write_u8(self.routing_key.len() as u8).unwrap();
-		writer.write(self.routing_key.as_bytes()).unwrap();
+    writer.write(self.routing_key.as_bytes()).unwrap();
             let mut bits = Bitv::new();
             bits.push(self.nowait);
             writer.write(bits.to_bytes().as_slice()).unwrap();
@@ -1219,7 +1209,7 @@ pub mod exchange {
             40
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<BindOk> {
+        fn decode(method_frame: MethodFrame) -> IoResult<BindOk> {
             if method_frame.class_id != 40 || method_frame.method_id != 31 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
@@ -1254,7 +1244,7 @@ pub mod exchange {
             40
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<Unbind> {
+        fn decode(method_frame: MethodFrame) -> IoResult<Unbind> {
             if method_frame.class_id != 40 || method_frame.method_id != 40 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
@@ -1262,16 +1252,16 @@ pub mod exchange {
             let ticket = try!(reader.read_be_u16());
             let destination = {
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 };
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     };
             let source = {
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 };
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     };
             let routing_key = {
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 };
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     };
             let byte = try!(reader.read_byte());
             let bits = bitv::from_bytes([byte]);
             let nowait = bits.get(0);
@@ -1283,11 +1273,11 @@ pub mod exchange {
             let mut writer = MemWriter::new();
             writer.write_be_u16(self.ticket).unwrap();
             writer.write_u8(self.destination.len() as u8).unwrap();
-		writer.write(self.destination.as_bytes()).unwrap();
+    writer.write(self.destination.as_bytes()).unwrap();
             writer.write_u8(self.source.len() as u8).unwrap();
-		writer.write(self.source.as_bytes()).unwrap();
+    writer.write(self.source.as_bytes()).unwrap();
             writer.write_u8(self.routing_key.len() as u8).unwrap();
-		writer.write(self.routing_key.as_bytes()).unwrap();
+    writer.write(self.routing_key.as_bytes()).unwrap();
             let mut bits = Bitv::new();
             bits.push(self.nowait);
             writer.write(bits.to_bytes().as_slice()).unwrap();
@@ -1312,7 +1302,7 @@ pub mod exchange {
             40
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<UnbindOk> {
+        fn decode(method_frame: MethodFrame) -> IoResult<UnbindOk> {
             if method_frame.class_id != 40 || method_frame.method_id != 51 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
@@ -1333,6 +1323,7 @@ pub mod queue {
     use table::{Table, decode_table, encode_table};
     use protocol;
     use protocol::Method;
+    use framing::{MethodFrame, ContentHeaderFrame};
 
 
     // Method 10:declare
@@ -1361,7 +1352,7 @@ pub mod queue {
             50
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<Declare> {
+        fn decode(method_frame: MethodFrame) -> IoResult<Declare> {
             if method_frame.class_id != 50 || method_frame.method_id != 10 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
@@ -1369,8 +1360,8 @@ pub mod queue {
             let ticket = try!(reader.read_be_u16());
             let queue = {
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 };
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     };
             let byte = try!(reader.read_byte());
             let bits = bitv::from_bytes([byte]);
             let passive = bits.get(0);
@@ -1386,7 +1377,7 @@ pub mod queue {
             let mut writer = MemWriter::new();
             writer.write_be_u16(self.ticket).unwrap();
             writer.write_u8(self.queue.len() as u8).unwrap();
-		writer.write(self.queue.as_bytes()).unwrap();
+    writer.write(self.queue.as_bytes()).unwrap();
             let mut bits = Bitv::new();
             bits.push(self.passive);
             bits.push(self.durable);
@@ -1419,15 +1410,15 @@ pub mod queue {
             50
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<DeclareOk> {
+        fn decode(method_frame: MethodFrame) -> IoResult<DeclareOk> {
             if method_frame.class_id != 50 || method_frame.method_id != 11 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
             let mut reader = MemReader::new(method_frame.arguments);
             let queue = {
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 };
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     };
             let message_count = try!(reader.read_be_u32());
             let consumer_count = try!(reader.read_be_u32());
             Ok(DeclareOk { queue: queue, message_count: message_count, consumer_count: consumer_count })
@@ -1436,7 +1427,7 @@ pub mod queue {
         fn encode(&self) -> Vec<u8> {
             let mut writer = MemWriter::new();
             writer.write_u8(self.queue.len() as u8).unwrap();
-		writer.write(self.queue.as_bytes()).unwrap();
+    writer.write(self.queue.as_bytes()).unwrap();
             writer.write_be_u32(self.message_count).unwrap();
             writer.write_be_u32(self.consumer_count).unwrap();
             writer.unwrap()
@@ -1466,7 +1457,7 @@ pub mod queue {
             50
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<Bind> {
+        fn decode(method_frame: MethodFrame) -> IoResult<Bind> {
             if method_frame.class_id != 50 || method_frame.method_id != 20 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
@@ -1474,16 +1465,16 @@ pub mod queue {
             let ticket = try!(reader.read_be_u16());
             let queue = {
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 };
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     };
             let exchange = {
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 };
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     };
             let routing_key = {
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 };
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     };
             let byte = try!(reader.read_byte());
             let bits = bitv::from_bytes([byte]);
             let nowait = bits.get(0);
@@ -1495,11 +1486,11 @@ pub mod queue {
             let mut writer = MemWriter::new();
             writer.write_be_u16(self.ticket).unwrap();
             writer.write_u8(self.queue.len() as u8).unwrap();
-		writer.write(self.queue.as_bytes()).unwrap();
+    writer.write(self.queue.as_bytes()).unwrap();
             writer.write_u8(self.exchange.len() as u8).unwrap();
-		writer.write(self.exchange.as_bytes()).unwrap();
+    writer.write(self.exchange.as_bytes()).unwrap();
             writer.write_u8(self.routing_key.len() as u8).unwrap();
-		writer.write(self.routing_key.as_bytes()).unwrap();
+    writer.write(self.routing_key.as_bytes()).unwrap();
             let mut bits = Bitv::new();
             bits.push(self.nowait);
             writer.write(bits.to_bytes().as_slice()).unwrap();
@@ -1524,7 +1515,7 @@ pub mod queue {
             50
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<BindOk> {
+        fn decode(method_frame: MethodFrame) -> IoResult<BindOk> {
             if method_frame.class_id != 50 || method_frame.method_id != 21 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
@@ -1556,7 +1547,7 @@ pub mod queue {
             50
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<Purge> {
+        fn decode(method_frame: MethodFrame) -> IoResult<Purge> {
             if method_frame.class_id != 50 || method_frame.method_id != 30 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
@@ -1564,8 +1555,8 @@ pub mod queue {
             let ticket = try!(reader.read_be_u16());
             let queue = {
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 };
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     };
             let byte = try!(reader.read_byte());
             let bits = bitv::from_bytes([byte]);
             let nowait = bits.get(0);
@@ -1576,7 +1567,7 @@ pub mod queue {
             let mut writer = MemWriter::new();
             writer.write_be_u16(self.ticket).unwrap();
             writer.write_u8(self.queue.len() as u8).unwrap();
-		writer.write(self.queue.as_bytes()).unwrap();
+    writer.write(self.queue.as_bytes()).unwrap();
             let mut bits = Bitv::new();
             bits.push(self.nowait);
             writer.write(bits.to_bytes().as_slice()).unwrap();
@@ -1602,7 +1593,7 @@ pub mod queue {
             50
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<PurgeOk> {
+        fn decode(method_frame: MethodFrame) -> IoResult<PurgeOk> {
             if method_frame.class_id != 50 || method_frame.method_id != 31 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
@@ -1640,7 +1631,7 @@ pub mod queue {
             50
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<Delete> {
+        fn decode(method_frame: MethodFrame) -> IoResult<Delete> {
             if method_frame.class_id != 50 || method_frame.method_id != 40 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
@@ -1648,8 +1639,8 @@ pub mod queue {
             let ticket = try!(reader.read_be_u16());
             let queue = {
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 };
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     };
             let byte = try!(reader.read_byte());
             let bits = bitv::from_bytes([byte]);
             let if_unused = bits.get(0);
@@ -1662,7 +1653,7 @@ pub mod queue {
             let mut writer = MemWriter::new();
             writer.write_be_u16(self.ticket).unwrap();
             writer.write_u8(self.queue.len() as u8).unwrap();
-		writer.write(self.queue.as_bytes()).unwrap();
+    writer.write(self.queue.as_bytes()).unwrap();
             let mut bits = Bitv::new();
             bits.push(self.if_unused);
             bits.push(self.if_empty);
@@ -1690,7 +1681,7 @@ pub mod queue {
             50
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<DeleteOk> {
+        fn decode(method_frame: MethodFrame) -> IoResult<DeleteOk> {
             if method_frame.class_id != 50 || method_frame.method_id != 41 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
@@ -1728,7 +1719,7 @@ pub mod queue {
             50
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<Unbind> {
+        fn decode(method_frame: MethodFrame) -> IoResult<Unbind> {
             if method_frame.class_id != 50 || method_frame.method_id != 50 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
@@ -1736,16 +1727,16 @@ pub mod queue {
             let ticket = try!(reader.read_be_u16());
             let queue = {
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 };
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     };
             let exchange = {
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 };
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     };
             let routing_key = {
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 };
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     };
             let arguments = try!(decode_table(&mut reader));
             Ok(Unbind { ticket: ticket, queue: queue, exchange: exchange, routing_key: routing_key, arguments: arguments })
           }
@@ -1754,11 +1745,11 @@ pub mod queue {
             let mut writer = MemWriter::new();
             writer.write_be_u16(self.ticket).unwrap();
             writer.write_u8(self.queue.len() as u8).unwrap();
-		writer.write(self.queue.as_bytes()).unwrap();
+    writer.write(self.queue.as_bytes()).unwrap();
             writer.write_u8(self.exchange.len() as u8).unwrap();
-		writer.write(self.exchange.as_bytes()).unwrap();
+    writer.write(self.exchange.as_bytes()).unwrap();
             writer.write_u8(self.routing_key.len() as u8).unwrap();
-		writer.write(self.routing_key.as_bytes()).unwrap();
+    writer.write(self.routing_key.as_bytes()).unwrap();
             encode_table(&mut writer, self.arguments.clone()).unwrap();
             writer.unwrap()
         }
@@ -1780,7 +1771,7 @@ pub mod queue {
             50
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<UnbindOk> {
+        fn decode(method_frame: MethodFrame) -> IoResult<UnbindOk> {
             if method_frame.class_id != 50 || method_frame.method_id != 51 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
@@ -1801,6 +1792,7 @@ pub mod basic {
     use table::{Table, decode_table, encode_table};
     use protocol;
     use protocol::Method;
+    use framing::{MethodFrame, ContentHeaderFrame};
 
     //properties struct for basic
     #[deriving(Show, Default, Clone)]
@@ -1822,23 +1814,23 @@ pub mod basic {
     }
 
     impl BasicProperties {
-        pub fn decode(content_header_frame: protocol::ContentHeaderFrame) -> IoResult<BasicProperties> {
+        pub fn decode(content_header_frame: ContentHeaderFrame) -> IoResult<BasicProperties> {
             let mut reader = MemReader::new(content_header_frame.properties);
             let properties_flags = bitv::from_bytes([((content_header_frame.properties_flags >> 8) & 0xff) as u8,
                 (content_header_frame.properties_flags & 0xff) as u8]);
             let content_type = if properties_flags.get(0) {
                 Some({
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 })
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     })
             } else {
                 None
             };
             let content_encoding = if properties_flags.get(1) {
                 Some({
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 })
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     })
             } else {
                 None
             };
@@ -1860,32 +1852,32 @@ pub mod basic {
             let correlation_id = if properties_flags.get(5) {
                 Some({
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 })
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     })
             } else {
                 None
             };
             let reply_to = if properties_flags.get(6) {
                 Some({
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 })
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     })
             } else {
                 None
             };
             let expiration = if properties_flags.get(7) {
                 Some({
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 })
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     })
             } else {
                 None
             };
             let message_id = if properties_flags.get(8) {
                 Some({
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 })
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     })
             } else {
                 None
             };
@@ -1897,32 +1889,32 @@ pub mod basic {
             let _type = if properties_flags.get(10) {
                 Some({
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 })
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     })
             } else {
                 None
             };
             let user_id = if properties_flags.get(11) {
                 Some({
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 })
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     })
             } else {
                 None
             };
             let app_id = if properties_flags.get(12) {
                 Some({
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 })
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     })
             } else {
                 None
             };
             let cluster_id = if properties_flags.get(13) {
                 Some({
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 })
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     })
             } else {
                 None
             };
@@ -1935,12 +1927,12 @@ pub mod basic {
               if self.content_type.is_some() {
                   let content_type =  __props.content_type.unwrap();
                   writer.write_u8(content_type.len() as u8).unwrap();
-		writer.write(content_type.as_bytes()).unwrap();
+    writer.write(content_type.as_bytes()).unwrap();
               };
               if self.content_encoding.is_some() {
                   let content_encoding =  __props.content_encoding.unwrap();
                   writer.write_u8(content_encoding.len() as u8).unwrap();
-		writer.write(content_encoding.as_bytes()).unwrap();
+    writer.write(content_encoding.as_bytes()).unwrap();
               };
               if self.headers.is_some() {
                   let headers =  __props.headers.unwrap();
@@ -1957,22 +1949,22 @@ pub mod basic {
               if self.correlation_id.is_some() {
                   let correlation_id =  __props.correlation_id.unwrap();
                   writer.write_u8(correlation_id.len() as u8).unwrap();
-		writer.write(correlation_id.as_bytes()).unwrap();
+    writer.write(correlation_id.as_bytes()).unwrap();
               };
               if self.reply_to.is_some() {
                   let reply_to =  __props.reply_to.unwrap();
                   writer.write_u8(reply_to.len() as u8).unwrap();
-		writer.write(reply_to.as_bytes()).unwrap();
+    writer.write(reply_to.as_bytes()).unwrap();
               };
               if self.expiration.is_some() {
                   let expiration =  __props.expiration.unwrap();
                   writer.write_u8(expiration.len() as u8).unwrap();
-		writer.write(expiration.as_bytes()).unwrap();
+    writer.write(expiration.as_bytes()).unwrap();
               };
               if self.message_id.is_some() {
                   let message_id =  __props.message_id.unwrap();
                   writer.write_u8(message_id.len() as u8).unwrap();
-		writer.write(message_id.as_bytes()).unwrap();
+    writer.write(message_id.as_bytes()).unwrap();
               };
               if self.timestamp.is_some() {
                   let timestamp =  __props.timestamp.unwrap();
@@ -1981,22 +1973,22 @@ pub mod basic {
               if self._type.is_some() {
                   let _type =  __props._type.unwrap();
                   writer.write_u8(_type.len() as u8).unwrap();
-		writer.write(_type.as_bytes()).unwrap();
+    writer.write(_type.as_bytes()).unwrap();
               };
               if self.user_id.is_some() {
                   let user_id =  __props.user_id.unwrap();
                   writer.write_u8(user_id.len() as u8).unwrap();
-		writer.write(user_id.as_bytes()).unwrap();
+    writer.write(user_id.as_bytes()).unwrap();
               };
               if self.app_id.is_some() {
                   let app_id =  __props.app_id.unwrap();
                   writer.write_u8(app_id.len() as u8).unwrap();
-		writer.write(app_id.as_bytes()).unwrap();
+    writer.write(app_id.as_bytes()).unwrap();
               };
               if self.cluster_id.is_some() {
                   let cluster_id =  __props.cluster_id.unwrap();
                   writer.write_u8(cluster_id.len() as u8).unwrap();
-		writer.write(cluster_id.as_bytes()).unwrap();
+    writer.write(cluster_id.as_bytes()).unwrap();
               };
             writer.unwrap()
         }
@@ -2043,7 +2035,7 @@ pub mod basic {
             60
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<Qos> {
+        fn decode(method_frame: MethodFrame) -> IoResult<Qos> {
             if method_frame.class_id != 60 || method_frame.method_id != 10 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
@@ -2083,7 +2075,7 @@ pub mod basic {
             60
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<QosOk> {
+        fn decode(method_frame: MethodFrame) -> IoResult<QosOk> {
             if method_frame.class_id != 60 || method_frame.method_id != 11 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
@@ -2120,7 +2112,7 @@ pub mod basic {
             60
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<Consume> {
+        fn decode(method_frame: MethodFrame) -> IoResult<Consume> {
             if method_frame.class_id != 60 || method_frame.method_id != 20 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
@@ -2128,12 +2120,12 @@ pub mod basic {
             let ticket = try!(reader.read_be_u16());
             let queue = {
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 };
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     };
             let consumer_tag = {
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 };
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     };
             let byte = try!(reader.read_byte());
             let bits = bitv::from_bytes([byte]);
             let no_local = bits.get(0);
@@ -2148,9 +2140,9 @@ pub mod basic {
             let mut writer = MemWriter::new();
             writer.write_be_u16(self.ticket).unwrap();
             writer.write_u8(self.queue.len() as u8).unwrap();
-		writer.write(self.queue.as_bytes()).unwrap();
+    writer.write(self.queue.as_bytes()).unwrap();
             writer.write_u8(self.consumer_tag.len() as u8).unwrap();
-		writer.write(self.consumer_tag.as_bytes()).unwrap();
+    writer.write(self.consumer_tag.as_bytes()).unwrap();
             let mut bits = Bitv::new();
             bits.push(self.no_local);
             bits.push(self.no_ack);
@@ -2180,22 +2172,22 @@ pub mod basic {
             60
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<ConsumeOk> {
+        fn decode(method_frame: MethodFrame) -> IoResult<ConsumeOk> {
             if method_frame.class_id != 60 || method_frame.method_id != 21 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
             let mut reader = MemReader::new(method_frame.arguments);
             let consumer_tag = {
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 };
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     };
             Ok(ConsumeOk { consumer_tag: consumer_tag })
           }
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = MemWriter::new();
             writer.write_u8(self.consumer_tag.len() as u8).unwrap();
-		writer.write(self.consumer_tag.as_bytes()).unwrap();
+    writer.write(self.consumer_tag.as_bytes()).unwrap();
             writer.unwrap()
         }
     }
@@ -2219,15 +2211,15 @@ pub mod basic {
             60
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<Cancel> {
+        fn decode(method_frame: MethodFrame) -> IoResult<Cancel> {
             if method_frame.class_id != 60 || method_frame.method_id != 30 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
             let mut reader = MemReader::new(method_frame.arguments);
             let consumer_tag = {
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 };
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     };
             let byte = try!(reader.read_byte());
             let bits = bitv::from_bytes([byte]);
             let nowait = bits.get(0);
@@ -2237,7 +2229,7 @@ pub mod basic {
         fn encode(&self) -> Vec<u8> {
             let mut writer = MemWriter::new();
             writer.write_u8(self.consumer_tag.len() as u8).unwrap();
-		writer.write(self.consumer_tag.as_bytes()).unwrap();
+    writer.write(self.consumer_tag.as_bytes()).unwrap();
             let mut bits = Bitv::new();
             bits.push(self.nowait);
             writer.write(bits.to_bytes().as_slice()).unwrap();
@@ -2263,22 +2255,22 @@ pub mod basic {
             60
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<CancelOk> {
+        fn decode(method_frame: MethodFrame) -> IoResult<CancelOk> {
             if method_frame.class_id != 60 || method_frame.method_id != 31 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
             let mut reader = MemReader::new(method_frame.arguments);
             let consumer_tag = {
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 };
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     };
             Ok(CancelOk { consumer_tag: consumer_tag })
           }
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = MemWriter::new();
             writer.write_u8(self.consumer_tag.len() as u8).unwrap();
-		writer.write(self.consumer_tag.as_bytes()).unwrap();
+    writer.write(self.consumer_tag.as_bytes()).unwrap();
             writer.unwrap()
         }
     }
@@ -2305,7 +2297,7 @@ pub mod basic {
             60
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<Publish> {
+        fn decode(method_frame: MethodFrame) -> IoResult<Publish> {
             if method_frame.class_id != 60 || method_frame.method_id != 40 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
@@ -2313,12 +2305,12 @@ pub mod basic {
             let ticket = try!(reader.read_be_u16());
             let exchange = {
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 };
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     };
             let routing_key = {
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 };
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     };
             let byte = try!(reader.read_byte());
             let bits = bitv::from_bytes([byte]);
             let mandatory = bits.get(0);
@@ -2330,9 +2322,9 @@ pub mod basic {
             let mut writer = MemWriter::new();
             writer.write_be_u16(self.ticket).unwrap();
             writer.write_u8(self.exchange.len() as u8).unwrap();
-		writer.write(self.exchange.as_bytes()).unwrap();
+    writer.write(self.exchange.as_bytes()).unwrap();
             writer.write_u8(self.routing_key.len() as u8).unwrap();
-		writer.write(self.routing_key.as_bytes()).unwrap();
+    writer.write(self.routing_key.as_bytes()).unwrap();
             let mut bits = Bitv::new();
             bits.push(self.mandatory);
             bits.push(self.immediate);
@@ -2362,7 +2354,7 @@ pub mod basic {
             60
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<Return> {
+        fn decode(method_frame: MethodFrame) -> IoResult<Return> {
             if method_frame.class_id != 60 || method_frame.method_id != 50 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
@@ -2370,16 +2362,16 @@ pub mod basic {
             let reply_code = try!(reader.read_be_u16());
             let reply_text = {
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 };
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     };
             let exchange = {
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 };
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     };
             let routing_key = {
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 };
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     };
             Ok(Return { reply_code: reply_code, reply_text: reply_text, exchange: exchange, routing_key: routing_key })
           }
 
@@ -2387,11 +2379,11 @@ pub mod basic {
             let mut writer = MemWriter::new();
             writer.write_be_u16(self.reply_code).unwrap();
             writer.write_u8(self.reply_text.len() as u8).unwrap();
-		writer.write(self.reply_text.as_bytes()).unwrap();
+    writer.write(self.reply_text.as_bytes()).unwrap();
             writer.write_u8(self.exchange.len() as u8).unwrap();
-		writer.write(self.exchange.as_bytes()).unwrap();
+    writer.write(self.exchange.as_bytes()).unwrap();
             writer.write_u8(self.routing_key.len() as u8).unwrap();
-		writer.write(self.routing_key.as_bytes()).unwrap();
+    writer.write(self.routing_key.as_bytes()).unwrap();
             writer.unwrap()
         }
     }
@@ -2418,42 +2410,42 @@ pub mod basic {
             60
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<Deliver> {
+        fn decode(method_frame: MethodFrame) -> IoResult<Deliver> {
             if method_frame.class_id != 60 || method_frame.method_id != 60 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
             let mut reader = MemReader::new(method_frame.arguments);
             let consumer_tag = {
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 };
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     };
             let delivery_tag = try!(reader.read_be_u64());
             let byte = try!(reader.read_byte());
             let bits = bitv::from_bytes([byte]);
             let redelivered = bits.get(0);
             let exchange = {
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 };
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     };
             let routing_key = {
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 };
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     };
             Ok(Deliver { consumer_tag: consumer_tag, delivery_tag: delivery_tag, redelivered: redelivered, exchange: exchange, routing_key: routing_key })
           }
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = MemWriter::new();
             writer.write_u8(self.consumer_tag.len() as u8).unwrap();
-		writer.write(self.consumer_tag.as_bytes()).unwrap();
+    writer.write(self.consumer_tag.as_bytes()).unwrap();
             writer.write_be_u64(self.delivery_tag).unwrap();
             let mut bits = Bitv::new();
             bits.push(self.redelivered);
             writer.write(bits.to_bytes().as_slice()).unwrap();
             writer.write_u8(self.exchange.len() as u8).unwrap();
-		writer.write(self.exchange.as_bytes()).unwrap();
+    writer.write(self.exchange.as_bytes()).unwrap();
             writer.write_u8(self.routing_key.len() as u8).unwrap();
-		writer.write(self.routing_key.as_bytes()).unwrap();
+    writer.write(self.routing_key.as_bytes()).unwrap();
             writer.unwrap()
         }
     }
@@ -2478,7 +2470,7 @@ pub mod basic {
             60
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<Get> {
+        fn decode(method_frame: MethodFrame) -> IoResult<Get> {
             if method_frame.class_id != 60 || method_frame.method_id != 70 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
@@ -2486,8 +2478,8 @@ pub mod basic {
             let ticket = try!(reader.read_be_u16());
             let queue = {
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 };
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     };
             let byte = try!(reader.read_byte());
             let bits = bitv::from_bytes([byte]);
             let no_ack = bits.get(0);
@@ -2498,7 +2490,7 @@ pub mod basic {
             let mut writer = MemWriter::new();
             writer.write_be_u16(self.ticket).unwrap();
             writer.write_u8(self.queue.len() as u8).unwrap();
-		writer.write(self.queue.as_bytes()).unwrap();
+    writer.write(self.queue.as_bytes()).unwrap();
             let mut bits = Bitv::new();
             bits.push(self.no_ack);
             writer.write(bits.to_bytes().as_slice()).unwrap();
@@ -2528,7 +2520,7 @@ pub mod basic {
             60
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<GetOk> {
+        fn decode(method_frame: MethodFrame) -> IoResult<GetOk> {
             if method_frame.class_id != 60 || method_frame.method_id != 71 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
@@ -2539,12 +2531,12 @@ pub mod basic {
             let redelivered = bits.get(0);
             let exchange = {
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 };
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     };
             let routing_key = {
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 };
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     };
             let message_count = try!(reader.read_be_u32());
             Ok(GetOk { delivery_tag: delivery_tag, redelivered: redelivered, exchange: exchange, routing_key: routing_key, message_count: message_count })
           }
@@ -2556,9 +2548,9 @@ pub mod basic {
             bits.push(self.redelivered);
             writer.write(bits.to_bytes().as_slice()).unwrap();
             writer.write_u8(self.exchange.len() as u8).unwrap();
-		writer.write(self.exchange.as_bytes()).unwrap();
+    writer.write(self.exchange.as_bytes()).unwrap();
             writer.write_u8(self.routing_key.len() as u8).unwrap();
-		writer.write(self.routing_key.as_bytes()).unwrap();
+    writer.write(self.routing_key.as_bytes()).unwrap();
             writer.write_be_u32(self.message_count).unwrap();
             writer.unwrap()
         }
@@ -2582,22 +2574,22 @@ pub mod basic {
             60
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<GetEmpty> {
+        fn decode(method_frame: MethodFrame) -> IoResult<GetEmpty> {
             if method_frame.class_id != 60 || method_frame.method_id != 72 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
             let mut reader = MemReader::new(method_frame.arguments);
             let cluster_id = {
           let size = try!(reader.read_byte()) as uint;
-				  String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
-		 };
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+     };
             Ok(GetEmpty { cluster_id: cluster_id })
           }
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = MemWriter::new();
             writer.write_u8(self.cluster_id.len() as u8).unwrap();
-		writer.write(self.cluster_id.as_bytes()).unwrap();
+    writer.write(self.cluster_id.as_bytes()).unwrap();
             writer.unwrap()
         }
     }
@@ -2621,7 +2613,7 @@ pub mod basic {
             60
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<Ack> {
+        fn decode(method_frame: MethodFrame) -> IoResult<Ack> {
             if method_frame.class_id != 60 || method_frame.method_id != 80 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
@@ -2662,7 +2654,7 @@ pub mod basic {
             60
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<Reject> {
+        fn decode(method_frame: MethodFrame) -> IoResult<Reject> {
             if method_frame.class_id != 60 || method_frame.method_id != 90 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
@@ -2702,7 +2694,7 @@ pub mod basic {
             60
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<RecoverAsync> {
+        fn decode(method_frame: MethodFrame) -> IoResult<RecoverAsync> {
             if method_frame.class_id != 60 || method_frame.method_id != 100 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
@@ -2740,7 +2732,7 @@ pub mod basic {
             60
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<Recover> {
+        fn decode(method_frame: MethodFrame) -> IoResult<Recover> {
             if method_frame.class_id != 60 || method_frame.method_id != 110 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
@@ -2776,7 +2768,7 @@ pub mod basic {
             60
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<RecoverOk> {
+        fn decode(method_frame: MethodFrame) -> IoResult<RecoverOk> {
             if method_frame.class_id != 60 || method_frame.method_id != 111 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
@@ -2808,7 +2800,7 @@ pub mod basic {
             60
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<Nack> {
+        fn decode(method_frame: MethodFrame) -> IoResult<Nack> {
             if method_frame.class_id != 60 || method_frame.method_id != 120 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
@@ -2841,6 +2833,7 @@ pub mod tx {
     use table::{Table, decode_table, encode_table};
     use protocol;
     use protocol::Method;
+    use framing::{MethodFrame, ContentHeaderFrame};
 
 
     // Method 10:select
@@ -2860,7 +2853,7 @@ pub mod tx {
             90
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<Select> {
+        fn decode(method_frame: MethodFrame) -> IoResult<Select> {
             if method_frame.class_id != 90 || method_frame.method_id != 10 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
@@ -2888,7 +2881,7 @@ pub mod tx {
             90
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<SelectOk> {
+        fn decode(method_frame: MethodFrame) -> IoResult<SelectOk> {
             if method_frame.class_id != 90 || method_frame.method_id != 11 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
@@ -2916,7 +2909,7 @@ pub mod tx {
             90
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<Commit> {
+        fn decode(method_frame: MethodFrame) -> IoResult<Commit> {
             if method_frame.class_id != 90 || method_frame.method_id != 20 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
@@ -2944,7 +2937,7 @@ pub mod tx {
             90
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<CommitOk> {
+        fn decode(method_frame: MethodFrame) -> IoResult<CommitOk> {
             if method_frame.class_id != 90 || method_frame.method_id != 21 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
@@ -2972,7 +2965,7 @@ pub mod tx {
             90
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<Rollback> {
+        fn decode(method_frame: MethodFrame) -> IoResult<Rollback> {
             if method_frame.class_id != 90 || method_frame.method_id != 30 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
@@ -3000,7 +2993,7 @@ pub mod tx {
             90
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<RollbackOk> {
+        fn decode(method_frame: MethodFrame) -> IoResult<RollbackOk> {
             if method_frame.class_id != 90 || method_frame.method_id != 31 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
@@ -3021,6 +3014,7 @@ pub mod confirm {
     use table::{Table, decode_table, encode_table};
     use protocol;
     use protocol::Method;
+    use framing::{MethodFrame, ContentHeaderFrame};
 
 
     // Method 10:select
@@ -3042,7 +3036,7 @@ pub mod confirm {
             85
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<Select> {
+        fn decode(method_frame: MethodFrame) -> IoResult<Select> {
             if method_frame.class_id != 85 || method_frame.method_id != 10 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }
@@ -3078,7 +3072,7 @@ pub mod confirm {
             85
         }
 
-        fn decode(method_frame: protocol::MethodFrame) -> IoResult<SelectOk> {
+        fn decode(method_frame: MethodFrame) -> IoResult<SelectOk> {
             if method_frame.class_id != 85 || method_frame.method_id != 11 {
                return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
             }

@@ -3,9 +3,9 @@ use std::io::net::tcp::TcpStream;
 use std::default::Default;
 use std::cmp;
 use framing;
-use framing::Frame;
+use framing::{Frame, MethodFrame};
 use protocol;
-use table::{FieldTable, Table, Bool, ShortShortInt, ShortShortUint, ShortInt, ShortUint, LongInt, LongUint, LongLongInt, LongLongUint, Float, Double, DecimalValue, LongString, FieldArray, Timestamp};
+use table::{FieldTable, Bool, LongString};
 use std::collections::TreeMap;
 
 pub struct Connection {
@@ -49,7 +49,7 @@ impl Connection {
 
         let frame = connection.read(); //Start
 
-        let method_frame = framing::decode_method_frame(frame.unwrap());
+        let method_frame = MethodFrame::decode(frame.unwrap());
         let start : protocol::connection::Start = match method_frame.method_name(){
             "connection.start" => protocol::Method::decode(method_frame).unwrap(),
             meth => fail!("Unexpected method frame: {}", meth) //In reality you would probably skip the frame and try to read another?
@@ -104,7 +104,7 @@ impl Connection {
 
     pub fn send_method_frame(&mut self, channel: u16, method: &protocol::Method)  -> IoResult<()> {
         println!("Sending method {} to channel {}", method.name(), channel);
-        self.write(Frame {frame_type: framing::METHOD, channel: channel, payload: framing::encode_method_frame(method) })
+        self.write(Frame {frame_type: framing::METHOD, channel: channel, payload: MethodFrame::encode_method(method) })
     }
 
     pub fn rpc<T: protocol::Method>(&mut self, channel: u16, method: &protocol::Method, expected_reply: &str) -> IoResult<T> {
@@ -115,9 +115,9 @@ impl Connection {
         }
     }
 
-    pub fn raw_rpc(&mut self, channel: u16, method: &protocol::Method) -> IoResult<protocol::MethodFrame> {
-        self.send_method_frame(channel, method);
-        self.read().map(|frame| framing::decode_method_frame(frame))
+    pub fn raw_rpc(&mut self, channel: u16, method: &protocol::Method) -> IoResult<MethodFrame> {
+        self.send_method_frame(channel, method).unwrap();
+        self.read().map(|frame| MethodFrame::decode(frame))
     }
 
     pub fn write(&mut self, frame: Frame) -> IoResult<()>{

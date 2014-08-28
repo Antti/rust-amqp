@@ -1,5 +1,5 @@
 use std::io::{MemReader, MemWriter, IoResult, IoError, InvalidInput, OtherIoError};
-use protocol::{Method, MethodFrame, ContentHeaderFrame};
+use protocol::Method;
 
 #[deriving(Show, Clone, Eq, PartialEq, FromPrimitive)]
 pub enum FrameType {
@@ -50,52 +50,71 @@ impl Frame {
     }
 }
 
+#[deriving(Show, Clone)]
+pub struct MethodFrame {
+    pub class_id: u16,
+    pub method_id: u16,
+    pub arguments: Vec<u8>
+}
 
-//TODO: Move this to MethodFrame
-// We need this method, so we can match on class_id & method_id
-pub fn decode_method_frame(frame: Frame) -> MethodFrame {
-    if frame.frame_type != METHOD {
-        fail!("Not a method frame");
+impl MethodFrame {
+    pub fn encode_method(method: &Method) -> Vec<u8> {
+        let frame = MethodFrame {class_id: method.class_id(), method_id: method.id(), arguments: method.encode()};
+        frame.encode()
     }
-    let mut reader = MemReader::new(frame.payload);
-    let class_id = reader.read_be_u16().unwrap();
-    let method_id = reader.read_be_u16().unwrap();
-    let arguments = reader.read_to_end().unwrap();
-    MethodFrame { class_id: class_id, method_id: method_id, arguments: arguments}
+    pub fn encode(&self) -> Vec<u8> {
+        let mut writer = MemWriter::new();
+        writer.write_be_u16(self.class_id).unwrap();
+        writer.write_be_u16(self.method_id).unwrap();
+        writer.write(self.arguments.as_slice()).unwrap();
+        writer.unwrap()
+    }
+
+    // We need this method, so we can match on class_id & method_id
+    pub fn decode(frame: Frame) -> MethodFrame {
+        if frame.frame_type != METHOD {
+            fail!("Not a method frame");
+        }
+        let mut reader = MemReader::new(frame.payload);
+        let class_id = reader.read_be_u16().unwrap();
+        let method_id = reader.read_be_u16().unwrap();
+        let arguments = reader.read_to_end().unwrap();
+        MethodFrame { class_id: class_id, method_id: method_id, arguments: arguments}
+    }
 }
 
-//TODO: Move this to MethodFrame
-pub fn encode_method_frame(method: &Method) -> Vec<u8> {
-    let mut writer = MemWriter::new();
-    writer.write_be_u16(method.class_id()).unwrap();
-    writer.write_be_u16(method.id()).unwrap();
-    writer.write(method.encode().as_slice()).unwrap();
-    writer.unwrap()
+#[deriving(Show, Clone)]
+pub struct ContentHeaderFrame {
+    pub content_class: u16,
+    pub weight: u16,
+    pub body_size: u64,
+    pub properties_flags: u16,
+    pub properties: Vec<u8>
 }
 
-//TODO: Move this to ContentHeaderFrame
-pub fn decode_content_header_frame(frame: Frame) -> IoResult<ContentHeaderFrame> {
-    let mut reader = MemReader::new(frame.payload.clone());
-    let content_class = try!(reader.read_be_u16());
-    let weight = try!(reader.read_be_u16()); //0 all the time for now
-    let body_size = try!(reader.read_be_u64());
-    let properties_flags = try!(reader.read_be_u16());
-    let properties = try!(reader.read_to_end());
-    Ok(ContentHeaderFrame {
-        content_class: content_class, weight: weight, body_size: body_size,
-        properties_flags: properties_flags, properties: properties
-    })
-}
+impl ContentHeaderFrame {
+    pub fn decode(frame: Frame) -> IoResult<ContentHeaderFrame> {
+        let mut reader = MemReader::new(frame.payload.clone());
+        let content_class = try!(reader.read_be_u16());
+        let weight = try!(reader.read_be_u16()); //0 all the time for now
+        let body_size = try!(reader.read_be_u64());
+        let properties_flags = try!(reader.read_be_u16());
+        let properties = try!(reader.read_to_end());
+        Ok(ContentHeaderFrame {
+            content_class: content_class, weight: weight, body_size: body_size,
+            properties_flags: properties_flags, properties: properties
+        })
+    }
 
-//TODO: Move this to ContentHeaderFrame
-pub fn encode_content_header_frame(frame: &ContentHeaderFrame) -> Vec<u8> {
-    let mut writer = MemWriter::new();
-    writer.write_be_u16(frame.content_class).unwrap();
-    writer.write_be_u16(frame.weight).unwrap(); //0 all the time for now
-    writer.write_be_u64(frame.body_size).unwrap();
-    writer.write_be_u16(frame.properties_flags).unwrap();
-    writer.write(frame.properties.as_slice()).unwrap();
-    writer.unwrap()
+    pub fn encode(&self) -> Vec<u8> {
+        let mut writer = MemWriter::new();
+        writer.write_be_u16(self.content_class).unwrap();
+        writer.write_be_u16(self.weight).unwrap(); //0 all the time for now
+        writer.write_be_u64(self.body_size).unwrap();
+        writer.write_be_u16(self.properties_flags).unwrap();
+        writer.write(self.properties.as_slice()).unwrap();
+        writer.unwrap()
+    }
 }
 
 

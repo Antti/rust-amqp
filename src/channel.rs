@@ -5,6 +5,7 @@ use std::cmp;
 
 use connection;
 use framing;
+use framing::{ContentHeaderFrame, MethodFrame};
 use protocol;
 use protocol::channel;
 use protocol::basic;
@@ -29,15 +30,15 @@ impl Channel {
 		connection.rpc(self.id, method, expected_reply)
 	}
 
-	pub fn raw_rpc(&self, method: &protocol::Method) -> IoResult<protocol::MethodFrame> {
+	pub fn raw_rpc(&self, method: &protocol::Method) -> IoResult<MethodFrame> {
 		let mut connection = self.connection.borrow_mut();
 		connection.raw_rpc(self.id, method)
 	}
 
-	pub fn read_headers(&self) -> IoResult<protocol::ContentHeaderFrame> {
+	pub fn read_headers(&self) -> IoResult<ContentHeaderFrame> {
 		let mut connection = self.connection.borrow_mut();
 		let frame = try!(connection.read());
-		framing::decode_content_header_frame(frame)
+		ContentHeaderFrame::decode(frame)
 	}
 
 	pub fn read_body(&self, size: u64) -> IoResult<Vec<u8>> {
@@ -56,15 +57,15 @@ impl Channel {
 			ticket: ticket, exchange: exchange.to_string(),
 			routing_key: routing_key.to_string(), mandatory: mandatory, immediate: immediate};
 		let properties_flags = properties.flags();
-		let content_header = protocol::ContentHeaderFrame { content_class: 60, weight: 0, body_size: content.len() as u64,
+		let content_header = ContentHeaderFrame { content_class: 60, weight: 0, body_size: content.len() as u64,
 			properties_flags: properties_flags, properties: properties.encode() };
 		let content_header_frame = framing::Frame {frame_type: framing::HEADERS, channel: self.id,
-			payload: framing::encode_content_header_frame(&content_header) };
+			payload: content_header.encode() };
 
 		//TODO: Check if need to include frame header + end octet into calculation. (9 bytes extra)
 		let content_frames = Channel::split_content_into_frames(content, connection.frame_max_limit as uint);
 
-		connection.send_method_frame(self.id, publish);
+		connection.send_method_frame(self.id, publish).unwrap();
 		connection.write(content_header_frame);
 
 		for content_frame in content_frames.move_iter() {

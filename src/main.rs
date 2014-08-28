@@ -4,6 +4,8 @@ use amqp::connection::Options;
 use amqp::session::Session;
 use amqp::protocol;
 use std::default::Default;
+//table types:
+//use table::{FieldTable, Table, Bool, ShortShortInt, ShortShortUint, ShortInt, ShortUint, LongInt, LongUint, LongLongInt, LongLongUint, Float, Double, DecimalValue, LongString, FieldArray, Timestamp};
 
 fn main() {
     let mut session = Session::new(Options{.. Default::default()}).unwrap();

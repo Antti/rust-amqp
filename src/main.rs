@@ -3,6 +3,7 @@ extern crate amqp;
 use amqp::connection::Options;
 use amqp::session::Session;
 use amqp::protocol;
+use amqp::table;
 use std::default::Default;
 //table types:
 //use table::{FieldTable, Table, Bool, ShortShortInt, ShortShortUint, ShortInt, ShortUint, LongInt, LongUint, LongLongInt, LongLongUint, Float, Double, DecimalValue, LongString, FieldArray, Timestamp};
@@ -13,6 +14,9 @@ fn main() {
     println!("Openned channel: {}", channel.id);
 
     let queue_name = "test_queue";
+    //ticket: u16, queue: &str, passive: bool, durable: bool, exclusive: bool, auto_delete: bool, nowait: bool, arguments: Table
+    let queue_declare = channel.queue_declare(0, queue_name, true, true, false, false, false, table::new());
+    println!("Queue declare: {}", queue_declare);
     loop {
     	match channel.basic_get(0, queue_name, true){
     		Ok((headers, body)) => {

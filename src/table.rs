@@ -26,6 +26,10 @@ pub enum TableEntry {
 #[deriving(Show)]
 pub type Table = TreeMap<String, TableEntry>;
 
+pub fn new() -> Table {
+    TreeMap::new()
+}
+
 fn read_table_entry(reader: &mut MemReader) -> IoResult<TableEntry> {
     let entry = match try!(reader.read_u8()) {
         b't' => Bool(if try!(reader.read_u8()) == 0 {false}else{true} ),
@@ -109,7 +113,7 @@ fn write_table_entry(writer: &mut MemWriter, table_entry: TableEntry) -> IoResul
 }
 
 pub fn decode_table(reader: &mut MemReader) -> IoResult<Table> {
-    let mut table = TreeMap::new();
+    let mut table = new();
     let size = try!(reader.read_be_u32()) as u64;
     let pos = try!(reader.tell());
 

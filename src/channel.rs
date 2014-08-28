@@ -6,6 +6,7 @@ use std::cmp;
 use connection;
 use framing;
 use framing::{ContentHeaderFrame, MethodFrame};
+use table::Table;
 use protocol;
 use protocol::channel;
 use protocol::basic;
@@ -100,9 +101,31 @@ impl Channel {
 		content_frames
 	}
 
-	// exchangeDeclare
-	// queueDeclare
-	// queueBind
+	pub fn exchange_declare(&self, ticket: u16, exchange: &str, _type: &str, passive: bool, durable: bool,
+		auto_delete: bool, internal: bool, nowait: bool, arguments: Table) -> IoResult<protocol::exchange::DeclareOk> {
+		let declare = protocol::exchange::Declare {
+			ticket: ticket, exchange: exchange.to_string(), _type: _type.to_string(), passive: passive, durable: durable,
+			auto_delete: auto_delete, internal: internal, nowait: nowait, arguments: arguments
+		};
+		self.rpc(&declare,"exchange.declare-ok")
+    }
+
+	pub fn queue_declare(&self, ticket: u16, queue: &str, passive: bool, durable: bool, exclusive: bool,
+		auto_delete: bool, nowait: bool, arguments: Table) -> IoResult<protocol::queue::DeclareOk> {
+		let declare = protocol::queue::Declare {
+			ticket: ticket, queue: queue.to_string(), passive: passive, durable: durable, exclusive: exclusive,
+			auto_delete: auto_delete, nowait: nowait, arguments: arguments
+		};
+		self.rpc(&declare, "queue.declare-ok")
+	}
+
+	pub fn queue_bind(&self, ticket: u16, queue: &str, exchange: &str, routing_key: &str, nowait: bool, arguments: Table) -> IoResult<protocol::queue::BindOk> {
+		let bind = protocol::queue::Bind {
+			ticket: ticket, queue: queue.to_string(), exchange: exchange.to_string(),
+			routing_key: routing_key.to_string(), nowait: nowait, arguments: arguments
+		};
+		self.rpc(&bind, "queue.bind-ok")
+	}
 }
 
 

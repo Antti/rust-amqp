@@ -1,39 +1,12 @@
 use std::io::{IoResult};
 use std::io::net::tcp::TcpStream;
-use std::default::Default;
-use std::cmp;
 use framing;
 use framing::{Frame, MethodFrame};
 use protocol;
-use table::{FieldTable, Bool, LongString};
-use std::collections::TreeMap;
 
 pub struct Connection {
     socket: TcpStream,
-    pub channel_max_limit: u16,
     pub frame_max_limit: u32
-}
-
-pub struct Options <'a>  {
-    host: &'a str,
-    port: u16,
-    login: &'a str,
-    password: &'a str,
-    vhost: &'a str,
-    frame_max_limit: u32,
-    channel_max_limit: u16,
-    locale: &'a str
-}
-
-impl <'a>  Default for Options <'a>  {
-    fn default() -> Options <'a>  {
-        Options {
-            host: "127.0.0.1", port: 5672, vhost: "/",
-            login: "guest", password: "guest",
-            frame_max_limit: 131072, channel_max_limit: 65535,
-            locale: "en_US"
-        }
-    }
 }
 
 impl Connection {
@@ -42,54 +15,11 @@ impl Connection {
     //     let opts = Options { host: url.host, port: url.port, login: url.login, password: url.password, vhost: url.path, ..Options::default()};
     //     Connection::open(opts)
     // }
-    pub fn open(options: Options) -> IoResult<Connection> {
-        let mut socket = try!(TcpStream::connect(options.host, options.port));
+
+    pub fn open(host: &str, port: u16) -> IoResult<Connection> {
+        let mut socket = try!(TcpStream::connect(host, port));
         try!(socket.write([b'A', b'M', b'Q', b'P', 0, 0, 9, 1]));
-        let mut connection = Connection { socket: socket, channel_max_limit: options.channel_max_limit, frame_max_limit: options.frame_max_limit };
-
-        let frame = connection.read(); //Start
-
-        let method_frame = MethodFrame::decode(frame.unwrap());
-        let start : protocol::connection::Start = match method_frame.method_name(){
-            "connection.start" => protocol::Method::decode(method_frame).unwrap(),
-            meth => fail!("Unexpected method frame: {}", meth) //In reality you would probably skip the frame and try to read another?
-        };
-        //  The client selects a security mechanism (Start-Ok).
-        //  The server starts the authentication process, which uses the SASL challenge-response model. It sends
-        // the client a challenge (Secure).
-        //  The client sends an authentication response (Secure-Ok). For example using the "plain" mechanism,
-        // the response consist of a login name and password.
-        //  The server repeats the challenge (Secure) or moves to negotiation, sending a set of parameters such as
-
-        let mut client_properties = TreeMap::new();
-        let mut capabilities = TreeMap::new();
-        capabilities.insert("publisher_confirms".to_string(), Bool(true));
-        capabilities.insert("consumer_cancel_notify".to_string(), Bool(true));
-        capabilities.insert("exchange_exchange_bindings".to_string(), Bool(true));
-        capabilities.insert("basic.nack".to_string(), Bool(true));
-        capabilities.insert("connection.blocked".to_string(), Bool(true));
-        capabilities.insert("authentication_failure_close".to_string(), Bool(true));
-        client_properties.insert("capabilities".to_string(), FieldTable(capabilities));
-        client_properties.insert("product".to_string(), LongString("rust-amqp".to_string()));
-        client_properties.insert("platform".to_string(), LongString("rust".to_string()));
-        client_properties.insert("version".to_string(), LongString("0.1".to_string()));
-        client_properties.insert("information".to_string(), LongString("https://github.com/Antti/rust-amqp".to_string()));
-
-        let start_ok = protocol::connection::StartOk {
-            client_properties: client_properties, mechanism: "PLAIN".to_string(),
-            response: format!("\0{}\0{}", options.login, options.password), locale: options.locale.to_string()};
-        let tune : protocol::connection::Tune = try!(connection.rpc(0, &start_ok, "connection.tune"));
-
-        connection.channel_max_limit = negotiate(tune.channel_max, connection.channel_max_limit);
-        connection.frame_max_limit = negotiate(tune.frame_max, connection.frame_max_limit);
-        let tune_ok = protocol::connection::TuneOk {
-            channel_max: connection.channel_max_limit,
-            frame_max: connection.frame_max_limit, heartbeat: 0};
-        try!(connection.send_method_frame(0, &tune_ok));
-
-        let open = protocol::connection::Open{virtual_host: options.vhost.to_string(), capabilities: "".to_string(), insist: false };
-        let open_ok : protocol::connection::OpenOk = try!(connection.rpc(0, &open, "connection.open-ok"));
-
+        let connection = Connection { socket: socket, frame_max_limit: 131072 };
         Ok(connection)
     }
 
@@ -125,15 +55,15 @@ impl Connection {
     }
 
     pub fn read(&mut self) -> IoResult<Frame> {
-        let frame = Frame::decode(&mut self.socket);
-        if frame.is_ok() {
-            let unwrapped = frame.clone().unwrap();
-            println!("Received frame: type: {}, channel: {}, size: {}", unwrapped.frame_type, unwrapped.channel, unwrapped.payload.len());
-        }
-        frame
+        Frame::decode(&mut self.socket)
     }
+
+    // pub fn reading_loop(&mut self){
+    //     loop {
+    //         let frame = self.read();
+    //         // Handle heartbeats
+    //         // Dispatch frame to the given channel.
+    //     }
+    // }
 }
 
-fn negotiate<T : cmp::Ord>(their_value: T, our_value: T) -> T {
-    cmp::min(their_value, our_value)
-}

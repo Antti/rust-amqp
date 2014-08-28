@@ -1,6 +1,6 @@
 extern crate amqp;
 
-use amqp::connection::Options;
+use amqp::session::Options;
 use amqp::session::Session;
 use amqp::protocol;
 use amqp::table;

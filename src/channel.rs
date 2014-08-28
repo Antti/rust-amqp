@@ -63,6 +63,7 @@ impl Channel {
 		let content_header_frame = framing::Frame {frame_type: framing::HEADERS, channel: self.id,
 			payload: content_header.encode() };
 
+		assert!(connection.frame_max_limit > 0, "Can't have frame_max_limit == 0")
 		//TODO: Check if need to include frame header + end octet into calculation. (9 bytes extra)
 		let content_frames = Channel::split_content_into_frames(content, connection.frame_max_limit as uint);
 

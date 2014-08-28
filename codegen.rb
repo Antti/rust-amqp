@@ -6,45 +6,6 @@ require 'erb'
 #   str.lines.map{|line| "#{" "*count}#{line.lstrip}" }.join()
 # end
 
-def titleize(name)
-  name[0].upcase+name[1..-1]
-end
-
-def snake_name(name)
-  name.tr("-","_").gsub(/^type$/, "_type")
-end
-
-def camel_name(klass)
-  klass.gsub(/(\-.)/){|c| c[1].upcase}
-end
-
-def map_type_to_rust(type)
-  case type
-  when "octet"
-    "u8"
-  when "long"
-    "u32"
-  when "longlong"
-    "u64"
-  when "short"
-    "u16"
-  when "bit"
-    'bool'
-  when "shortstr"
-    # 'Vec<u8>'
-    String
-  when "longstr"
-    # 'Vec<u8>'
-    String
-  when "table"
-    "Table"
-  when "timestamp"
-    "u64"
-  else
-    raise "Uknown type: #{type}"
-  end
-end
-
 def read_type(type)
   case type
   when "octet"
@@ -101,10 +62,6 @@ def write_type(name, type)
   else
     raise "Unknown type: #{type}"
   end
-end
-
-def map_domain(domain)
-  DOMAINS[domain]
 end
 
 def generate_reader_body(arguments)
@@ -211,6 +168,70 @@ class SpecGenerator
     end
   end #modify_spec
 
+  def value_to_rust_value(value)
+    case value
+    when String
+      "\"#{value}\".to_string()"
+    when Fixnum
+      value
+    when TrueClass, FalseClass
+      value
+    when Hash
+      "table::new()"
+    else
+      raise "Cant convert value #{value}"
+    end
+  end
+
+  def args_list(properties)
+    properties.map do |prop|
+      rust_type = map_type_to_rust prop["domain"] ? map_domain(prop["domain"]) : prop["type"]
+      "#{snake_name(prop["name"])}: #{rust_type}"
+    end
+  end
+
+  def titleize(name)
+    name[0].upcase+name[1..-1]
+  end
+
+  def snake_name(name)
+    name.tr("-","_").gsub(/^type$/, "_type")
+  end
+
+  def camel_name(klass)
+    klass.gsub(/(\-.)/){|c| c[1].upcase}
+  end
+
+  def map_domain(domain)
+    DOMAINS[domain]
+  end
+
+  def map_type_to_rust(type)
+    case type
+    when "octet"
+      "u8"
+    when "long"
+      "u32"
+    when "longlong"
+      "u64"
+    when "short"
+      "u16"
+    when "bit"
+      'bool'
+    when "shortstr"
+      # 'Vec<u8>'
+      String
+    when "longstr"
+      # 'Vec<u8>'
+      String
+    when "table"
+      "Table"
+    when "timestamp"
+      "u64"
+    else
+      raise "Uknown type: #{type}"
+    end
+  end
 end
 
 erb = ERB.new(File.read('codegen.erb'), 0 , "<>-")

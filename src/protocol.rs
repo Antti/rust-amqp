@@ -3,7 +3,7 @@
 
 use std::io::IoResult;
 use framing;
-use framing::{MethodFrame, ContentHeaderFrame};
+use framing::MethodFrame;
 
 pub trait Method {
     fn decode(method_frame: MethodFrame) -> IoResult<Self>;
@@ -91,8 +91,8 @@ pub mod connection {
     use std::collections::bitv;
     use std::collections::bitv::Bitv;
     use std::io::{MemReader, MemWriter, InvalidInput, IoResult, IoError};
+    use table;
     use table::{Table, decode_table, encode_table};
-    use protocol;
     use protocol::Method;
     use framing::{MethodFrame, ContentHeaderFrame};
 
@@ -151,6 +151,19 @@ pub mod connection {
             writer.unwrap()
         }
     }
+
+    impl Start {
+        pub fn with_default_values(server_properties: Table) -> Start {
+            Start {
+                version_major: 0,
+                version_minor: 9,
+                mechanisms: "PLAIN".to_string(),
+                locales: "en_US".to_string(),
+                server_properties: server_properties,
+            }
+        }
+    }
+
     // Method 11:start-ok
     #[deriving(Show)]
     pub struct StartOk {
@@ -206,6 +219,18 @@ pub mod connection {
             writer.unwrap()
         }
     }
+
+    impl StartOk {
+        pub fn with_default_values(client_properties: Table, response: String) -> StartOk {
+            StartOk {
+                mechanism: "PLAIN".to_string(),
+                locale: "en_US".to_string(),
+                client_properties: client_properties,
+                response: response,
+            }
+        }
+    }
+
     // Method 20:secure
     #[deriving(Show)]
     pub struct Secure {
@@ -244,6 +269,8 @@ pub mod connection {
             writer.unwrap()
         }
     }
+
+
     // Method 21:secure-ok
     #[deriving(Show)]
     pub struct SecureOk {
@@ -282,6 +309,8 @@ pub mod connection {
             writer.unwrap()
         }
     }
+
+
     // Method 30:tune
     #[deriving(Show)]
     pub struct Tune {
@@ -322,6 +351,17 @@ pub mod connection {
             writer.unwrap()
         }
     }
+
+    impl Tune {
+        pub fn with_default_values() -> Tune {
+            Tune {
+                channel_max: 0,
+                frame_max: 0,
+                heartbeat: 0,
+            }
+        }
+    }
+
     // Method 31:tune-ok
     #[deriving(Show)]
     pub struct TuneOk {
@@ -362,6 +402,17 @@ pub mod connection {
             writer.unwrap()
         }
     }
+
+    impl TuneOk {
+        pub fn with_default_values() -> TuneOk {
+            TuneOk {
+                channel_max: 0,
+                frame_max: 0,
+                heartbeat: 0,
+            }
+        }
+    }
+
     // Method 40:open
     #[deriving(Show)]
     pub struct Open {
@@ -414,6 +465,17 @@ pub mod connection {
             writer.unwrap()
         }
     }
+
+    impl Open {
+        pub fn with_default_values(insist: bool) -> Open {
+            Open {
+                virtual_host: "/".to_string(),
+                capabilities: "".to_string(),
+                insist: insist,
+            }
+        }
+    }
+
     // Method 41:open-ok
     #[deriving(Show)]
     pub struct OpenOk {
@@ -452,6 +514,15 @@ pub mod connection {
             writer.unwrap()
         }
     }
+
+    impl OpenOk {
+        pub fn with_default_values() -> OpenOk {
+            OpenOk {
+                known_hosts: "".to_string(),
+            }
+        }
+    }
+
     // Method 50:close
     #[deriving(Show)]
     pub struct Close {
@@ -499,6 +570,18 @@ pub mod connection {
             writer.unwrap()
         }
     }
+
+    impl Close {
+        pub fn with_default_values(reply_code: u16, class_id: u16, method_id: u16) -> Close {
+            Close {
+                reply_text: "".to_string(),
+                reply_code: reply_code,
+                class_id: class_id,
+                method_id: method_id,
+            }
+        }
+    }
+
     // Method 51:close-ok
     #[deriving(Show)]
     pub struct CloseOk;
@@ -527,6 +610,8 @@ pub mod connection {
             vec!()
         }
     }
+
+
     // Method 60:blocked
     #[deriving(Show)]
     pub struct Blocked {
@@ -565,6 +650,15 @@ pub mod connection {
             writer.unwrap()
         }
     }
+
+    impl Blocked {
+        pub fn with_default_values() -> Blocked {
+            Blocked {
+                reason: "".to_string(),
+            }
+        }
+    }
+
     // Method 61:unblocked
     #[deriving(Show)]
     pub struct Unblocked;
@@ -593,6 +687,8 @@ pub mod connection {
             vec!()
         }
     }
+
+
 }
 
 #[allow(unused_imports)]
@@ -600,8 +696,8 @@ pub mod channel {
     use std::collections::bitv;
     use std::collections::bitv::Bitv;
     use std::io::{MemReader, MemWriter, InvalidInput, IoResult, IoError};
+    use table;
     use table::{Table, decode_table, encode_table};
-    use protocol;
     use protocol::Method;
     use framing::{MethodFrame, ContentHeaderFrame};
 
@@ -644,6 +740,15 @@ pub mod channel {
             writer.unwrap()
         }
     }
+
+    impl Open {
+        pub fn with_default_values() -> Open {
+            Open {
+                out_of_band: "".to_string(),
+            }
+        }
+    }
+
     // Method 11:open-ok
     #[deriving(Show)]
     pub struct OpenOk {
@@ -682,6 +787,15 @@ pub mod channel {
             writer.unwrap()
         }
     }
+
+    impl OpenOk {
+        pub fn with_default_values() -> OpenOk {
+            OpenOk {
+                channel_id: "".to_string(),
+            }
+        }
+    }
+
     // Method 20:flow
     #[deriving(Show)]
     pub struct Flow {
@@ -720,6 +834,8 @@ pub mod channel {
             writer.unwrap()
         }
     }
+
+
     // Method 21:flow-ok
     #[deriving(Show)]
     pub struct FlowOk {
@@ -758,6 +874,8 @@ pub mod channel {
             writer.unwrap()
         }
     }
+
+
     // Method 40:close
     #[deriving(Show)]
     pub struct Close {
@@ -805,6 +923,18 @@ pub mod channel {
             writer.unwrap()
         }
     }
+
+    impl Close {
+        pub fn with_default_values(reply_code: u16, class_id: u16, method_id: u16) -> Close {
+            Close {
+                reply_text: "".to_string(),
+                reply_code: reply_code,
+                class_id: class_id,
+                method_id: method_id,
+            }
+        }
+    }
+
     // Method 41:close-ok
     #[deriving(Show)]
     pub struct CloseOk;
@@ -833,6 +963,8 @@ pub mod channel {
             vec!()
         }
     }
+
+
 }
 
 #[allow(unused_imports)]
@@ -840,8 +972,8 @@ pub mod access {
     use std::collections::bitv;
     use std::collections::bitv::Bitv;
     use std::io::{MemReader, MemWriter, InvalidInput, IoResult, IoError};
+    use table;
     use table::{Table, decode_table, encode_table};
-    use protocol;
     use protocol::Method;
     use framing::{MethodFrame, ContentHeaderFrame};
 
@@ -903,6 +1035,20 @@ pub mod access {
             writer.unwrap()
         }
     }
+
+    impl Request {
+        pub fn with_default_values(exclusive: bool) -> Request {
+            Request {
+                realm: "/data".to_string(),
+                passive: true,
+                active: true,
+                write: true,
+                read: true,
+                exclusive: exclusive,
+            }
+        }
+    }
+
     // Method 11:request-ok
     #[deriving(Show)]
     pub struct RequestOk {
@@ -937,6 +1083,15 @@ pub mod access {
             writer.unwrap()
         }
     }
+
+    impl RequestOk {
+        pub fn with_default_values() -> RequestOk {
+            RequestOk {
+                ticket: 1,
+            }
+        }
+    }
+
 }
 
 #[allow(unused_imports)]
@@ -944,8 +1099,8 @@ pub mod exchange {
     use std::collections::bitv;
     use std::collections::bitv::Bitv;
     use std::io::{MemReader, MemWriter, InvalidInput, IoResult, IoError};
+    use table;
     use table::{Table, decode_table, encode_table};
-    use protocol;
     use protocol::Method;
     use framing::{MethodFrame, ContentHeaderFrame};
 
@@ -1020,6 +1175,23 @@ pub mod exchange {
             writer.unwrap()
         }
     }
+
+    impl Declare {
+        pub fn with_default_values(exchange: String, passive: bool, durable: bool, auto_delete: bool, internal: bool, nowait: bool) -> Declare {
+            Declare {
+                ticket: 0,
+                _type: "direct".to_string(),
+                arguments: table::new(),
+                exchange: exchange,
+                passive: passive,
+                durable: durable,
+                auto_delete: auto_delete,
+                internal: internal,
+                nowait: nowait,
+            }
+        }
+    }
+
     // Method 11:declare-ok
     #[deriving(Show)]
     pub struct DeclareOk;
@@ -1048,6 +1220,8 @@ pub mod exchange {
             vec!()
         }
     }
+
+
     // Method 20:delete
     #[deriving(Show)]
     pub struct Delete {
@@ -1099,6 +1273,18 @@ pub mod exchange {
             writer.unwrap()
         }
     }
+
+    impl Delete {
+        pub fn with_default_values(exchange: String, if_unused: bool, nowait: bool) -> Delete {
+            Delete {
+                ticket: 0,
+                exchange: exchange,
+                if_unused: if_unused,
+                nowait: nowait,
+            }
+        }
+    }
+
     // Method 21:delete-ok
     #[deriving(Show)]
     pub struct DeleteOk;
@@ -1127,6 +1313,8 @@ pub mod exchange {
             vec!()
         }
     }
+
+
     // Method 30:bind
     #[deriving(Show)]
     pub struct Bind {
@@ -1192,6 +1380,20 @@ pub mod exchange {
             writer.unwrap()
         }
     }
+
+    impl Bind {
+        pub fn with_default_values(destination: String, source: String, nowait: bool) -> Bind {
+            Bind {
+                ticket: 0,
+                routing_key: "".to_string(),
+                arguments: table::new(),
+                destination: destination,
+                source: source,
+                nowait: nowait,
+            }
+        }
+    }
+
     // Method 31:bind-ok
     #[deriving(Show)]
     pub struct BindOk;
@@ -1220,6 +1422,8 @@ pub mod exchange {
             vec!()
         }
     }
+
+
     // Method 40:unbind
     #[deriving(Show)]
     pub struct Unbind {
@@ -1285,6 +1489,20 @@ pub mod exchange {
             writer.unwrap()
         }
     }
+
+    impl Unbind {
+        pub fn with_default_values(destination: String, source: String, nowait: bool) -> Unbind {
+            Unbind {
+                ticket: 0,
+                routing_key: "".to_string(),
+                arguments: table::new(),
+                destination: destination,
+                source: source,
+                nowait: nowait,
+            }
+        }
+    }
+
     // Method 51:unbind-ok
     #[deriving(Show)]
     pub struct UnbindOk;
@@ -1313,6 +1531,8 @@ pub mod exchange {
             vec!()
         }
     }
+
+
 }
 
 #[allow(unused_imports)]
@@ -1320,8 +1540,8 @@ pub mod queue {
     use std::collections::bitv;
     use std::collections::bitv::Bitv;
     use std::io::{MemReader, MemWriter, InvalidInput, IoResult, IoError};
+    use table;
     use table::{Table, decode_table, encode_table};
-    use protocol;
     use protocol::Method;
     use framing::{MethodFrame, ContentHeaderFrame};
 
@@ -1389,6 +1609,22 @@ pub mod queue {
             writer.unwrap()
         }
     }
+
+    impl Declare {
+        pub fn with_default_values(passive: bool, durable: bool, exclusive: bool, auto_delete: bool, nowait: bool) -> Declare {
+            Declare {
+                ticket: 0,
+                queue: "".to_string(),
+                arguments: table::new(),
+                passive: passive,
+                durable: durable,
+                exclusive: exclusive,
+                auto_delete: auto_delete,
+                nowait: nowait,
+            }
+        }
+    }
+
     // Method 11:declare-ok
     #[deriving(Show)]
     pub struct DeclareOk {
@@ -1433,6 +1669,8 @@ pub mod queue {
             writer.unwrap()
         }
     }
+
+
     // Method 20:bind
     #[deriving(Show)]
     pub struct Bind {
@@ -1498,6 +1736,20 @@ pub mod queue {
             writer.unwrap()
         }
     }
+
+    impl Bind {
+        pub fn with_default_values(exchange: String, nowait: bool) -> Bind {
+            Bind {
+                ticket: 0,
+                queue: "".to_string(),
+                routing_key: "".to_string(),
+                arguments: table::new(),
+                exchange: exchange,
+                nowait: nowait,
+            }
+        }
+    }
+
     // Method 21:bind-ok
     #[deriving(Show)]
     pub struct BindOk;
@@ -1526,6 +1778,8 @@ pub mod queue {
             vec!()
         }
     }
+
+
     // Method 30:purge
     #[deriving(Show)]
     pub struct Purge {
@@ -1574,6 +1828,17 @@ pub mod queue {
             writer.unwrap()
         }
     }
+
+    impl Purge {
+        pub fn with_default_values(nowait: bool) -> Purge {
+            Purge {
+                ticket: 0,
+                queue: "".to_string(),
+                nowait: nowait,
+            }
+        }
+    }
+
     // Method 31:purge-ok
     #[deriving(Show)]
     pub struct PurgeOk {
@@ -1608,6 +1873,8 @@ pub mod queue {
             writer.unwrap()
         }
     }
+
+
     // Method 40:delete
     #[deriving(Show)]
     pub struct Delete {
@@ -1662,6 +1929,19 @@ pub mod queue {
             writer.unwrap()
         }
     }
+
+    impl Delete {
+        pub fn with_default_values(if_unused: bool, if_empty: bool, nowait: bool) -> Delete {
+            Delete {
+                ticket: 0,
+                queue: "".to_string(),
+                if_unused: if_unused,
+                if_empty: if_empty,
+                nowait: nowait,
+            }
+        }
+    }
+
     // Method 41:delete-ok
     #[deriving(Show)]
     pub struct DeleteOk {
@@ -1696,6 +1976,8 @@ pub mod queue {
             writer.unwrap()
         }
     }
+
+
     // Method 50:unbind
     #[deriving(Show)]
     pub struct Unbind {
@@ -1754,6 +2036,19 @@ pub mod queue {
             writer.unwrap()
         }
     }
+
+    impl Unbind {
+        pub fn with_default_values(exchange: String) -> Unbind {
+            Unbind {
+                ticket: 0,
+                queue: "".to_string(),
+                routing_key: "".to_string(),
+                arguments: table::new(),
+                exchange: exchange,
+            }
+        }
+    }
+
     // Method 51:unbind-ok
     #[deriving(Show)]
     pub struct UnbindOk;
@@ -1782,6 +2077,8 @@ pub mod queue {
             vec!()
         }
     }
+
+
 }
 
 #[allow(unused_imports)]
@@ -1789,8 +2086,8 @@ pub mod basic {
     use std::collections::bitv;
     use std::collections::bitv::Bitv;
     use std::io::{MemReader, MemWriter, InvalidInput, IoResult, IoError};
+    use table;
     use table::{Table, decode_table, encode_table};
-    use protocol;
     use protocol::Method;
     use framing::{MethodFrame, ContentHeaderFrame};
 
@@ -2058,6 +2355,17 @@ pub mod basic {
             writer.unwrap()
         }
     }
+
+    impl Qos {
+        pub fn with_default_values(global: bool) -> Qos {
+            Qos {
+                prefetch_size: 0,
+                prefetch_count: 0,
+                global: global,
+            }
+        }
+    }
+
     // Method 11:qos-ok
     #[deriving(Show)]
     pub struct QosOk;
@@ -2086,6 +2394,8 @@ pub mod basic {
             vec!()
         }
     }
+
+
     // Method 20:consume
     #[deriving(Show)]
     pub struct Consume {
@@ -2153,6 +2463,22 @@ pub mod basic {
             writer.unwrap()
         }
     }
+
+    impl Consume {
+        pub fn with_default_values(no_local: bool, no_ack: bool, exclusive: bool, nowait: bool) -> Consume {
+            Consume {
+                ticket: 0,
+                queue: "".to_string(),
+                consumer_tag: "".to_string(),
+                arguments: table::new(),
+                no_local: no_local,
+                no_ack: no_ack,
+                exclusive: exclusive,
+                nowait: nowait,
+            }
+        }
+    }
+
     // Method 21:consume-ok
     #[deriving(Show)]
     pub struct ConsumeOk {
@@ -2191,6 +2517,8 @@ pub mod basic {
             writer.unwrap()
         }
     }
+
+
     // Method 30:cancel
     #[deriving(Show)]
     pub struct Cancel {
@@ -2236,6 +2564,8 @@ pub mod basic {
             writer.unwrap()
         }
     }
+
+
     // Method 31:cancel-ok
     #[deriving(Show)]
     pub struct CancelOk {
@@ -2274,6 +2604,8 @@ pub mod basic {
             writer.unwrap()
         }
     }
+
+
     // Method 40:publish
     #[deriving(Show)]
     pub struct Publish {
@@ -2332,6 +2664,19 @@ pub mod basic {
             writer.unwrap()
         }
     }
+
+    impl Publish {
+        pub fn with_default_values(mandatory: bool, immediate: bool) -> Publish {
+            Publish {
+                ticket: 0,
+                exchange: "".to_string(),
+                routing_key: "".to_string(),
+                mandatory: mandatory,
+                immediate: immediate,
+            }
+        }
+    }
+
     // Method 50:return
     #[deriving(Show)]
     pub struct Return {
@@ -2387,6 +2732,18 @@ pub mod basic {
             writer.unwrap()
         }
     }
+
+    impl Return {
+        pub fn with_default_values(reply_code: u16, exchange: String, routing_key: String) -> Return {
+            Return {
+                reply_text: "".to_string(),
+                reply_code: reply_code,
+                exchange: exchange,
+                routing_key: routing_key,
+            }
+        }
+    }
+
     // Method 60:deliver
     #[deriving(Show)]
     pub struct Deliver {
@@ -2449,6 +2806,8 @@ pub mod basic {
             writer.unwrap()
         }
     }
+
+
     // Method 70:get
     #[deriving(Show)]
     pub struct Get {
@@ -2497,6 +2856,17 @@ pub mod basic {
             writer.unwrap()
         }
     }
+
+    impl Get {
+        pub fn with_default_values(no_ack: bool) -> Get {
+            Get {
+                ticket: 0,
+                queue: "".to_string(),
+                no_ack: no_ack,
+            }
+        }
+    }
+
     // Method 71:get-ok
     #[deriving(Show)]
     pub struct GetOk {
@@ -2555,6 +2925,8 @@ pub mod basic {
             writer.unwrap()
         }
     }
+
+
     // Method 72:get-empty
     #[deriving(Show)]
     pub struct GetEmpty {
@@ -2593,6 +2965,15 @@ pub mod basic {
             writer.unwrap()
         }
     }
+
+    impl GetEmpty {
+        pub fn with_default_values() -> GetEmpty {
+            GetEmpty {
+                cluster_id: "".to_string(),
+            }
+        }
+    }
+
     // Method 80:ack
     #[deriving(Show)]
     pub struct Ack {
@@ -2634,6 +3015,16 @@ pub mod basic {
             writer.unwrap()
         }
     }
+
+    impl Ack {
+        pub fn with_default_values(multiple: bool) -> Ack {
+            Ack {
+                delivery_tag: 0,
+                multiple: multiple,
+            }
+        }
+    }
+
     // Method 90:reject
     #[deriving(Show)]
     pub struct Reject {
@@ -2675,6 +3066,16 @@ pub mod basic {
             writer.unwrap()
         }
     }
+
+    impl Reject {
+        pub fn with_default_values(delivery_tag: u64) -> Reject {
+            Reject {
+                requeue: true,
+                delivery_tag: delivery_tag,
+            }
+        }
+    }
+
     // Method 100:recover-async
     #[deriving(Show)]
     pub struct RecoverAsync {
@@ -2713,6 +3114,8 @@ pub mod basic {
             writer.unwrap()
         }
     }
+
+
     // Method 110:recover
     #[deriving(Show)]
     pub struct Recover {
@@ -2751,6 +3154,8 @@ pub mod basic {
             writer.unwrap()
         }
     }
+
+
     // Method 111:recover-ok
     #[deriving(Show)]
     pub struct RecoverOk;
@@ -2779,6 +3184,8 @@ pub mod basic {
             vec!()
         }
     }
+
+
     // Method 120:nack
     #[deriving(Show)]
     pub struct Nack {
@@ -2823,6 +3230,17 @@ pub mod basic {
             writer.unwrap()
         }
     }
+
+    impl Nack {
+        pub fn with_default_values(multiple: bool) -> Nack {
+            Nack {
+                delivery_tag: 0,
+                requeue: true,
+                multiple: multiple,
+            }
+        }
+    }
+
 }
 
 #[allow(unused_imports)]
@@ -2830,8 +3248,8 @@ pub mod tx {
     use std::collections::bitv;
     use std::collections::bitv::Bitv;
     use std::io::{MemReader, MemWriter, InvalidInput, IoResult, IoError};
+    use table;
     use table::{Table, decode_table, encode_table};
-    use protocol;
     use protocol::Method;
     use framing::{MethodFrame, ContentHeaderFrame};
 
@@ -2864,6 +3282,8 @@ pub mod tx {
             vec!()
         }
     }
+
+
     // Method 11:select-ok
     #[deriving(Show)]
     pub struct SelectOk;
@@ -2892,6 +3312,8 @@ pub mod tx {
             vec!()
         }
     }
+
+
     // Method 20:commit
     #[deriving(Show)]
     pub struct Commit;
@@ -2920,6 +3342,8 @@ pub mod tx {
             vec!()
         }
     }
+
+
     // Method 21:commit-ok
     #[deriving(Show)]
     pub struct CommitOk;
@@ -2948,6 +3372,8 @@ pub mod tx {
             vec!()
         }
     }
+
+
     // Method 30:rollback
     #[deriving(Show)]
     pub struct Rollback;
@@ -2976,6 +3402,8 @@ pub mod tx {
             vec!()
         }
     }
+
+
     // Method 31:rollback-ok
     #[deriving(Show)]
     pub struct RollbackOk;
@@ -3004,6 +3432,8 @@ pub mod tx {
             vec!()
         }
     }
+
+
 }
 
 #[allow(unused_imports)]
@@ -3011,8 +3441,8 @@ pub mod confirm {
     use std::collections::bitv;
     use std::collections::bitv::Bitv;
     use std::io::{MemReader, MemWriter, InvalidInput, IoResult, IoError};
+    use table;
     use table::{Table, decode_table, encode_table};
-    use protocol;
     use protocol::Method;
     use framing::{MethodFrame, ContentHeaderFrame};
 
@@ -3055,6 +3485,8 @@ pub mod confirm {
             writer.unwrap()
         }
     }
+
+
     // Method 11:select-ok
     #[deriving(Show)]
     pub struct SelectOk;
@@ -3083,5 +3515,6 @@ pub mod confirm {
             vec!()
         }
     }
-}
 
+
+}

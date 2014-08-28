@@ -37,25 +37,26 @@ impl <'a>  Default for Options <'a>  {
 pub struct Session {
 	pub connection: Rc<RefCell<connection::Connection>>,
 	channels: Vec<Rc<channel::Channel>>,
-	channel_max_limit: u16
+	channel_max_limit: u16,
+	channel_zero: channel::Channel
 }
 
 impl Session {
     pub fn new(options: Options) -> IoResult<Session> {
     	let connection = try!(connection::Connection::open(options.host, options.port));
+    	let connections = Rc::new(RefCell::new(connection));
     	let mut session = Session {
-			connection: Rc::new(RefCell::new(connection)),
+			connection: connections.clone(),
 			channels: vec!(),
-			channel_max_limit: 0
+			channel_max_limit: 0,
+			channel_zero: channel::Channel::new(connections, 0)
     	};
     	try!(session.init(options))
     	Ok(session)
     }
 
     fn init(&mut self, options: Options) -> IoResult<()> {
-    	let mut connection = self.connection.borrow_mut();
-    	connection.frame_max_limit = options.frame_max_limit;
-    	let frame = connection.read(); //Start
+	    let frame = self.channel_zero.read(); //Start
         let method_frame = MethodFrame::decode(frame.unwrap());
         let start : protocol::connection::Start = match method_frame.method_name(){
             "connection.start" => protocol::Method::decode(method_frame).unwrap(),
@@ -85,17 +86,22 @@ impl Session {
         let start_ok = protocol::connection::StartOk {
             client_properties: client_properties, mechanism: "PLAIN".to_string(),
             response: format!("\0{}\0{}", options.login, options.password), locale: options.locale.to_string()};
-        let tune : protocol::connection::Tune = try!(connection.rpc(0, &start_ok, "connection.tune"));
+        let tune : protocol::connection::Tune = try!(self.channel_zero.rpc(&start_ok, "connection.tune"));
 
         self.channel_max_limit =  negotiate(tune.channel_max, self.channel_max_limit);
-        connection.frame_max_limit = negotiate(tune.frame_max, connection.frame_max_limit);
+        let frame_max_limit;
+        {
+        	let mut connection = self.connection.borrow_mut();
+        	connection.frame_max_limit = negotiate(tune.frame_max, options.frame_max_limit);
+        	frame_max_limit = connection.frame_max_limit;
+        }
         let tune_ok = protocol::connection::TuneOk {
             channel_max: self.channel_max_limit,
-            frame_max: connection.frame_max_limit, heartbeat: 0};
-        try!(connection.send_method_frame(0, &tune_ok));
+            frame_max: frame_max_limit, heartbeat: 0};
+        try!(self.channel_zero.send_method_frame(&tune_ok));
 
         let open = protocol::connection::Open{virtual_host: options.vhost.to_string(), capabilities: "".to_string(), insist: false };
-        let open_ok : protocol::connection::OpenOk = try!(connection.rpc(0, &open, "connection.open-ok"));
+        let open_ok : protocol::connection::OpenOk = try!(self.channel_zero.rpc(&open, "connection.open-ok"));
         Ok(())
     }
 

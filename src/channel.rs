@@ -5,7 +5,7 @@ use std::cmp;
 
 use connection;
 use framing;
-use framing::{ContentHeaderFrame, MethodFrame};
+use framing::{ContentHeaderFrame, MethodFrame, Frame};
 use table::Table;
 use protocol;
 use protocol::channel;
@@ -26,14 +26,21 @@ impl Channel {
 		let reply: channel::CloseOk = self.rpc(close, "channel.close-ok").unwrap();
 	}
 
+	// This should probably read from some frames buffer
+	pub fn read(&self) -> IoResult<Frame> {
+		self.connection.borrow_mut().read()
+	}
+
 	pub fn rpc<T: protocol::Method>(&self, method: &protocol::Method, expected_reply: &str) -> IoResult<T> {
-		let mut connection = self.connection.borrow_mut();
-		connection.rpc(self.id, method, expected_reply)
+		self.connection.borrow_mut().rpc(self.id, method, expected_reply)
 	}
 
 	pub fn raw_rpc(&self, method: &protocol::Method) -> IoResult<MethodFrame> {
-		let mut connection = self.connection.borrow_mut();
-		connection.raw_rpc(self.id, method)
+		self.connection.borrow_mut().raw_rpc(self.id, method)
+	}
+
+	pub fn send_method_frame(&self, method: &protocol::Method) -> IoResult<()> {
+		self.connection.borrow_mut().send_method_frame(self.id, method)
 	}
 
 	pub fn read_headers(&self) -> IoResult<ContentHeaderFrame> {

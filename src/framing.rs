@@ -50,6 +50,8 @@ impl Frame {
     }
 }
 
+
+//TODO: Move this to MethodFrame
 // We need this method, so we can match on class_id & method_id
 pub fn decode_method_frame(frame: Frame) -> MethodFrame {
     if frame.frame_type != METHOD {
@@ -59,9 +61,10 @@ pub fn decode_method_frame(frame: Frame) -> MethodFrame {
     let class_id = reader.read_be_u16().unwrap();
     let method_id = reader.read_be_u16().unwrap();
     let arguments = reader.read_to_end().unwrap();
-    MethodFrame{class_id: class_id, method_id: method_id, arguments: arguments}
+    MethodFrame { class_id: class_id, method_id: method_id, arguments: arguments}
 }
 
+//TODO: Move this to MethodFrame
 pub fn encode_method_frame(method: &Method) -> Vec<u8> {
     let mut writer = MemWriter::new();
     writer.write_be_u16(method.class_id()).unwrap();
@@ -70,6 +73,7 @@ pub fn encode_method_frame(method: &Method) -> Vec<u8> {
     writer.unwrap()
 }
 
+//TODO: Move this to ContentHeaderFrame
 pub fn decode_content_header_frame(frame: Frame) -> IoResult<ContentHeaderFrame> {
     let mut reader = MemReader::new(frame.payload.clone());
     let content_class = try!(reader.read_be_u16());
@@ -83,6 +87,7 @@ pub fn decode_content_header_frame(frame: Frame) -> IoResult<ContentHeaderFrame>
     })
 }
 
+//TODO: Move this to ContentHeaderFrame
 pub fn encode_content_header_frame(frame: &ContentHeaderFrame) -> Vec<u8> {
     let mut writer = MemWriter::new();
     writer.write_be_u16(frame.content_class).unwrap();

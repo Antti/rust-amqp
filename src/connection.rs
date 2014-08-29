@@ -23,31 +23,10 @@ impl Connection {
         Ok(connection)
     }
 
-    pub fn close(&mut self, reply_code: u16, reply_text: String) {
-        let close = protocol::connection::Close{reply_code: reply_code, reply_text: reply_text, class_id: 0, method_id: 0};
-        let close_ok : protocol::connection::CloseOk = self.rpc(0, &close, "connection.close-ok").unwrap();
-
+    pub fn close(&mut self) {
         self.socket.close_write().unwrap();
         self.socket.close_read().unwrap();
         //TODO: Need to drop socket somehow (Maybe have an Option<Socket>)
-    }
-
-    pub fn send_method_frame(&mut self, channel: u16, method: &protocol::Method)  -> IoResult<()> {
-        println!("Sending method {} to channel {}", method.name(), channel);
-        self.write(Frame {frame_type: framing::METHOD, channel: channel, payload: MethodFrame::encode_method(method) })
-    }
-
-    pub fn rpc<T: protocol::Method>(&mut self, channel: u16, method: &protocol::Method, expected_reply: &str) -> IoResult<T> {
-        let method_frame = try!(self.raw_rpc(channel, method));
-        match method_frame.method_name() {
-            m_name if m_name == expected_reply => protocol::Method::decode(method_frame),
-            m_name => fail!("Unexpected method frame: {}, expected: {}", m_name, expected_reply)
-        }
-    }
-
-    pub fn raw_rpc(&mut self, channel: u16, method: &protocol::Method) -> IoResult<MethodFrame> {
-        self.send_method_frame(channel, method).unwrap();
-        self.read().map(|frame| MethodFrame::decode(frame))
     }
 
     pub fn write(&mut self, frame: Frame) -> IoResult<()>{

@@ -106,15 +106,16 @@ impl Session {
     }
 
 	pub fn open_channel(&mut self, channel: u16) -> IoResult<Rc<channel::Channel>>{
-        let meth = protocol::channel::Open {out_of_band: "".to_string()};
-        let open_ok : protocol::channel::OpenOk = try!(self.connection.borrow_mut().rpc(channel, &meth, "channel.open-ok"));
         let channel = Rc::new(channel::Channel::new(self.connection.clone(), channel));
+        try!(channel.open());
         self.channels.push(channel.clone());
         Ok(channel)
     }
 
     pub fn close(&self, reply_code: u16, reply_text: String) {
-    	self.connection.borrow_mut().close(reply_code, reply_text)
+        let close = protocol::connection::Close{reply_code: reply_code, reply_text: reply_text, class_id: 0, method_id: 0};
+        let close_ok : protocol::connection::CloseOk = self.channel_zero.rpc(&close, "connection.close-ok").unwrap();
+        self.connection.borrow_mut().close();
     }
 }
 

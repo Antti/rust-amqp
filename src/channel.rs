@@ -21,6 +21,10 @@ impl Channel {
 		Channel{connection: connection, id: id}
 	}
 
+	pub fn open(&self) -> IoResult<protocol::channel::OpenOk> {
+		let meth = protocol::channel::Open {out_of_band: "".to_string()};
+        self.rpc(&meth, "channel.open-ok")
+	}
 	pub fn close(&self, reply_code: u16, reply_text: &str) {
 		let close = &channel::Close {reply_code: reply_code, reply_text: reply_text.to_string(), class_id: 0, method_id: 0};
 		let reply: channel::CloseOk = self.rpc(close, "channel.close-ok").unwrap();
@@ -31,17 +35,23 @@ impl Channel {
 		self.connection.borrow_mut().read()
 	}
 
-	pub fn rpc<T: protocol::Method>(&self, method: &protocol::Method, expected_reply: &str) -> IoResult<T> {
-		self.connection.borrow_mut().rpc(self.id, method, expected_reply)
-	}
+	pub fn send_method_frame(&self, method: &protocol::Method)  -> IoResult<()> {
+        println!("Sending method {} to channel {}", method.name(), self.id);
+        self.connection.borrow_mut().write(Frame {frame_type: framing::METHOD, channel: self.id, payload: MethodFrame::encode_method(method) })
+    }
 
-	pub fn raw_rpc(&self, method: &protocol::Method) -> IoResult<MethodFrame> {
-		self.connection.borrow_mut().raw_rpc(self.id, method)
-	}
+    pub fn rpc<T: protocol::Method>(&self, method: &protocol::Method, expected_reply: &str) -> IoResult<T> {
+        let method_frame = try!(self.raw_rpc(method));
+        match method_frame.method_name() {
+            m_name if m_name == expected_reply => protocol::Method::decode(method_frame),
+            m_name => fail!("Unexpected method frame: {}, expected: {}", m_name, expected_reply)
+        }
+    }
 
-	pub fn send_method_frame(&self, method: &protocol::Method) -> IoResult<()> {
-		self.connection.borrow_mut().send_method_frame(self.id, method)
-	}
+    pub fn raw_rpc(&self, method: &protocol::Method) -> IoResult<MethodFrame> {
+        self.send_method_frame(method).unwrap();
+        self.read().map(|frame| MethodFrame::decode(frame))
+    }
 
 	pub fn read_headers(&self) -> IoResult<ContentHeaderFrame> {
 		let mut connection = self.connection.borrow_mut();
@@ -60,7 +70,6 @@ impl Channel {
 
 	pub fn basic_publish(&self, ticket: u16, exchange: &str, routing_key: &str, mandatory: bool, immediate: bool,
 						 properties: basic::BasicProperties, content: Vec<u8>) {
-		let mut connection = self.connection.borrow_mut();
 		let publish = &protocol::basic::Publish {
 			ticket: ticket, exchange: exchange.to_string(),
 			routing_key: routing_key.to_string(), mandatory: mandatory, immediate: immediate};
@@ -70,11 +79,10 @@ impl Channel {
 		let content_header_frame = framing::Frame {frame_type: framing::HEADERS, channel: self.id,
 			payload: content_header.encode() };
 
-		assert!(connection.frame_max_limit > 0, "Can't have frame_max_limit == 0")
 		//TODO: Check if need to include frame header + end octet into calculation. (9 bytes extra)
-		let content_frames = Channel::split_content_into_frames(content, connection.frame_max_limit as uint);
-
-		connection.send_method_frame(self.id, publish).unwrap();
+		let content_frames = Channel::split_content_into_frames(content, self.get_frame_max_limit() as uint);
+		self.send_method_frame(publish).unwrap();
+		let mut connection = self.connection.borrow_mut();
 		connection.write(content_header_frame);
 
 		for content_frame in content_frames.move_iter() {
@@ -96,17 +104,6 @@ impl Channel {
   			"basic.get-empty" => return Err(IoError{kind: EndOfFile, desc: "The queue is empty", detail: None}),
   			method => fail!(format!("Not expected method: {}", method))
   		}
-	}
-
-	fn split_content_into_frames(content: Vec<u8>, frame_limit: uint) -> Vec<Vec<u8>> {
-		let mut content_frames = vec!();
-		let mut current_pos = 0;
-		while current_pos < content.len() {
-			let new_pos = current_pos + cmp::min(content.len() - current_pos, frame_limit);
-			content_frames.push(content.slice(current_pos, new_pos).into_vec());
-			current_pos = new_pos;
-		}
-		content_frames
 	}
 
 	pub fn exchange_declare(&self, ticket: u16, exchange: &str, _type: &str, passive: bool, durable: bool,
@@ -133,6 +130,23 @@ impl Channel {
 			routing_key: routing_key.to_string(), nowait: nowait, arguments: arguments
 		};
 		self.rpc(&bind, "queue.bind-ok")
+	}
+
+	fn split_content_into_frames(content: Vec<u8>, frame_limit: uint) -> Vec<Vec<u8>> {
+		let mut content_frames = vec!();
+		let mut current_pos = 0;
+		while current_pos < content.len() {
+			let new_pos = current_pos + cmp::min(content.len() - current_pos, frame_limit);
+			content_frames.push(content.slice(current_pos, new_pos).into_vec());
+			current_pos = new_pos;
+		}
+		content_frames
+	}
+
+	fn get_frame_max_limit(&self) -> u32 {
+		let connection = self.connection.borrow();
+		assert!(connection.frame_max_limit > 0, "Can't have frame_max_limit == 0");
+		connection.frame_max_limit
 	}
 }
 

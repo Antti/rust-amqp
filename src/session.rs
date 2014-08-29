@@ -1,15 +1,17 @@
 use channel;
-use connection;
+use connection::Connection;
 use protocol;
 use table;
 use table::{FieldTable, Bool, LongString};
-use framing::MethodFrame;
+use framing::{MethodFrame, Frame};
 
-use std::cell::RefCell;
-use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 use std::io::IoResult;
 use std::cmp;
 use std::default::Default;
+use std::collections::hashmap::HashMap;
+use std::comm::Receiver;
+// use url::Url;
 
 
 pub struct Options <'a>  {
@@ -35,29 +37,50 @@ impl <'a>  Default for Options <'a>  {
 }
 
 pub struct Session {
-	pub connection: Rc<RefCell<connection::Connection>>,
-	channels: Vec<Rc<channel::Channel>>,
+	connection: Connection,
+	channels: Arc<Mutex<HashMap<u16, Sender<Frame>> >>,
 	channel_max_limit: u16,
-	channel_zero: channel::Channel
+	channel_zero: channel::Channel,
+    sender: Sender<Frame>
 }
 
 impl Session {
+    // pub fn from_url(url_string: &str) -> IoResult<Session> {
+    //     let url = Url::parse(url_string).unwrap();
+    //     let vhost = url.serialize_path().expect("vhost not given");
+    //     let vhost = vhost.as_slice();
+    //     let opts = Options { host: url.domain().expect("host not given"), port: url.port().expect("port not given"),
+    //      login: url.username().expect("username not given"), password: url.password().expect("password not given"),
+    //      vhost: vhost, ..Default::default()};
+    //     Session::new(opts)
+    // }
+
     pub fn new(options: Options) -> IoResult<Session> {
-    	let connection = try!(connection::Connection::open(options.host, options.port));
-    	let connections = Rc::new(RefCell::new(connection));
+    	let connection = try!(Connection::open(options.host, options.port));
+        let (channel_sender, channel_receiver) = channel(); //channel0
+        let (session_sender, session_receiver) = channel(); //session sender & receiver
+        let channel_zero = channel::Channel::new(0, (session_sender.clone(), channel_receiver));
     	let mut session = Session {
-			connection: connections.clone(),
-			channels: vec!(),
+			connection: connection,
+			channels: Arc::new(Mutex::new(HashMap::new())),
 			channel_max_limit: 0,
-			channel_zero: channel::Channel::new(connections, 0)
+			channel_zero: channel_zero,
+            sender: session_sender
     	};
+        session.channels.lock().insert(0, channel_sender);
+        let con1 = session.connection.clone();
+        let con2 = session.connection.clone();
+        let channels_clone = session.channels.clone();
+        spawn( proc(){ Session::reading_loop(con1, channels_clone ) });
+        spawn( proc(){ Session::writing_loop(con2, session_receiver ) });
+
     	try!(session.init(options))
     	Ok(session)
     }
 
     fn init(&mut self, options: Options) -> IoResult<()> {
 	    let frame = self.channel_zero.read(); //Start
-        let method_frame = MethodFrame::decode(frame.unwrap());
+        let method_frame = MethodFrame::decode(frame);
         let start : protocol::connection::Start = match method_frame.method_name(){
             "connection.start" => protocol::Method::decode(method_frame).unwrap(),
             meth => fail!("Unexpected method frame: {}", meth) //In reality you would probably skip the frame and try to read another?
@@ -89,33 +112,60 @@ impl Session {
         let tune : protocol::connection::Tune = try!(self.channel_zero.rpc(&start_ok, "connection.tune"));
 
         self.channel_max_limit =  negotiate(tune.channel_max, self.channel_max_limit);
-        let frame_max_limit;
-        {
-        	let mut connection = self.connection.borrow_mut();
-        	connection.frame_max_limit = negotiate(tune.frame_max, options.frame_max_limit);
-        	frame_max_limit = connection.frame_max_limit;
-        }
+    	self.connection.frame_max_limit = negotiate(tune.frame_max, options.frame_max_limit);
+    	let frame_max_limit = self.connection.frame_max_limit;
         let tune_ok = protocol::connection::TuneOk {
             channel_max: self.channel_max_limit,
             frame_max: frame_max_limit, heartbeat: 0};
-        try!(self.channel_zero.send_method_frame(&tune_ok));
+        self.channel_zero.send_method_frame(&tune_ok);
 
         let open = protocol::connection::Open{virtual_host: options.vhost.to_string(), capabilities: "".to_string(), insist: false };
         let open_ok : protocol::connection::OpenOk = try!(self.channel_zero.rpc(&open, "connection.open-ok"));
         Ok(())
     }
 
-	pub fn open_channel(&mut self, channel: u16) -> IoResult<Rc<channel::Channel>>{
-        let channel = Rc::new(channel::Channel::new(self.connection.clone(), channel));
+	pub fn open_channel(&mut self, channel_id: u16) -> IoResult<channel::Channel> {
+        let (sender, receiver) = channel();
+        let channel = channel::Channel::new(channel_id, (self.sender.clone(), receiver));
+        self.channels.lock().insert(channel_id, sender);
         try!(channel.open());
-        self.channels.push(channel.clone());
         Ok(channel)
     }
 
-    pub fn close(&self, reply_code: u16, reply_text: String) {
-        let close = protocol::connection::Close{reply_code: reply_code, reply_text: reply_text, class_id: 0, method_id: 0};
+    pub fn close(&mut self, reply_code: u16, reply_text: String) {
+        let close = protocol::connection::Close {reply_code: reply_code, reply_text: reply_text, class_id: 0, method_id: 0};
         let close_ok : protocol::connection::CloseOk = self.channel_zero.rpc(&close, "connection.close-ok").unwrap();
-        self.connection.borrow_mut().close();
+        self.connection.close();
+    }
+
+    pub fn reading_loop(mut connection: Connection, channels: Arc<Mutex<HashMap<u16, Sender<Frame>>>>) -> () {
+        loop {
+            let frame = match connection.read() {
+                Ok(frame) => frame,
+                Err(some_err) => {println!("Error in reading loop: {}", some_err); break} //Notify session somehow. It should stop now.
+            };
+            let chans = channels.lock();
+            let ref target_channel = (*chans)[frame.channel];
+            target_channel.send(frame);
+            // match frame.frame_type {
+            //     framing::METHOD => {},
+            //     framing::HEADERS => {},
+            //     framing::BODY => {},
+            //     framing::HEARTBEAT => {}
+            // }
+            // Handle heartbeats
+            // Dispatch frame to the given channel.
+        }
+    }
+
+    pub fn writing_loop(mut connection: Connection, receiver: Receiver<Frame>) {
+        loop {
+            let res = receiver.recv_opt();
+            match res {
+                Ok(frame) => {connection.write(frame).unwrap();},
+                Err(_) => break //Notify session somehow... (but it's probably dead already)
+            }
+        }
     }
 }
 

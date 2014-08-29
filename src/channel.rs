@@ -1,9 +1,7 @@
-use std::cell::RefCell;
-use std::rc::Rc;
 use std::io::{IoResult, IoError, EndOfFile};
 use std::cmp;
+use std::comm::{Sender, Receiver};
 
-use connection;
 use framing;
 use framing::{ContentHeaderFrame, MethodFrame, Frame};
 use table::Table;
@@ -11,14 +9,14 @@ use protocol;
 use protocol::channel;
 use protocol::basic;
 
-pub struct Channel{
-	connection: Rc<RefCell<connection::Connection>>,
+pub struct Channel {
+	chan: (Sender<Frame>, Receiver<Frame>),
 	pub id: u16
 }
 
 impl Channel {
-	pub fn new(connection: Rc<RefCell<connection::Connection>>, id: u16) -> Channel{
-		Channel{connection: connection, id: id}
+	pub fn new(id: u16, chan: (Sender<Frame>, Receiver<Frame>)) -> Channel {
+		Channel{id: id, chan: chan}
 	}
 
 	pub fn open(&self) -> IoResult<protocol::channel::OpenOk> {
@@ -31,39 +29,40 @@ impl Channel {
 	}
 
 	// This should probably read from some frames buffer
-	pub fn read(&self) -> IoResult<Frame> {
-		self.connection.borrow_mut().read()
+	pub fn read(&self) -> Frame {
+		self.chan.ref1().recv()
 	}
 
-	pub fn send_method_frame(&self, method: &protocol::Method)  -> IoResult<()> {
+	fn write(&self, frame: Frame) {
+		self.chan.ref0().send(frame)
+	}
+
+	pub fn send_method_frame(&self, method: &protocol::Method) {
         println!("Sending method {} to channel {}", method.name(), self.id);
-        self.connection.borrow_mut().write(Frame {frame_type: framing::METHOD, channel: self.id, payload: MethodFrame::encode_method(method) })
+        self.write(Frame {frame_type: framing::METHOD, channel: self.id, payload: MethodFrame::encode_method(method) })
     }
 
     pub fn rpc<T: protocol::Method>(&self, method: &protocol::Method, expected_reply: &str) -> IoResult<T> {
-        let method_frame = try!(self.raw_rpc(method));
+        let method_frame = self.raw_rpc(method);
         match method_frame.method_name() {
             m_name if m_name == expected_reply => protocol::Method::decode(method_frame),
             m_name => fail!("Unexpected method frame: {}, expected: {}", m_name, expected_reply)
         }
     }
 
-    pub fn raw_rpc(&self, method: &protocol::Method) -> IoResult<MethodFrame> {
-        self.send_method_frame(method).unwrap();
-        self.read().map(|frame| MethodFrame::decode(frame))
+    pub fn raw_rpc(&self, method: &protocol::Method) -> MethodFrame {
+        self.send_method_frame(method);
+        MethodFrame::decode(self.read())
     }
 
 	pub fn read_headers(&self) -> IoResult<ContentHeaderFrame> {
-		let mut connection = self.connection.borrow_mut();
-		let frame = try!(connection.read());
-		ContentHeaderFrame::decode(frame)
+		ContentHeaderFrame::decode(self.read())
 	}
 
 	pub fn read_body(&self, size: u64) -> IoResult<Vec<u8>> {
-		let mut connection = self.connection.borrow_mut();
     	let mut body = Vec::with_capacity(size as uint);
 		while body.len() < size as uint {
-    		body = body.append(try!(connection.read()).payload.as_slice())
+    		body = body.append(self.read().payload.as_slice())
     	}
     	Ok(body)
 	}
@@ -81,18 +80,17 @@ impl Channel {
 
 		//TODO: Check if need to include frame header + end octet into calculation. (9 bytes extra)
 		let content_frames = Channel::split_content_into_frames(content, self.get_frame_max_limit() as uint);
-		self.send_method_frame(publish).unwrap();
-		let mut connection = self.connection.borrow_mut();
-		connection.write(content_header_frame);
+		self.send_method_frame(publish);
+		self.write(content_header_frame);
 
 		for content_frame in content_frames.move_iter() {
-			connection.write(framing::Frame { frame_type: framing::BODY, channel: self.id, payload: content_frame});
+			self.write(framing::Frame { frame_type: framing::BODY, channel: self.id, payload: content_frame});
 		}
 	}
 
 	pub fn basic_get(&self, ticket: u16, queue: &str, no_ack: bool) -> IoResult<(protocol::basic::BasicProperties, Vec<u8>)> {
   		let get = &basic::Get{ ticket: ticket, queue: queue.to_string(), no_ack: no_ack };
-  		let method_frame = try!(self.raw_rpc(get));
+  		let method_frame = self.raw_rpc(get);
   		match method_frame.method_name() {
   			"basic.get-ok" => {
 			    let reply: basic::GetOk = try!(protocol::Method::decode(method_frame));
@@ -144,9 +142,10 @@ impl Channel {
 	}
 
 	fn get_frame_max_limit(&self) -> u32 {
-		let connection = self.connection.borrow();
-		assert!(connection.frame_max_limit > 0, "Can't have frame_max_limit == 0");
-		connection.frame_max_limit
+		500u32
+		// let connection = self.connection.borrow();
+		// assert!(connection.frame_max_limit > 0, "Can't have frame_max_limit == 0");
+		// connection.frame_max_limit
 	}
 }
 

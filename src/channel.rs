@@ -28,7 +28,6 @@ impl Channel {
 		let reply: channel::CloseOk = self.rpc(close, "channel.close-ok").unwrap();
 	}
 
-	// This should probably read from some frames buffer
 	pub fn read(&self) -> Frame {
 		self.chan.ref1().recv()
 	}
@@ -78,14 +77,9 @@ impl Channel {
 		let content_header_frame = framing::Frame {frame_type: framing::HEADERS, channel: self.id,
 			payload: content_header.encode() };
 
-		//TODO: Check if need to include frame header + end octet into calculation. (9 bytes extra)
-		let content_frames = Channel::split_content_into_frames(content, self.get_frame_max_limit() as uint);
 		self.send_method_frame(publish);
 		self.write(content_header_frame);
-
-		for content_frame in content_frames.move_iter() {
-			self.write(framing::Frame { frame_type: framing::BODY, channel: self.id, payload: content_frame});
-		}
+		self.write(framing::Frame { frame_type: framing::BODY, channel: self.id, payload: content});
 	}
 
 	pub fn basic_get(&self, ticket: u16, queue: &str, no_ack: bool) -> IoResult<(protocol::basic::BasicProperties, Vec<u8>)> {
@@ -129,30 +123,4 @@ impl Channel {
 		};
 		self.rpc(&bind, "queue.bind-ok")
 	}
-
-	fn split_content_into_frames(content: Vec<u8>, frame_limit: uint) -> Vec<Vec<u8>> {
-		let mut content_frames = vec!();
-		let mut current_pos = 0;
-		while current_pos < content.len() {
-			let new_pos = current_pos + cmp::min(content.len() - current_pos, frame_limit);
-			content_frames.push(content.slice(current_pos, new_pos).into_vec());
-			current_pos = new_pos;
-		}
-		content_frames
-	}
-
-	fn get_frame_max_limit(&self) -> u32 {
-		500u32
-		// let connection = self.connection.borrow();
-		// assert!(connection.frame_max_limit > 0, "Can't have frame_max_limit == 0");
-		// connection.frame_max_limit
-	}
-}
-
-
-#[test]
-fn test_split_content_into_frames() {
-	let content = vec!(1,2,3,4,5,6,7,8,9,10);
-	let frames = Channel::split_content_into_frames(content, 3);
-	assert_eq!(frames, vec!(vec!(1, 2, 3), vec!(4, 5, 6), vec!(7, 8, 9), vec!(10)));
 }

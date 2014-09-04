@@ -3,7 +3,7 @@ use connection::Connection;
 use protocol;
 use table;
 use table::{FieldTable, Bool, LongString};
-use framing::{MethodFrame, Frame};
+use framing::{MethodFrame, Frame, BODY};
 
 use std::sync::{Arc, Mutex};
 use std::io::IoResult;
@@ -162,7 +162,17 @@ impl Session {
         loop {
             let res = receiver.recv_opt();
             match res {
-                Ok(frame) => {connection.write(frame).unwrap();},
+                Ok(frame) => {
+                    match frame.frame_type {
+                        BODY => {
+                            //TODO: Check if need to include frame header + end octet into calculation. (9 bytes extra)
+                            for content_frame in split_content_into_frames(frame.payload, 13107).move_iter() {
+                                connection.write(Frame { frame_type: frame.frame_type, channel: frame.channel, payload: content_frame}).unwrap();
+                            }
+                        },
+                        _ => {connection.write(frame).unwrap();}
+                    }
+                },
                 Err(_) => break //Notify session somehow... (but it's probably dead already)
             }
         }
@@ -171,4 +181,24 @@ impl Session {
 
 fn negotiate<T : cmp::Ord>(their_value: T, our_value: T) -> T {
     cmp::min(their_value, our_value)
+}
+
+fn split_content_into_frames(content: Vec<u8>, frame_limit: uint) -> Vec<Vec<u8>> {
+    assert!(frame_limit > 0, "Can't have frame_max_limit == 0");
+    let mut content_frames = vec!();
+    let mut current_pos = 0;
+    while current_pos < content.len() {
+        let new_pos = current_pos + cmp::min(content.len() - current_pos, frame_limit);
+        content_frames.push(content.slice(current_pos, new_pos).into_vec());
+        current_pos = new_pos;
+    }
+    content_frames
+}
+
+
+#[test]
+fn test_split_content_into_frames() {
+    let content = vec!(1,2,3,4,5,6,7,8,9,10);
+    let frames = split_content_into_frames(content, 3);
+    assert_eq!(frames, vec!(vec!(1, 2, 3), vec!(4, 5, 6), vec!(7, 8, 9), vec!(10)));
 }

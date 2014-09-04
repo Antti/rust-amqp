@@ -1,4 +1,4 @@
 [root]
-name = "rust-amqp"
+name = "amqp"
 version = "0.0.1"
 

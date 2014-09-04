@@ -1,9 +1,12 @@
 [package]
 
-name = "rust-amqp"
+name = "amqp"
 version = "0.0.1"
 authors = ["Andrii Dmytrenko <andrey@reevoo.com>"]
 
 [lib]
 
 name = "amqp"
+
+# [dependencies.url]
+# git = "https://github.com/servo/rust-url.git"

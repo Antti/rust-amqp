@@ -15,14 +15,14 @@ use std::comm::Receiver;
 
 
 pub struct Options <'a>  {
-    host: &'a str,
-    port: u16,
-    login: &'a str,
-    password: &'a str,
-    vhost: &'a str,
-    frame_max_limit: u32,
-    channel_max_limit: u16,
-    locale: &'a str
+    pub host: &'a str,
+    pub port: u16,
+    pub login: &'a str,
+    pub password: &'a str,
+    pub vhost: &'a str,
+    pub frame_max_limit: u32,
+    pub channel_max_limit: u16,
+    pub locale: &'a str
 }
 
 impl <'a>  Default for Options <'a>  {

@@ -1,5 +1,4 @@
 use std::io::{IoResult, IoError, EndOfFile};
-use std::cmp;
 use std::comm::{Sender, Receiver};
 
 use framing;
@@ -37,7 +36,7 @@ impl Channel {
 	}
 
 	pub fn send_method_frame(&self, method: &protocol::Method) {
-        println!("Sending method {} to channel {}", method.name(), self.id);
+        debug!("Sending method {} to channel {}", method.name(), self.id);
         self.write(Frame {frame_type: framing::METHOD, channel: self.id, payload: MethodFrame::encode_method(method) })
     }
 

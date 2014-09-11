@@ -79,12 +79,14 @@ impl Session {
     }
 
     fn init(&mut self, options: Options) -> IoResult<()> {
+        debug!("Starting init session");
 	    let frame = self.channel_zero.read(); //Start
         let method_frame = MethodFrame::decode(frame);
         let start : protocol::connection::Start = match method_frame.method_name(){
             "connection.start" => protocol::Method::decode(method_frame).unwrap(),
             meth => fail!("Unexpected method frame: {}", meth) //In reality you would probably skip the frame and try to read another?
         };
+        debug!("Received connection.start");
         //  The client selects a security mechanism (Start-Ok).
         //  The server starts the authentication process, which uses the SASL challenge-response model. It sends
         // the client a challenge (Secure).
@@ -106,6 +108,7 @@ impl Session {
         client_properties.insert("version".to_string(), LongString("0.1".to_string()));
         client_properties.insert("information".to_string(), LongString("https://github.com/Antti/rust-amqp".to_string()));
 
+        debug!("Sending connection.start-ok");
         let start_ok = protocol::connection::StartOk {
             client_properties: client_properties, mechanism: "PLAIN".to_string(),
             response: format!("\0{}\0{}", options.login, options.password), locale: options.locale.to_string()};
@@ -125,6 +128,7 @@ impl Session {
     }
 
 	pub fn open_channel(&mut self, channel_id: u16) -> IoResult<channel::Channel> {
+        debug!("Openning channel: {}", channel_id);
         let (sender, receiver) = channel();
         let channel = channel::Channel::new(channel_id, (self.sender.clone(), receiver));
         self.channels.lock().insert(channel_id, sender);
@@ -133,16 +137,18 @@ impl Session {
     }
 
     pub fn close(&mut self, reply_code: u16, reply_text: String) {
+        debug!("Closing session: reply_code: {}, reply_text: {}", reply_code, reply_text);
         let close = protocol::connection::Close {reply_code: reply_code, reply_text: reply_text, class_id: 0, method_id: 0};
         let close_ok : protocol::connection::CloseOk = self.channel_zero.rpc(&close, "connection.close-ok").unwrap();
         self.connection.close();
     }
 
     pub fn reading_loop(mut connection: Connection, channels: Arc<Mutex<HashMap<u16, Sender<Frame>>>>) -> () {
+        debug!("Starting reading loop");
         loop {
             let frame = match connection.read() {
                 Ok(frame) => frame,
-                Err(some_err) => {println!("Error in reading loop: {}", some_err); break} //Notify session somehow. It should stop now.
+                Err(some_err) => {debug!("Error in reading loop: {}", some_err); break} //Notify session somehow. It should stop now.
             };
             let chans = channels.lock();
             let ref target_channel = (*chans)[frame.channel];
@@ -156,9 +162,11 @@ impl Session {
             // Handle heartbeats
             // Dispatch frame to the given channel.
         }
+        debug!("Exiting reading loop");
     }
 
     pub fn writing_loop(mut connection: Connection, receiver: Receiver<Frame>) {
+        debug!("Starting writing loop");
         loop {
             let res = receiver.recv_opt();
             match res {
@@ -176,6 +184,7 @@ impl Session {
                 Err(_) => break //Notify session somehow... (but it's probably dead already)
             }
         }
+        debug!("Exiting writing loop");
     }
 }
 

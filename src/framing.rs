@@ -1,5 +1,4 @@
 use std::io::{MemReader, MemWriter, IoResult, IoError, InvalidInput, OtherIoError};
-use protocol::Method;
 
 #[deriving(Show, Clone, Eq, PartialEq, FromPrimitive)]
 pub enum FrameType {
@@ -47,39 +46,6 @@ impl Frame {
         writer.write(self.payload.as_slice()).unwrap();
         writer.write_u8(0xCE).unwrap();
         writer.unwrap()
-    }
-}
-
-#[deriving(Show, Clone)]
-pub struct MethodFrame {
-    pub class_id: u16,
-    pub method_id: u16,
-    pub arguments: Vec<u8>
-}
-
-impl MethodFrame {
-    pub fn encode_method(method: &Method) -> Vec<u8> {
-        let frame = MethodFrame {class_id: method.class_id(), method_id: method.id(), arguments: method.encode()};
-        frame.encode()
-    }
-    pub fn encode(&self) -> Vec<u8> {
-        let mut writer = MemWriter::new();
-        writer.write_be_u16(self.class_id).unwrap();
-        writer.write_be_u16(self.method_id).unwrap();
-        writer.write(self.arguments.as_slice()).unwrap();
-        writer.unwrap()
-    }
-
-    // We need this method, so we can match on class_id & method_id
-    pub fn decode(frame: Frame) -> MethodFrame {
-        if frame.frame_type != METHOD {
-            fail!("Not a method frame");
-        }
-        let mut reader = MemReader::new(frame.payload);
-        let class_id = reader.read_be_u16().unwrap();
-        let method_id = reader.read_be_u16().unwrap();
-        let arguments = reader.read_to_end().unwrap();
-        MethodFrame { class_id: class_id, method_id: method_id, arguments: arguments}
     }
 }
 

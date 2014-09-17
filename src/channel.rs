@@ -2,11 +2,10 @@ use std::io::{IoResult, IoError, EndOfFile};
 use std::comm::{Sender, Receiver};
 
 use framing;
-use framing::{ContentHeaderFrame, MethodFrame, Frame};
+use framing::{ContentHeaderFrame, Frame};
 use table::Table;
 use protocol;
-use protocol::channel;
-use protocol::basic;
+use protocol::{MethodFrame, channel, basic};
 
 pub struct Channel {
 	chan: (Sender<Frame>, Receiver<Frame>),

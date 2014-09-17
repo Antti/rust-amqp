@@ -98,7 +98,7 @@ fn write_table_entry(writer: &mut MemWriter, table_entry: TableEntry) -> IoResul
         FieldArray(arr) => {
             try!(writer.write_u8(b'A'));
             try!(writer.write_be_u32(arr.len() as u32));
-            for item in arr.move_iter(){
+            for item in arr.into_iter(){
                 try!(write_table_entry(writer, item));
             }
         },
@@ -128,7 +128,7 @@ pub fn decode_table(reader: &mut MemReader) -> IoResult<Table> {
 
 pub fn encode_table(writer: &mut Writer, table: Table) -> IoResult<()> {
     let mut tmp_writer = MemWriter::new();
-    for (field_name, table_entry) in table.move_iter() {
+    for (field_name, table_entry) in table.into_iter() {
         try!(tmp_writer.write_u8(field_name.len() as u8));
         try!(tmp_writer.write(field_name.as_bytes()));
         try!(write_table_entry(&mut tmp_writer, table_entry));

@@ -4,14 +4,13 @@ rust-amqp
 AMQ protocol implementation in pure rust.
 
 The project is still in very early stages of development,
-though it's capable of decoding & encoding method frames, decoding & encoding methods.
+though it's capable of decoding & encoding method, data, headers frames.
 
+It can connect to the server, post & receive messages.
 
-## It's not recommended to use this library for now.
+### You can actually use this library in your project, but expect the API to be changed in the future.
 
-It can do full start/start-ok, tune/tune-ok, open/open-ok, close/close-ok cycle :).
-
-The structure of files, methods & structs is not final, it's more like a prototype.
+### Have a look at an example: src/main.rs
 
 The methods encoding/decoding code is generated using codegen.rb & amqp-rabbitmq-0.9.1.json spec.
 

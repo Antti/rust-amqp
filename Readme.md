@@ -1,16 +1,24 @@
-rust-amqp
-=========
+#rust-amqp
 
 AMQ protocol implementation in pure rust.
 
-The project is still in very early stages of development,
-though it's capable of decoding & encoding method, data, headers frames.
+![build status](https://travis-ci.org/Antti/rust-amqp.svg)
 
-It can connect to the server, post & receive messages.
+> *** Note: ***
 
-### You can actually use this library in your project, but expect the API to be changed in the future.
+> The project is still in very early stages of development,
+> it implements the most of the protocol (decoding/encoding frames), but is not very easy to use.
+> Expect the API to be changed in the future.
 
-### Have a look at an example: src/main.rs
+### What it currently can do:
+* Connect to server
+* Open/close channels
+* Declare queues
+* Recieve (basic get) and publish messages.
+
+Have a look at an example: examples/simple.rs
+
+### Development notes:
 
 The methods encoding/decoding code is generated using codegen.rb & amqp-rabbitmq-0.9.1.json spec.
 
@@ -26,4 +34,4 @@ To build project, use cargo:
 cargo build
 ```
 
-This will build libamqp library & example client: rust-amqp.
+This will build libamqp library & example client: simple

@@ -141,9 +141,10 @@ pub mod <%= klass["name"] %> {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<<%= method["method_name"] %>> {
-            if method_frame.class_id != <%= klass["id"] %> || method_frame.method_id != <%= method["id"] %> {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (<%= klass["id"] %>, <%= method["id"] %>) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
 <% if method["arguments"].any? -%>
 <% method["readers"].each do |reader| -%>
             <%= reader %>

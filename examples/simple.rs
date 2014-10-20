@@ -18,18 +18,18 @@ fn main() {
     let queue_declare = channel.queue_declare(0, queue_name, true, true, false, false, false, table::new());
     println!("Queue declare: {}", queue_declare);
     loop {
-    	match channel.basic_get(0, queue_name, true){
-    		Ok((headers, body)) => {
-			    println!("Headers: {}", headers);
-			    println!("Body: {}", String::from_utf8_lossy(body.as_slice()));
-    		},
-    		Err(err) => {println!("Basic get error: {}", err); break;}
-    	}
+        match channel.basic_get(0, queue_name, true){
+            Ok((headers, body)) => {
+                println!("Headers: {}", headers);
+                println!("Body: {}", String::from_utf8_lossy(body.as_slice()));
+            },
+            Err(err) => {println!("Basic get error: {}", err); break;}
+        }
     }
 
     channel.basic_publish(0, "", queue_name, true, true,
-    	protocol::basic::BasicProperties{ content_type: Some("text".to_string()), ..Default::default()},
-    	(b"Hello from rust!").into_vec());
+        protocol::basic::BasicProperties{ content_type: Some("text".to_string()), ..Default::default()},
+        (b"Hello from rust!").to_vec());
     channel.close(200, "Bye");
     session.close(200, "Good Bye".to_string());
 }

@@ -153,9 +153,10 @@ pub mod connection {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<Start> {
-            if method_frame.class_id != 10 || method_frame.method_id != 10 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (10, 10) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             let mut reader = MemReader::new(method_frame.arguments);
             let version_major = try!(reader.read_byte());
             let version_minor = try!(reader.read_byte());
@@ -219,9 +220,10 @@ pub mod connection {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<StartOk> {
-            if method_frame.class_id != 10 || method_frame.method_id != 11 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (10, 11) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             let mut reader = MemReader::new(method_frame.arguments);
             let client_properties = try!(decode_table(&mut reader));
             let mechanism = {
@@ -283,9 +285,10 @@ pub mod connection {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<Secure> {
-            if method_frame.class_id != 10 || method_frame.method_id != 20 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (10, 20) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             let mut reader = MemReader::new(method_frame.arguments);
             let challenge = {
           let size = try!(reader.read_be_u32()) as uint;
@@ -323,9 +326,10 @@ pub mod connection {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<SecureOk> {
-            if method_frame.class_id != 10 || method_frame.method_id != 21 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (10, 21) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             let mut reader = MemReader::new(method_frame.arguments);
             let response = {
           let size = try!(reader.read_be_u32()) as uint;
@@ -365,9 +369,10 @@ pub mod connection {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<Tune> {
-            if method_frame.class_id != 10 || method_frame.method_id != 30 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (10, 30) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             let mut reader = MemReader::new(method_frame.arguments);
             let channel_max = try!(reader.read_be_u16());
             let frame_max = try!(reader.read_be_u32());
@@ -416,9 +421,10 @@ pub mod connection {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<TuneOk> {
-            if method_frame.class_id != 10 || method_frame.method_id != 31 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (10, 31) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             let mut reader = MemReader::new(method_frame.arguments);
             let channel_max = try!(reader.read_be_u16());
             let frame_max = try!(reader.read_be_u32());
@@ -467,9 +473,10 @@ pub mod connection {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<Open> {
-            if method_frame.class_id != 10 || method_frame.method_id != 40 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (10, 40) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             let mut reader = MemReader::new(method_frame.arguments);
             let virtual_host = {
           let size = try!(reader.read_byte()) as uint;
@@ -528,9 +535,10 @@ pub mod connection {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<OpenOk> {
-            if method_frame.class_id != 10 || method_frame.method_id != 41 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (10, 41) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             let mut reader = MemReader::new(method_frame.arguments);
             let known_hosts = {
           let size = try!(reader.read_byte()) as uint;
@@ -578,9 +586,10 @@ pub mod connection {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<Close> {
-            if method_frame.class_id != 10 || method_frame.method_id != 50 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (10, 50) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             let mut reader = MemReader::new(method_frame.arguments);
             let reply_code = try!(reader.read_be_u16());
             let reply_text = {
@@ -632,9 +641,10 @@ pub mod connection {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<CloseOk> {
-            if method_frame.class_id != 10 || method_frame.method_id != 51 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (10, 51) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             Ok(CloseOk)
           }
 
@@ -664,9 +674,10 @@ pub mod connection {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<Blocked> {
-            if method_frame.class_id != 10 || method_frame.method_id != 60 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (10, 60) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             let mut reader = MemReader::new(method_frame.arguments);
             let reason = {
           let size = try!(reader.read_byte()) as uint;
@@ -709,9 +720,10 @@ pub mod connection {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<Unblocked> {
-            if method_frame.class_id != 10 || method_frame.method_id != 61 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (10, 61) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             Ok(Unblocked)
           }
 
@@ -754,9 +766,10 @@ pub mod channel {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<Open> {
-            if method_frame.class_id != 20 || method_frame.method_id != 10 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (20, 10) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             let mut reader = MemReader::new(method_frame.arguments);
             let out_of_band = {
           let size = try!(reader.read_byte()) as uint;
@@ -801,9 +814,10 @@ pub mod channel {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<OpenOk> {
-            if method_frame.class_id != 20 || method_frame.method_id != 11 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (20, 11) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             let mut reader = MemReader::new(method_frame.arguments);
             let channel_id = {
           let size = try!(reader.read_be_u32()) as uint;
@@ -848,9 +862,10 @@ pub mod channel {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<Flow> {
-            if method_frame.class_id != 20 || method_frame.method_id != 20 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (20, 20) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             let mut reader = MemReader::new(method_frame.arguments);
             let byte = try!(reader.read_byte());
             let bits = bitv::from_bytes([byte]);
@@ -888,9 +903,10 @@ pub mod channel {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<FlowOk> {
-            if method_frame.class_id != 20 || method_frame.method_id != 21 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (20, 21) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             let mut reader = MemReader::new(method_frame.arguments);
             let byte = try!(reader.read_byte());
             let bits = bitv::from_bytes([byte]);
@@ -931,9 +947,10 @@ pub mod channel {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<Close> {
-            if method_frame.class_id != 20 || method_frame.method_id != 40 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (20, 40) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             let mut reader = MemReader::new(method_frame.arguments);
             let reply_code = try!(reader.read_be_u16());
             let reply_text = {
@@ -985,9 +1002,10 @@ pub mod channel {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<CloseOk> {
-            if method_frame.class_id != 20 || method_frame.method_id != 41 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (20, 41) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             Ok(CloseOk)
           }
 
@@ -1035,9 +1053,10 @@ pub mod access {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<Request> {
-            if method_frame.class_id != 30 || method_frame.method_id != 10 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (30, 10) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             let mut reader = MemReader::new(method_frame.arguments);
             let realm = {
           let size = try!(reader.read_byte()) as uint;
@@ -1101,9 +1120,10 @@ pub mod access {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<RequestOk> {
-            if method_frame.class_id != 30 || method_frame.method_id != 11 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (30, 11) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             let mut reader = MemReader::new(method_frame.arguments);
             let ticket = try!(reader.read_be_u16());
             Ok(RequestOk { ticket: ticket })
@@ -1165,9 +1185,10 @@ pub mod exchange {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<Declare> {
-            if method_frame.class_id != 40 || method_frame.method_id != 10 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (40, 10) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             let mut reader = MemReader::new(method_frame.arguments);
             let ticket = try!(reader.read_be_u16());
             let exchange = {
@@ -1242,9 +1263,10 @@ pub mod exchange {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<DeclareOk> {
-            if method_frame.class_id != 40 || method_frame.method_id != 11 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (40, 11) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             Ok(DeclareOk)
           }
 
@@ -1277,9 +1299,10 @@ pub mod exchange {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<Delete> {
-            if method_frame.class_id != 40 || method_frame.method_id != 20 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (40, 20) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             let mut reader = MemReader::new(method_frame.arguments);
             let ticket = try!(reader.read_be_u16());
             let exchange = {
@@ -1335,9 +1358,10 @@ pub mod exchange {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<DeleteOk> {
-            if method_frame.class_id != 40 || method_frame.method_id != 21 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (40, 21) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             Ok(DeleteOk)
           }
 
@@ -1372,9 +1396,10 @@ pub mod exchange {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<Bind> {
-            if method_frame.class_id != 40 || method_frame.method_id != 30 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (40, 30) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             let mut reader = MemReader::new(method_frame.arguments);
             let ticket = try!(reader.read_be_u16());
             let destination = {
@@ -1444,9 +1469,10 @@ pub mod exchange {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<BindOk> {
-            if method_frame.class_id != 40 || method_frame.method_id != 31 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (40, 31) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             Ok(BindOk)
           }
 
@@ -1481,9 +1507,10 @@ pub mod exchange {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<Unbind> {
-            if method_frame.class_id != 40 || method_frame.method_id != 40 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (40, 40) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             let mut reader = MemReader::new(method_frame.arguments);
             let ticket = try!(reader.read_be_u16());
             let destination = {
@@ -1553,9 +1580,10 @@ pub mod exchange {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<UnbindOk> {
-            if method_frame.class_id != 40 || method_frame.method_id != 51 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (40, 51) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             Ok(UnbindOk)
           }
 
@@ -1605,9 +1633,10 @@ pub mod queue {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<Declare> {
-            if method_frame.class_id != 50 || method_frame.method_id != 10 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (50, 10) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             let mut reader = MemReader::new(method_frame.arguments);
             let ticket = try!(reader.read_be_u16());
             let queue = {
@@ -1679,9 +1708,10 @@ pub mod queue {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<DeclareOk> {
-            if method_frame.class_id != 50 || method_frame.method_id != 11 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (50, 11) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             let mut reader = MemReader::new(method_frame.arguments);
             let queue = {
           let size = try!(reader.read_byte()) as uint;
@@ -1728,9 +1758,10 @@ pub mod queue {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<Bind> {
-            if method_frame.class_id != 50 || method_frame.method_id != 20 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (50, 20) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             let mut reader = MemReader::new(method_frame.arguments);
             let ticket = try!(reader.read_be_u16());
             let queue = {
@@ -1800,9 +1831,10 @@ pub mod queue {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<BindOk> {
-            if method_frame.class_id != 50 || method_frame.method_id != 21 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (50, 21) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             Ok(BindOk)
           }
 
@@ -1834,9 +1866,10 @@ pub mod queue {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<Purge> {
-            if method_frame.class_id != 50 || method_frame.method_id != 30 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (50, 30) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             let mut reader = MemReader::new(method_frame.arguments);
             let ticket = try!(reader.read_be_u16());
             let queue = {
@@ -1891,9 +1924,10 @@ pub mod queue {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<PurgeOk> {
-            if method_frame.class_id != 50 || method_frame.method_id != 31 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (50, 31) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             let mut reader = MemReader::new(method_frame.arguments);
             let message_count = try!(reader.read_be_u32());
             Ok(PurgeOk { message_count: message_count })
@@ -1931,9 +1965,10 @@ pub mod queue {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<Delete> {
-            if method_frame.class_id != 50 || method_frame.method_id != 40 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (50, 40) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             let mut reader = MemReader::new(method_frame.arguments);
             let ticket = try!(reader.read_be_u16());
             let queue = {
@@ -1994,9 +2029,10 @@ pub mod queue {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<DeleteOk> {
-            if method_frame.class_id != 50 || method_frame.method_id != 41 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (50, 41) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             let mut reader = MemReader::new(method_frame.arguments);
             let message_count = try!(reader.read_be_u32());
             Ok(DeleteOk { message_count: message_count })
@@ -2034,9 +2070,10 @@ pub mod queue {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<Unbind> {
-            if method_frame.class_id != 50 || method_frame.method_id != 50 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (50, 50) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             let mut reader = MemReader::new(method_frame.arguments);
             let ticket = try!(reader.read_be_u16());
             let queue = {
@@ -2099,9 +2136,10 @@ pub mod queue {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<UnbindOk> {
-            if method_frame.class_id != 50 || method_frame.method_id != 51 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (50, 51) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             Ok(UnbindOk)
           }
 
@@ -2365,9 +2403,10 @@ pub mod basic {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<Qos> {
-            if method_frame.class_id != 60 || method_frame.method_id != 10 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (60, 10) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             let mut reader = MemReader::new(method_frame.arguments);
             let prefetch_size = try!(reader.read_be_u32());
             let prefetch_count = try!(reader.read_be_u16());
@@ -2416,9 +2455,10 @@ pub mod basic {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<QosOk> {
-            if method_frame.class_id != 60 || method_frame.method_id != 11 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (60, 11) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             Ok(QosOk)
           }
 
@@ -2455,9 +2495,10 @@ pub mod basic {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<Consume> {
-            if method_frame.class_id != 60 || method_frame.method_id != 20 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (60, 20) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             let mut reader = MemReader::new(method_frame.arguments);
             let ticket = try!(reader.read_be_u16());
             let queue = {
@@ -2531,9 +2572,10 @@ pub mod basic {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<ConsumeOk> {
-            if method_frame.class_id != 60 || method_frame.method_id != 21 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (60, 21) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             let mut reader = MemReader::new(method_frame.arguments);
             let consumer_tag = {
           let size = try!(reader.read_byte()) as uint;
@@ -2572,9 +2614,10 @@ pub mod basic {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<Cancel> {
-            if method_frame.class_id != 60 || method_frame.method_id != 30 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (60, 30) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             let mut reader = MemReader::new(method_frame.arguments);
             let consumer_tag = {
           let size = try!(reader.read_byte()) as uint;
@@ -2618,9 +2661,10 @@ pub mod basic {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<CancelOk> {
-            if method_frame.class_id != 60 || method_frame.method_id != 31 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (60, 31) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             let mut reader = MemReader::new(method_frame.arguments);
             let consumer_tag = {
           let size = try!(reader.read_byte()) as uint;
@@ -2662,9 +2706,10 @@ pub mod basic {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<Publish> {
-            if method_frame.class_id != 60 || method_frame.method_id != 40 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (60, 40) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             let mut reader = MemReader::new(method_frame.arguments);
             let ticket = try!(reader.read_be_u16());
             let exchange = {
@@ -2732,9 +2777,10 @@ pub mod basic {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<Return> {
-            if method_frame.class_id != 60 || method_frame.method_id != 50 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (60, 50) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             let mut reader = MemReader::new(method_frame.arguments);
             let reply_code = try!(reader.read_be_u16());
             let reply_text = {
@@ -2800,9 +2846,10 @@ pub mod basic {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<Deliver> {
-            if method_frame.class_id != 60 || method_frame.method_id != 60 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (60, 60) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             let mut reader = MemReader::new(method_frame.arguments);
             let consumer_tag = {
           let size = try!(reader.read_byte()) as uint;
@@ -2862,9 +2909,10 @@ pub mod basic {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<Get> {
-            if method_frame.class_id != 60 || method_frame.method_id != 70 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (60, 70) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             let mut reader = MemReader::new(method_frame.arguments);
             let ticket = try!(reader.read_be_u16());
             let queue = {
@@ -2923,9 +2971,10 @@ pub mod basic {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<GetOk> {
-            if method_frame.class_id != 60 || method_frame.method_id != 71 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (60, 71) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             let mut reader = MemReader::new(method_frame.arguments);
             let delivery_tag = try!(reader.read_be_u64());
             let byte = try!(reader.read_byte());
@@ -2979,9 +3028,10 @@ pub mod basic {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<GetEmpty> {
-            if method_frame.class_id != 60 || method_frame.method_id != 72 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (60, 72) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             let mut reader = MemReader::new(method_frame.arguments);
             let cluster_id = {
           let size = try!(reader.read_byte()) as uint;
@@ -3027,9 +3077,10 @@ pub mod basic {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<Ack> {
-            if method_frame.class_id != 60 || method_frame.method_id != 80 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (60, 80) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             let mut reader = MemReader::new(method_frame.arguments);
             let delivery_tag = try!(reader.read_be_u64());
             let byte = try!(reader.read_byte());
@@ -3078,9 +3129,10 @@ pub mod basic {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<Reject> {
-            if method_frame.class_id != 60 || method_frame.method_id != 90 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (60, 90) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             let mut reader = MemReader::new(method_frame.arguments);
             let delivery_tag = try!(reader.read_be_u64());
             let byte = try!(reader.read_byte());
@@ -3128,9 +3180,10 @@ pub mod basic {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<RecoverAsync> {
-            if method_frame.class_id != 60 || method_frame.method_id != 100 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (60, 100) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             let mut reader = MemReader::new(method_frame.arguments);
             let byte = try!(reader.read_byte());
             let bits = bitv::from_bytes([byte]);
@@ -3168,9 +3221,10 @@ pub mod basic {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<Recover> {
-            if method_frame.class_id != 60 || method_frame.method_id != 110 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (60, 110) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             let mut reader = MemReader::new(method_frame.arguments);
             let byte = try!(reader.read_byte());
             let bits = bitv::from_bytes([byte]);
@@ -3206,9 +3260,10 @@ pub mod basic {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<RecoverOk> {
-            if method_frame.class_id != 60 || method_frame.method_id != 111 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (60, 111) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             Ok(RecoverOk)
           }
 
@@ -3240,9 +3295,10 @@ pub mod basic {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<Nack> {
-            if method_frame.class_id != 60 || method_frame.method_id != 120 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (60, 120) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             let mut reader = MemReader::new(method_frame.arguments);
             let delivery_tag = try!(reader.read_be_u64());
             let byte = try!(reader.read_byte());
@@ -3304,9 +3360,10 @@ pub mod tx {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<Select> {
-            if method_frame.class_id != 90 || method_frame.method_id != 10 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (90, 10) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             Ok(Select)
           }
 
@@ -3334,9 +3391,10 @@ pub mod tx {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<SelectOk> {
-            if method_frame.class_id != 90 || method_frame.method_id != 11 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (90, 11) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             Ok(SelectOk)
           }
 
@@ -3364,9 +3422,10 @@ pub mod tx {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<Commit> {
-            if method_frame.class_id != 90 || method_frame.method_id != 20 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (90, 20) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             Ok(Commit)
           }
 
@@ -3394,9 +3453,10 @@ pub mod tx {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<CommitOk> {
-            if method_frame.class_id != 90 || method_frame.method_id != 21 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (90, 21) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             Ok(CommitOk)
           }
 
@@ -3424,9 +3484,10 @@ pub mod tx {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<Rollback> {
-            if method_frame.class_id != 90 || method_frame.method_id != 30 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (90, 30) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             Ok(Rollback)
           }
 
@@ -3454,9 +3515,10 @@ pub mod tx {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<RollbackOk> {
-            if method_frame.class_id != 90 || method_frame.method_id != 31 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (90, 31) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             Ok(RollbackOk)
           }
 
@@ -3499,9 +3561,10 @@ pub mod confirm {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<Select> {
-            if method_frame.class_id != 85 || method_frame.method_id != 10 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (85, 10) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             let mut reader = MemReader::new(method_frame.arguments);
             let byte = try!(reader.read_byte());
             let bits = bitv::from_bytes([byte]);
@@ -3537,9 +3600,10 @@ pub mod confirm {
         }
 
         fn decode(method_frame: MethodFrame) -> IoResult<SelectOk> {
-            if method_frame.class_id != 85 || method_frame.method_id != 11 {
-               return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None});
-            }
+            match (method_frame.class_id, method_frame.method_id) {
+                (85, 11) => {},
+                (_,_) => {return Err(IoError{kind: InvalidInput, desc: "Frame class_id & method_id didn't match", detail: None})}
+            };
             Ok(SelectOk)
           }
 

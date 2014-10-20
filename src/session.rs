@@ -199,7 +199,7 @@ fn split_content_into_frames(content: Vec<u8>, frame_limit: uint) -> Vec<Vec<u8>
     let mut current_pos = 0;
     while current_pos < content.len() {
         let new_pos = current_pos + cmp::min(content.len() - current_pos, frame_limit);
-        content_frames.push(content.slice(current_pos, new_pos).into_vec());
+        content_frames.push(content.slice(current_pos, new_pos).to_vec());
         current_pos = new_pos;
     }
     content_frames

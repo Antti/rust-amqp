@@ -161,7 +161,6 @@ impl Session {
             //     framing::HEARTBEAT => {}
             // }
             // Handle heartbeats
-            // Dispatch frame to the given channel.
         }
         debug!("Exiting reading loop");
     }

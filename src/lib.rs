@@ -1,6 +1,6 @@
 #![feature(phase)]
 extern crate collections;
-extern crate url;
+// extern crate url;
 #[phase(plugin, link)] extern crate log;
 
 pub mod connection;

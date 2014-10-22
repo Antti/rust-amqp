@@ -1,10 +1,8 @@
-#rust-amqp
+#rust-amqp [![Build Status](https://travis-ci.org/Antti/rust-amqp.svg)](https://travis-ci.org/Antti/rust-amqp)
 
 AMQ protocol implementation in pure rust.
 
-[![Build Status](https://travis-ci.org/Antti/rust-amqp.svg)](https://travis-ci.org/Antti/rust-amqp)
-
-> *** Note: ***
+> Note:
 
 > The project is still in very early stages of development,
 > it implements the most of the protocol (decoding/encoding frames), but is not very easy to use.

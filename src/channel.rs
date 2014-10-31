@@ -34,20 +34,20 @@ impl Channel {
         self.chan.ref0().send(frame)
     }
 
-    pub fn send_method_frame(&self, method: &protocol::Method) {
+    pub fn send_method_frame<T>(&self, method: &T)  where T: protocol::Method {
         debug!("Sending method {} to channel {}", method.name(), self.id);
         self.write(Frame {frame_type: framing::METHOD, channel: self.id, payload: MethodFrame::encode_method(method) })
     }
 
-    pub fn rpc<T: protocol::Method>(&self, method: &protocol::Method, expected_reply: &str) -> IoResult<T> {
+    pub fn rpc<T, U>(&self, method: &U, expected_reply: &str) -> IoResult<T> where T: protocol::Method, U: protocol::Method {
         let method_frame = self.raw_rpc(method);
         match method_frame.method_name() {
             m_name if m_name == expected_reply => protocol::Method::decode(method_frame),
-            m_name => fail!("Unexpected method frame: {}, expected: {}", m_name, expected_reply)
+            m_name => panic!("Unexpected method frame: {}, expected: {}", m_name, expected_reply)
         }
     }
 
-    pub fn raw_rpc(&self, method: &protocol::Method) -> MethodFrame {
+    pub fn raw_rpc<T>(&self, method: &T) -> MethodFrame  where T: protocol::Method {
         self.send_method_frame(method);
         MethodFrame::decode(self.read())
     }
@@ -92,7 +92,7 @@ impl Channel {
                 Ok((properties, body))
             }
             "basic.get-empty" => return Err(IoError{kind: EndOfFile, desc: "The queue is empty", detail: None}),
-            method => fail!(format!("Not expected method: {}", method))
+            method => panic!(format!("Not expected method: {}", method))
         }
     }
 

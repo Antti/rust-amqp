@@ -85,7 +85,7 @@ impl Session {
         let method_frame = MethodFrame::decode(frame);
         let start : protocol::connection::Start = match method_frame.method_name(){
             "connection.start" => protocol::Method::decode(method_frame).unwrap(),
-            meth => fail!("Unexpected method frame: {}", meth) //In reality you would probably skip the frame and try to read another?
+            meth => panic!("Unexpected method frame: {}", meth) //In reality you would probably skip the frame and try to read another?
         };
         debug!("Received connection.start");
         //  The client selects a security mechanism (Start-Ok).

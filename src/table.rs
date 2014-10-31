@@ -62,7 +62,7 @@ fn read_table_entry(reader: &mut MemReader) -> IoResult<TableEntry> {
         b'T' => Timestamp(try!(reader.read_be_u64())),
         b'F' => FieldTable(try!(decode_table(reader))),
         b'V' => Void,
-        x => fail!("Unknown type {}", x)
+        x => panic!("Unknown type {}", x)
     };
     Ok(entry)
 }

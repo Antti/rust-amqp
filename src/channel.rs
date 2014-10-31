@@ -43,7 +43,7 @@ impl Channel {
         let method_frame = self.raw_rpc(method);
         match method_frame.method_name() {
             m_name if m_name == expected_reply => protocol::Method::decode(method_frame),
-            m_name => fail!("Unexpected method frame: {}, expected: {}", m_name, expected_reply)
+            m_name => panic!("Unexpected method frame: {}, expected: {}", m_name, expected_reply)
         }
     }
 
@@ -92,7 +92,7 @@ impl Channel {
                 Ok((properties, body))
             }
             "basic.get-empty" => return Err(IoError{kind: EndOfFile, desc: "The queue is empty", detail: None}),
-            method => fail!(format!("Not expected method: {}", method))
+            method => panic!(format!("Not expected method: {}", method))
         }
     }
 

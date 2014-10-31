@@ -36,7 +36,7 @@ impl MethodFrame {
     // We need this method, so we can match on class_id & method_id
     pub fn decode(frame: Frame) -> MethodFrame {
         if frame.frame_type != METHOD {
-            fail!("Not a method frame");
+            panic!("Not a method frame");
         }
         let mut reader = MemReader::new(frame.payload);
         let class_id = reader.read_be_u16().unwrap();

@@ -85,7 +85,7 @@ impl Session {
         let method_frame = MethodFrame::decode(frame);
         let start : protocol::connection::Start = match method_frame.method_name(){
             "connection.start" => protocol::Method::decode(method_frame).unwrap(),
-            meth => fail!("Unexpected method frame: {}", meth) //In reality you would probably skip the frame and try to read another?
+            meth => panic!("Unexpected method frame: {}", meth) //In reality you would probably skip the frame and try to read another?
         };
         debug!("Received connection.start");
         //  The client selects a security mechanism (Start-Ok).
@@ -102,7 +102,7 @@ impl Session {
         capabilities.insert("exchange_exchange_bindings".to_string(), Bool(true));
         capabilities.insert("basic.nack".to_string(), Bool(true));
         capabilities.insert("connection.blocked".to_string(), Bool(true));
-        capabilities.insert("authentication_failure_close".to_string(), Bool(true));
+        capabilities.insert("authentication_panicure_close".to_string(), Bool(true));
         client_properties.insert("capabilities".to_string(), FieldTable(capabilities));
         client_properties.insert("product".to_string(), LongString("rust-amqp".to_string()));
         client_properties.insert("platform".to_string(), LongString("rust".to_string()));

@@ -10,7 +10,7 @@ use std::sync::{Arc, Mutex};
 use std::io::IoResult;
 use std::cmp;
 use std::default::Default;
-use std::collections::hashmap::HashMap;
+use std::collections::HashMap;
 use std::comm::Receiver;
 // use url::Url;
 

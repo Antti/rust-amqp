@@ -10,7 +10,7 @@ pub struct Connection {
 
 impl Connection {
     pub fn open(host: &str, port: u16) -> IoResult<Connection> {
-        let mut socket = try!(TcpStream::connect(host, port));
+        let mut socket = try!(TcpStream::connect((host, port)));
         try!(socket.write([b'A', b'M', b'Q', b'P', 0, 0, 9, 1]));
         let connection = Connection { socket: socket, frame_max_limit: 131072 };
         Ok(connection)

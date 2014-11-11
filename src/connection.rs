@@ -19,7 +19,6 @@ impl Connection {
     pub fn close(&mut self) {
         self.socket.close_write().unwrap();
         self.socket.close_read().unwrap();
-        //TODO: Need to drop socket somehow (Maybe have an Option<Socket>)
     }
 
     pub fn write(&mut self, frame: Frame) -> IoResult<()>{

@@ -67,20 +67,20 @@ fn read_table_entry(reader: &mut MemReader) -> IoResult<TableEntry> {
     Ok(entry)
 }
 
-fn write_table_entry(writer: &mut MemWriter, table_entry: TableEntry) -> IoResult<()> {
+fn write_table_entry(writer: &mut MemWriter, table_entry: &TableEntry) -> IoResult<()> {
     match table_entry {
-        Bool(val) => { try!(writer.write_u8(b't')); try!(writer.write_u8(val as u8)); },
-        ShortShortInt(val) => { try!(writer.write_u8(b'b')); try!(writer.write_i8(val)); },
-        ShortShortUint(val) => { try!(writer.write_u8(b'B')); try!(writer.write_u8(val)); },
-        ShortInt(val) => { try!(writer.write_u8(b'U')); try!(writer.write_be_i16(val)); },
-        ShortUint(val) => { try!(writer.write_u8(b'u')); try!(writer.write_be_u16(val)); },
-        LongInt(val) => { try!(writer.write_u8(b'I')); try!(writer.write_be_i32(val)); },
-        LongUint(val) => { try!(writer.write_u8(b'i')); try!(writer.write_be_u32(val)); },
-        LongLongInt(val) => { try!(writer.write_u8(b'L')); try!(writer.write_be_i64(val)); },
-        LongLongUint(val) => { try!(writer.write_u8(b'l')); try!(writer.write_be_u64(val)); },
-        Float(val) => { try!(writer.write_u8(b'f')); try!(writer.write_be_f32(val)); },
-        Double(val) => { try!(writer.write_u8(b'd')); try!(writer.write_be_f64(val)); },
-        DecimalValue(scale, value) => {
+        &Bool(val) => { try!(writer.write_u8(b't')); try!(writer.write_u8(val as u8)); },
+        &ShortShortInt(val) => { try!(writer.write_u8(b'b')); try!(writer.write_i8(val)); },
+        &ShortShortUint(val) => { try!(writer.write_u8(b'B')); try!(writer.write_u8(val)); },
+        &ShortInt(val) => { try!(writer.write_u8(b'U')); try!(writer.write_be_i16(val)); },
+        &ShortUint(val) => { try!(writer.write_u8(b'u')); try!(writer.write_be_u16(val)); },
+        &LongInt(val) => { try!(writer.write_u8(b'I')); try!(writer.write_be_i32(val)); },
+        &LongUint(val) => { try!(writer.write_u8(b'i')); try!(writer.write_be_u32(val)); },
+        &LongLongInt(val) => { try!(writer.write_u8(b'L')); try!(writer.write_be_i64(val)); },
+        &LongLongUint(val) => { try!(writer.write_u8(b'l')); try!(writer.write_be_u64(val)); },
+        &Float(val) => { try!(writer.write_u8(b'f')); try!(writer.write_be_f32(val)); },
+        &Double(val) => { try!(writer.write_u8(b'd')); try!(writer.write_be_f64(val)); },
+        &DecimalValue(scale, value) => {
             try!(writer.write_u8(b'D'));
             try!(writer.write_u8(scale));
             try!(writer.write_be_u32(value));
@@ -90,24 +90,24 @@ fn write_table_entry(writer: &mut MemWriter, table_entry: TableEntry) -> IoResul
         //  try!(writer.write_u8(str.len() as u8));
         //  try!(writer.write(str.as_bytes()));
         // },
-        LongString(str) => {
+        &LongString(ref str) => {
             try!(writer.write_u8(b'S'));
             try!(writer.write_be_u32(str.len() as u32));
             try!(writer.write(str.as_bytes()));
         },
-        FieldArray(arr) => {
+        &FieldArray(ref arr) => {
             try!(writer.write_u8(b'A'));
             try!(writer.write_be_u32(arr.len() as u32));
-            for item in arr.into_iter(){
+            for item in arr.iter(){
                 try!(write_table_entry(writer, item));
             }
         },
-        Timestamp(val) => { try!(writer.write_u8(b'T')); try!(writer.write_be_u64(val)) },
-        FieldTable(table) => {
+        &Timestamp(val) => { try!(writer.write_u8(b'T')); try!(writer.write_be_u64(val)) },
+        &FieldTable(ref table) => {
             try!(writer.write_u8(b'F'));
             try!(encode_table(writer, table));
         },
-        Void => { try!(writer.write_u8(b'V')) }
+        &Void => { try!(writer.write_u8(b'V')) }
     }
     Ok(())
 }
@@ -126,9 +126,9 @@ pub fn decode_table(reader: &mut MemReader) -> IoResult<Table> {
     Ok(table)
 }
 
-pub fn encode_table(writer: &mut Writer, table: Table) -> IoResult<()> {
+pub fn encode_table(writer: &mut Writer, table: &Table) -> IoResult<()> {
     let mut tmp_writer = MemWriter::new();
-    for (field_name, table_entry) in table.into_iter() {
+    for (field_name, table_entry) in table.iter() {
         try!(tmp_writer.write_u8(field_name.len() as u8));
         try!(tmp_writer.write(field_name.as_bytes()));
         try!(write_table_entry(&mut tmp_writer, table_entry));

@@ -176,7 +176,7 @@ pub mod connection {
             let mut writer = MemWriter::new();
             writer.write_u8(self.version_major).unwrap();
             writer.write_u8(self.version_minor).unwrap();
-            encode_table(&mut writer, self.server_properties.clone()).unwrap();
+            encode_table(&mut writer, &self.server_properties).unwrap();
             writer.write_be_u32(self.mechanisms.len() as u32).unwrap();
     writer.write(self.mechanisms.as_bytes()).unwrap();
             writer.write_be_u32(self.locales.len() as u32).unwrap();
@@ -243,7 +243,7 @@ pub mod connection {
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = MemWriter::new();
-            encode_table(&mut writer, self.client_properties.clone()).unwrap();
+            encode_table(&mut writer, &self.client_properties).unwrap();
             writer.write_u8(self.mechanism.len() as u8).unwrap();
     writer.write(self.mechanism.as_bytes()).unwrap();
             writer.write_be_u32(self.response.len() as u32).unwrap();
@@ -1224,7 +1224,7 @@ pub mod exchange {
             bits.push(self.internal);
             bits.push(self.nowait);
             writer.write(bits.to_bytes().as_slice()).unwrap();
-            encode_table(&mut writer, self.arguments.clone()).unwrap();
+            encode_table(&mut writer, &self.arguments).unwrap();
             writer.unwrap()
         }
     }
@@ -1433,7 +1433,7 @@ pub mod exchange {
             let mut bits = Bitv::new();
             bits.push(self.nowait);
             writer.write(bits.to_bytes().as_slice()).unwrap();
-            encode_table(&mut writer, self.arguments.clone()).unwrap();
+            encode_table(&mut writer, &self.arguments).unwrap();
             writer.unwrap()
         }
     }
@@ -1544,7 +1544,7 @@ pub mod exchange {
             let mut bits = Bitv::new();
             bits.push(self.nowait);
             writer.write(bits.to_bytes().as_slice()).unwrap();
-            encode_table(&mut writer, self.arguments.clone()).unwrap();
+            encode_table(&mut writer, &self.arguments).unwrap();
             writer.unwrap()
         }
     }
@@ -1666,7 +1666,7 @@ pub mod queue {
             bits.push(self.auto_delete);
             bits.push(self.nowait);
             writer.write(bits.to_bytes().as_slice()).unwrap();
-            encode_table(&mut writer, self.arguments.clone()).unwrap();
+            encode_table(&mut writer, &self.arguments).unwrap();
             writer.unwrap()
         }
     }
@@ -1795,7 +1795,7 @@ pub mod queue {
             let mut bits = Bitv::new();
             bits.push(self.nowait);
             writer.write(bits.to_bytes().as_slice()).unwrap();
-            encode_table(&mut writer, self.arguments.clone()).unwrap();
+            encode_table(&mut writer, &self.arguments).unwrap();
             writer.unwrap()
         }
     }
@@ -2101,7 +2101,7 @@ pub mod queue {
     writer.write(self.exchange.as_bytes()).unwrap();
             writer.write_u8(self.routing_key.len() as u8).unwrap();
     writer.write(self.routing_key.as_bytes()).unwrap();
-            encode_table(&mut writer, self.arguments.clone()).unwrap();
+            encode_table(&mut writer, &self.arguments).unwrap();
             writer.unwrap()
         }
     }
@@ -2303,7 +2303,7 @@ pub mod basic {
               };
               if self.headers.is_some() {
                   let headers =  __props.headers.unwrap();
-                  encode_table(&mut writer, headers.clone()).unwrap();
+                  encode_table(&mut writer, &headers).unwrap();
               };
               if self.delivery_mode.is_some() {
                   let delivery_mode =  __props.delivery_mode.unwrap();
@@ -2532,7 +2532,7 @@ pub mod basic {
             bits.push(self.exclusive);
             bits.push(self.nowait);
             writer.write(bits.to_bytes().as_slice()).unwrap();
-            encode_table(&mut writer, self.arguments.clone()).unwrap();
+            encode_table(&mut writer, &self.arguments).unwrap();
             writer.unwrap()
         }
     }

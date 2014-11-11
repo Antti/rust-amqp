@@ -9,3 +9,4 @@ pub mod framing;
 pub mod table;
 pub mod protocol;
 pub mod session;
+pub mod basic;

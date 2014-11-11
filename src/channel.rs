@@ -74,10 +74,11 @@ impl Channel {
             properties_flags: properties_flags, properties: properties.encode() };
         let content_header_frame = framing::Frame {frame_type: framing::HEADERS, channel: self.id,
             payload: content_header.encode() };
+        let content_frame = framing::Frame { frame_type: framing::BODY, channel: self.id, payload: content};
 
         self.send_method_frame(publish);
         self.write(content_header_frame);
-        self.write(framing::Frame { frame_type: framing::BODY, channel: self.id, payload: content});
+        self.write(content_frame);
     }
 
     pub fn basic_get(&self, ticket: u16, queue: &str, no_ack: bool) -> IoResult<(protocol::basic::BasicProperties, Vec<u8>)> {
@@ -87,8 +88,8 @@ impl Channel {
             "basic.get-ok" => {
                 let reply: basic::GetOk = try!(protocol::Method::decode(method_frame));
                 let headers = try!(self.read_headers());
-                let properties = try!(basic::BasicProperties::decode(headers.clone()));
                 let body = try!(self.read_body(headers.body_size));
+                let properties = try!(basic::BasicProperties::decode(headers));
                 Ok((properties, body))
             }
             "basic.get-empty" => return Err(IoError{kind: EndOfFile, desc: "The queue is empty", detail: None}),

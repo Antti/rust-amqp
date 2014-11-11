@@ -56,7 +56,7 @@ def write_type(name, type)
     "writer.write_be_u32(#{name}.len() as u32).unwrap();
     writer.write(#{name}.as_bytes()).unwrap();"
   when "table"
-    "encode_table(&mut writer, #{name}.clone()).unwrap();"
+    "encode_table(&mut writer, &#{name}).unwrap();"
   when "timestamp"
     "writer.write_be_u64(#{name}).unwrap();"
   else

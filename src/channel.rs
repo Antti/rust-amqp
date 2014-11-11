@@ -7,15 +7,19 @@ use table::Table;
 use protocol;
 use protocol::{MethodFrame, channel, basic};
 use protocol::basic::BasicProperties;
+use std::collections::HashMap;
+
+pub type ConsumerCallback = fn(channel: &Channel, deliver: basic::Deliver, headers: BasicProperties, body: Vec<u8>);
 
 pub struct Channel {
-    chan: (Sender<Frame>, Receiver<Frame>),
-    pub id: u16
+    pub id: u16,
+    pub consumers: HashMap<String, ConsumerCallback>,
+    chan: (Sender<Frame>, Receiver<Frame>)
 }
 
 impl Channel {
     pub fn new(id: u16, chan: (Sender<Frame>, Receiver<Frame>)) -> Channel {
-        Channel{id: id, chan: chan}
+        Channel{id: id, chan: chan, consumers: HashMap::new()}
     }
 
     pub fn open(&self) -> IoResult<protocol::channel::OpenOk> {
@@ -82,7 +86,7 @@ impl Channel {
         self.write(content_frame);
     }
 
-    pub fn basic_get(&self, queue: &str, no_ack: bool) -> IoResult<(BasicProperties, Vec<u8>, basic::GetOk)> {
+    pub fn basic_get(&self, queue: &str, no_ack: bool) -> IoResult<(basic::GetOk, BasicProperties, Vec<u8>)> {
         let get = &basic::Get{ ticket: 0, queue: queue.to_string(), no_ack: no_ack };
         let method_frame = self.raw_rpc(get);
         match method_frame.method_name() {
@@ -91,7 +95,7 @@ impl Channel {
                 let headers = try!(self.read_headers());
                 let body = try!(self.read_body(headers.body_size));
                 let properties = try!(BasicProperties::decode(headers));
-                Ok((properties, body, reply))
+                Ok((reply, properties, body))
             }
             "basic.get-empty" => return Err(IoError{kind: EndOfFile, desc: "The queue is empty", detail: None}),
             method => panic!(format!("Not expected method: {}", method))

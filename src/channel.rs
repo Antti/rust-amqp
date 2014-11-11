@@ -6,6 +6,7 @@ use framing::{ContentHeaderFrame, Frame};
 use table::Table;
 use protocol;
 use protocol::{MethodFrame, channel, basic};
+use protocol::basic::BasicProperties;
 
 pub struct Channel {
     chan: (Sender<Frame>, Receiver<Frame>),
@@ -64,10 +65,10 @@ impl Channel {
         Ok(body)
     }
 
-    pub fn basic_publish(&self, ticket: u16, exchange: &str, routing_key: &str, mandatory: bool, immediate: bool,
-                         properties: basic::BasicProperties, content: Vec<u8>) {
+    pub fn basic_publish(&self, exchange: &str, routing_key: &str, mandatory: bool, immediate: bool,
+                         properties: BasicProperties, content: Vec<u8>) {
         let publish = &protocol::basic::Publish {
-            ticket: ticket, exchange: exchange.to_string(),
+            ticket: 0, exchange: exchange.to_string(),
             routing_key: routing_key.to_string(), mandatory: mandatory, immediate: immediate};
         let properties_flags = properties.flags();
         let content_header = ContentHeaderFrame { content_class: 60, weight: 0, body_size: content.len() as u64,
@@ -81,43 +82,56 @@ impl Channel {
         self.write(content_frame);
     }
 
-    pub fn basic_get(&self, ticket: u16, queue: &str, no_ack: bool) -> IoResult<(protocol::basic::BasicProperties, Vec<u8>)> {
-        let get = &basic::Get{ ticket: ticket, queue: queue.to_string(), no_ack: no_ack };
+    pub fn basic_get(&self, queue: &str, no_ack: bool) -> IoResult<(BasicProperties, Vec<u8>, basic::GetOk)> {
+        let get = &basic::Get{ ticket: 0, queue: queue.to_string(), no_ack: no_ack };
         let method_frame = self.raw_rpc(get);
         match method_frame.method_name() {
             "basic.get-ok" => {
                 let reply: basic::GetOk = try!(protocol::Method::decode(method_frame));
                 let headers = try!(self.read_headers());
                 let body = try!(self.read_body(headers.body_size));
-                let properties = try!(basic::BasicProperties::decode(headers));
-                Ok((properties, body))
+                let properties = try!(BasicProperties::decode(headers));
+                Ok((properties, body, reply))
             }
             "basic.get-empty" => return Err(IoError{kind: EndOfFile, desc: "The queue is empty", detail: None}),
             method => panic!(format!("Not expected method: {}", method))
         }
     }
 
-    pub fn exchange_declare(&self, ticket: u16, exchange: &str, _type: &str, passive: bool, durable: bool,
+    pub fn basic_ack(&self, delivery_tag: u64, multiple: bool) {
+        self.send_method_frame(&protocol::basic::Ack{delivery_tag: delivery_tag, multiple: multiple});
+    }
+
+    // Rabbitmq specific
+    pub fn basic_nack(&self, delivery_tag: u64, multiple: bool, requeue: bool) {
+        self.send_method_frame(&protocol::basic::Nack{delivery_tag: delivery_tag, multiple: multiple, requeue: requeue});
+    }
+
+    pub fn basic_reject(&self, delivery_tag: u64, requeue: bool) {
+        self.send_method_frame(&protocol::basic::Reject{delivery_tag: delivery_tag, requeue: requeue});
+    }
+
+    pub fn exchange_declare(&self, exchange: &str, _type: &str, passive: bool, durable: bool,
         auto_delete: bool, internal: bool, nowait: bool, arguments: Table) -> IoResult<protocol::exchange::DeclareOk> {
         let declare = protocol::exchange::Declare {
-            ticket: ticket, exchange: exchange.to_string(), _type: _type.to_string(), passive: passive, durable: durable,
+            ticket: 0, exchange: exchange.to_string(), _type: _type.to_string(), passive: passive, durable: durable,
             auto_delete: auto_delete, internal: internal, nowait: nowait, arguments: arguments
         };
         self.rpc(&declare,"exchange.declare-ok")
     }
 
-    pub fn queue_declare(&self, ticket: u16, queue: &str, passive: bool, durable: bool, exclusive: bool,
+    pub fn queue_declare(&self, queue: &str, passive: bool, durable: bool, exclusive: bool,
         auto_delete: bool, nowait: bool, arguments: Table) -> IoResult<protocol::queue::DeclareOk> {
         let declare = protocol::queue::Declare {
-            ticket: ticket, queue: queue.to_string(), passive: passive, durable: durable, exclusive: exclusive,
+            ticket: 0, queue: queue.to_string(), passive: passive, durable: durable, exclusive: exclusive,
             auto_delete: auto_delete, nowait: nowait, arguments: arguments
         };
         self.rpc(&declare, "queue.declare-ok")
     }
 
-    pub fn queue_bind(&self, ticket: u16, queue: &str, exchange: &str, routing_key: &str, nowait: bool, arguments: Table) -> IoResult<protocol::queue::BindOk> {
+    pub fn queue_bind(&self, queue: &str, exchange: &str, routing_key: &str, nowait: bool, arguments: Table) -> IoResult<protocol::queue::BindOk> {
         let bind = protocol::queue::Bind {
-            ticket: ticket, queue: queue.to_string(), exchange: exchange.to_string(),
+            ticket: 0, queue: queue.to_string(), exchange: exchange.to_string(),
             routing_key: routing_key.to_string(), nowait: nowait, arguments: arguments
         };
         self.rpc(&bind, "queue.bind-ok")

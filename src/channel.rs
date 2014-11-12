@@ -1,4 +1,4 @@
-use std::io::{IoResult, IoError, EndOfFile};
+use std::io::IoResult;
 use std::comm::{Sender, Receiver};
 
 use framing;
@@ -35,7 +35,7 @@ impl Channel {
         self.chan.ref1().recv()
     }
 
-    fn write(&self, frame: Frame) {
+    pub fn write(&self, frame: Frame) {
         self.chan.ref0().send(frame)
     }
 
@@ -67,52 +67,6 @@ impl Channel {
             body.extend(self.read().payload.into_iter())
         }
         Ok(body)
-    }
-
-    pub fn basic_publish(&self, exchange: &str, routing_key: &str, mandatory: bool, immediate: bool,
-                         properties: BasicProperties, content: Vec<u8>) {
-        let publish = &protocol::basic::Publish {
-            ticket: 0, exchange: exchange.to_string(),
-            routing_key: routing_key.to_string(), mandatory: mandatory, immediate: immediate};
-        let properties_flags = properties.flags();
-        let content_header = ContentHeaderFrame { content_class: 60, weight: 0, body_size: content.len() as u64,
-            properties_flags: properties_flags, properties: properties.encode() };
-        let content_header_frame = framing::Frame {frame_type: framing::HEADERS, channel: self.id,
-            payload: content_header.encode() };
-        let content_frame = framing::Frame { frame_type: framing::BODY, channel: self.id, payload: content};
-
-        self.send_method_frame(publish);
-        self.write(content_header_frame);
-        self.write(content_frame);
-    }
-
-    pub fn basic_get(&self, queue: &str, no_ack: bool) -> IoResult<(basic::GetOk, BasicProperties, Vec<u8>)> {
-        let get = &basic::Get{ ticket: 0, queue: queue.to_string(), no_ack: no_ack };
-        let method_frame = self.raw_rpc(get);
-        match method_frame.method_name() {
-            "basic.get-ok" => {
-                let reply: basic::GetOk = try!(protocol::Method::decode(method_frame));
-                let headers = try!(self.read_headers());
-                let body = try!(self.read_body(headers.body_size));
-                let properties = try!(BasicProperties::decode(headers));
-                Ok((reply, properties, body))
-            }
-            "basic.get-empty" => return Err(IoError{kind: EndOfFile, desc: "The queue is empty", detail: None}),
-            method => panic!(format!("Not expected method: {}", method))
-        }
-    }
-
-    pub fn basic_ack(&self, delivery_tag: u64, multiple: bool) {
-        self.send_method_frame(&protocol::basic::Ack{delivery_tag: delivery_tag, multiple: multiple});
-    }
-
-    // Rabbitmq specific
-    pub fn basic_nack(&self, delivery_tag: u64, multiple: bool, requeue: bool) {
-        self.send_method_frame(&protocol::basic::Nack{delivery_tag: delivery_tag, multiple: multiple, requeue: requeue});
-    }
-
-    pub fn basic_reject(&self, delivery_tag: u64, requeue: bool) {
-        self.send_method_frame(&protocol::basic::Reject{delivery_tag: delivery_tag, requeue: requeue});
     }
 
     pub fn exchange_declare(&self, exchange: &str, _type: &str, passive: bool, durable: bool,

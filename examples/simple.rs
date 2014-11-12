@@ -4,7 +4,7 @@ use amqp::session::Options;
 use amqp::session::Session;
 use amqp::protocol;
 use amqp::table;
-use amqp::basic;
+use amqp::basic::Basic;
 use amqp::channel::Channel;
 use std::default::Default;
 //table types:
@@ -25,7 +25,7 @@ fn main() {
     //ticket: u16, queue: &str, passive: bool, durable: bool, exclusive: bool, auto_delete: bool, nowait: bool, arguments: Table
     let queue_declare = channel.queue_declare(queue_name, true, true, false, false, false, table::new());
     println!("Queue declare: {}", queue_declare);
-    for get_result in basic::get(&channel, queue_name, false) {
+    for get_result in channel.basic_get(queue_name, false) {
         println!("Headers: {}", get_result.headers);
         println!("Reply: {}", get_result.reply);
         println!("Body: {}", String::from_utf8_lossy(get_result.body.as_slice()));
@@ -33,8 +33,10 @@ fn main() {
     }
 
     //queue: &str, consumer_tag: &str, no_local: bool, no_ack: bool, exclusive: bool, nowait: bool, arguments: Table
-    basic::basic_consume(&mut channel, consumer_function, queue_name, "", false, false, false, false, table::new());
-    basic::start_consuming(&channel);
+    println!("Declaring consumer...");
+    channel.basic_consume(consumer_function, queue_name, "", false, false, false, false, table::new());
+    println!("Starting consumer...");
+    channel.start_consuming();
 
     channel.basic_publish("", queue_name, true, false,
         protocol::basic::BasicProperties{ content_type: Some("text".to_string()), ..Default::default()},

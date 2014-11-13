@@ -75,7 +75,7 @@ def generate_reader_body(arguments)
           body << "let byte = try!(reader.read_byte());"
           body << "let bits = bitv::from_bytes([byte]);"
         end
-        body << "let #{snake_name(argument["name"])} = bits.get(7-#{n_bits});"
+        body << "let #{snake_name(argument["name"])} = bits.get(#{7-n_bits});"
         n_bits += 1
         if n_bits == 8
           n_bits = 0
@@ -98,7 +98,7 @@ def generate_writer_body(arguments)
         if n_bits == 0
           body << "let mut bits = Bitv::with_capacity(8, false);"
         end
-        body << "bits.set(7-#{n_bits}, self.#{snake_name(argument["name"])});"
+        body << "bits.set(#{7-n_bits}, self.#{snake_name(argument["name"])});"
         n_bits += 1
         if n_bits == 8
           body << "writer.write(bits.to_bytes().as_slice()).unwrap();"

@@ -488,7 +488,7 @@ pub mod connection {
      };
             let byte = try!(reader.read_byte());
             let bits = bitv::from_bytes([byte]);
-            let insist = bits.get(7-0);
+            let insist = bits.get(7);
             Ok(Open { virtual_host: virtual_host, capabilities: capabilities, insist: insist })
           }
 
@@ -499,7 +499,7 @@ pub mod connection {
             writer.write_u8(self.capabilities.len() as u8).unwrap();
     writer.write(self.capabilities.as_bytes()).unwrap();
             let mut bits = Bitv::with_capacity(8, false);
-            bits.set(7-0, self.insist);
+            bits.set(7, self.insist);
             writer.write(bits.to_bytes().as_slice()).unwrap();
             writer.unwrap()
         }
@@ -869,14 +869,14 @@ pub mod channel {
             let mut reader = MemReader::new(method_frame.arguments);
             let byte = try!(reader.read_byte());
             let bits = bitv::from_bytes([byte]);
-            let active = bits.get(7-0);
+            let active = bits.get(7);
             Ok(Flow { active: active })
           }
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = MemWriter::new();
             let mut bits = Bitv::with_capacity(8, false);
-            bits.set(7-0, self.active);
+            bits.set(7, self.active);
             writer.write(bits.to_bytes().as_slice()).unwrap();
             writer.unwrap()
         }
@@ -910,14 +910,14 @@ pub mod channel {
             let mut reader = MemReader::new(method_frame.arguments);
             let byte = try!(reader.read_byte());
             let bits = bitv::from_bytes([byte]);
-            let active = bits.get(7-0);
+            let active = bits.get(7);
             Ok(FlowOk { active: active })
           }
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = MemWriter::new();
             let mut bits = Bitv::with_capacity(8, false);
-            bits.set(7-0, self.active);
+            bits.set(7, self.active);
             writer.write(bits.to_bytes().as_slice()).unwrap();
             writer.unwrap()
         }
@@ -1064,11 +1064,11 @@ pub mod access {
      };
             let byte = try!(reader.read_byte());
             let bits = bitv::from_bytes([byte]);
-            let exclusive = bits.get(7-0);
-            let passive = bits.get(7-1);
-            let active = bits.get(7-2);
-            let write = bits.get(7-3);
-            let read = bits.get(7-4);
+            let exclusive = bits.get(7);
+            let passive = bits.get(6);
+            let active = bits.get(5);
+            let write = bits.get(4);
+            let read = bits.get(3);
             Ok(Request { realm: realm, exclusive: exclusive, passive: passive, active: active, write: write, read: read })
           }
 
@@ -1077,11 +1077,11 @@ pub mod access {
             writer.write_u8(self.realm.len() as u8).unwrap();
     writer.write(self.realm.as_bytes()).unwrap();
             let mut bits = Bitv::with_capacity(8, false);
-            bits.set(7-0, self.exclusive);
-            bits.set(7-1, self.passive);
-            bits.set(7-2, self.active);
-            bits.set(7-3, self.write);
-            bits.set(7-4, self.read);
+            bits.set(7, self.exclusive);
+            bits.set(6, self.passive);
+            bits.set(5, self.active);
+            bits.set(4, self.write);
+            bits.set(3, self.read);
             writer.write(bits.to_bytes().as_slice()).unwrap();
             writer.unwrap()
         }
@@ -1201,11 +1201,11 @@ pub mod exchange {
      };
             let byte = try!(reader.read_byte());
             let bits = bitv::from_bytes([byte]);
-            let passive = bits.get(7-0);
-            let durable = bits.get(7-1);
-            let auto_delete = bits.get(7-2);
-            let internal = bits.get(7-3);
-            let nowait = bits.get(7-4);
+            let passive = bits.get(7);
+            let durable = bits.get(6);
+            let auto_delete = bits.get(5);
+            let internal = bits.get(4);
+            let nowait = bits.get(3);
             let arguments = try!(decode_table(&mut reader));
             Ok(Declare { ticket: ticket, exchange: exchange, _type: _type, passive: passive, durable: durable, auto_delete: auto_delete, internal: internal, nowait: nowait, arguments: arguments })
           }
@@ -1218,11 +1218,11 @@ pub mod exchange {
             writer.write_u8(self._type.len() as u8).unwrap();
     writer.write(self._type.as_bytes()).unwrap();
             let mut bits = Bitv::with_capacity(8, false);
-            bits.set(7-0, self.passive);
-            bits.set(7-1, self.durable);
-            bits.set(7-2, self.auto_delete);
-            bits.set(7-3, self.internal);
-            bits.set(7-4, self.nowait);
+            bits.set(7, self.passive);
+            bits.set(6, self.durable);
+            bits.set(5, self.auto_delete);
+            bits.set(4, self.internal);
+            bits.set(3, self.nowait);
             writer.write(bits.to_bytes().as_slice()).unwrap();
             encode_table(&mut writer, &self.arguments).unwrap();
             writer.unwrap()
@@ -1311,8 +1311,8 @@ pub mod exchange {
      };
             let byte = try!(reader.read_byte());
             let bits = bitv::from_bytes([byte]);
-            let if_unused = bits.get(7-0);
-            let nowait = bits.get(7-1);
+            let if_unused = bits.get(7);
+            let nowait = bits.get(6);
             Ok(Delete { ticket: ticket, exchange: exchange, if_unused: if_unused, nowait: nowait })
           }
 
@@ -1322,8 +1322,8 @@ pub mod exchange {
             writer.write_u8(self.exchange.len() as u8).unwrap();
     writer.write(self.exchange.as_bytes()).unwrap();
             let mut bits = Bitv::with_capacity(8, false);
-            bits.set(7-0, self.if_unused);
-            bits.set(7-1, self.nowait);
+            bits.set(7, self.if_unused);
+            bits.set(6, self.nowait);
             writer.write(bits.to_bytes().as_slice()).unwrap();
             writer.unwrap()
         }
@@ -1416,7 +1416,7 @@ pub mod exchange {
      };
             let byte = try!(reader.read_byte());
             let bits = bitv::from_bytes([byte]);
-            let nowait = bits.get(7-0);
+            let nowait = bits.get(7);
             let arguments = try!(decode_table(&mut reader));
             Ok(Bind { ticket: ticket, destination: destination, source: source, routing_key: routing_key, nowait: nowait, arguments: arguments })
           }
@@ -1431,7 +1431,7 @@ pub mod exchange {
             writer.write_u8(self.routing_key.len() as u8).unwrap();
     writer.write(self.routing_key.as_bytes()).unwrap();
             let mut bits = Bitv::with_capacity(8, false);
-            bits.set(7-0, self.nowait);
+            bits.set(7, self.nowait);
             writer.write(bits.to_bytes().as_slice()).unwrap();
             encode_table(&mut writer, &self.arguments).unwrap();
             writer.unwrap()
@@ -1527,7 +1527,7 @@ pub mod exchange {
      };
             let byte = try!(reader.read_byte());
             let bits = bitv::from_bytes([byte]);
-            let nowait = bits.get(7-0);
+            let nowait = bits.get(7);
             let arguments = try!(decode_table(&mut reader));
             Ok(Unbind { ticket: ticket, destination: destination, source: source, routing_key: routing_key, nowait: nowait, arguments: arguments })
           }
@@ -1542,7 +1542,7 @@ pub mod exchange {
             writer.write_u8(self.routing_key.len() as u8).unwrap();
     writer.write(self.routing_key.as_bytes()).unwrap();
             let mut bits = Bitv::with_capacity(8, false);
-            bits.set(7-0, self.nowait);
+            bits.set(7, self.nowait);
             writer.write(bits.to_bytes().as_slice()).unwrap();
             encode_table(&mut writer, &self.arguments).unwrap();
             writer.unwrap()
@@ -1645,11 +1645,11 @@ pub mod queue {
      };
             let byte = try!(reader.read_byte());
             let bits = bitv::from_bytes([byte]);
-            let passive = bits.get(7-0);
-            let durable = bits.get(7-1);
-            let exclusive = bits.get(7-2);
-            let auto_delete = bits.get(7-3);
-            let nowait = bits.get(7-4);
+            let passive = bits.get(7);
+            let durable = bits.get(6);
+            let exclusive = bits.get(5);
+            let auto_delete = bits.get(4);
+            let nowait = bits.get(3);
             let arguments = try!(decode_table(&mut reader));
             Ok(Declare { ticket: ticket, queue: queue, passive: passive, durable: durable, exclusive: exclusive, auto_delete: auto_delete, nowait: nowait, arguments: arguments })
           }
@@ -1660,11 +1660,11 @@ pub mod queue {
             writer.write_u8(self.queue.len() as u8).unwrap();
     writer.write(self.queue.as_bytes()).unwrap();
             let mut bits = Bitv::with_capacity(8, false);
-            bits.set(7-0, self.passive);
-            bits.set(7-1, self.durable);
-            bits.set(7-2, self.exclusive);
-            bits.set(7-3, self.auto_delete);
-            bits.set(7-4, self.nowait);
+            bits.set(7, self.passive);
+            bits.set(6, self.durable);
+            bits.set(5, self.exclusive);
+            bits.set(4, self.auto_delete);
+            bits.set(3, self.nowait);
             writer.write(bits.to_bytes().as_slice()).unwrap();
             encode_table(&mut writer, &self.arguments).unwrap();
             writer.unwrap()
@@ -1778,7 +1778,7 @@ pub mod queue {
      };
             let byte = try!(reader.read_byte());
             let bits = bitv::from_bytes([byte]);
-            let nowait = bits.get(7-0);
+            let nowait = bits.get(7);
             let arguments = try!(decode_table(&mut reader));
             Ok(Bind { ticket: ticket, queue: queue, exchange: exchange, routing_key: routing_key, nowait: nowait, arguments: arguments })
           }
@@ -1793,7 +1793,7 @@ pub mod queue {
             writer.write_u8(self.routing_key.len() as u8).unwrap();
     writer.write(self.routing_key.as_bytes()).unwrap();
             let mut bits = Bitv::with_capacity(8, false);
-            bits.set(7-0, self.nowait);
+            bits.set(7, self.nowait);
             writer.write(bits.to_bytes().as_slice()).unwrap();
             encode_table(&mut writer, &self.arguments).unwrap();
             writer.unwrap()
@@ -1878,7 +1878,7 @@ pub mod queue {
      };
             let byte = try!(reader.read_byte());
             let bits = bitv::from_bytes([byte]);
-            let nowait = bits.get(7-0);
+            let nowait = bits.get(7);
             Ok(Purge { ticket: ticket, queue: queue, nowait: nowait })
           }
 
@@ -1888,7 +1888,7 @@ pub mod queue {
             writer.write_u8(self.queue.len() as u8).unwrap();
     writer.write(self.queue.as_bytes()).unwrap();
             let mut bits = Bitv::with_capacity(8, false);
-            bits.set(7-0, self.nowait);
+            bits.set(7, self.nowait);
             writer.write(bits.to_bytes().as_slice()).unwrap();
             writer.unwrap()
         }
@@ -1977,9 +1977,9 @@ pub mod queue {
      };
             let byte = try!(reader.read_byte());
             let bits = bitv::from_bytes([byte]);
-            let if_unused = bits.get(7-0);
-            let if_empty = bits.get(7-1);
-            let nowait = bits.get(7-2);
+            let if_unused = bits.get(7);
+            let if_empty = bits.get(6);
+            let nowait = bits.get(5);
             Ok(Delete { ticket: ticket, queue: queue, if_unused: if_unused, if_empty: if_empty, nowait: nowait })
           }
 
@@ -1989,9 +1989,9 @@ pub mod queue {
             writer.write_u8(self.queue.len() as u8).unwrap();
     writer.write(self.queue.as_bytes()).unwrap();
             let mut bits = Bitv::with_capacity(8, false);
-            bits.set(7-0, self.if_unused);
-            bits.set(7-1, self.if_empty);
-            bits.set(7-2, self.nowait);
+            bits.set(7, self.if_unused);
+            bits.set(6, self.if_empty);
+            bits.set(5, self.nowait);
             writer.write(bits.to_bytes().as_slice()).unwrap();
             writer.unwrap()
         }
@@ -2412,7 +2412,7 @@ pub mod basic {
             let prefetch_count = try!(reader.read_be_u16());
             let byte = try!(reader.read_byte());
             let bits = bitv::from_bytes([byte]);
-            let global = bits.get(7-0);
+            let global = bits.get(7);
             Ok(Qos { prefetch_size: prefetch_size, prefetch_count: prefetch_count, global: global })
           }
 
@@ -2421,7 +2421,7 @@ pub mod basic {
             writer.write_be_u32(self.prefetch_size).unwrap();
             writer.write_be_u16(self.prefetch_count).unwrap();
             let mut bits = Bitv::with_capacity(8, false);
-            bits.set(7-0, self.global);
+            bits.set(7, self.global);
             writer.write(bits.to_bytes().as_slice()).unwrap();
             writer.unwrap()
         }
@@ -2511,10 +2511,10 @@ pub mod basic {
      };
             let byte = try!(reader.read_byte());
             let bits = bitv::from_bytes([byte]);
-            let no_local = bits.get(7-0);
-            let no_ack = bits.get(7-1);
-            let exclusive = bits.get(7-2);
-            let nowait = bits.get(7-3);
+            let no_local = bits.get(7);
+            let no_ack = bits.get(6);
+            let exclusive = bits.get(5);
+            let nowait = bits.get(4);
             let arguments = try!(decode_table(&mut reader));
             Ok(Consume { ticket: ticket, queue: queue, consumer_tag: consumer_tag, no_local: no_local, no_ack: no_ack, exclusive: exclusive, nowait: nowait, arguments: arguments })
           }
@@ -2527,10 +2527,10 @@ pub mod basic {
             writer.write_u8(self.consumer_tag.len() as u8).unwrap();
     writer.write(self.consumer_tag.as_bytes()).unwrap();
             let mut bits = Bitv::with_capacity(8, false);
-            bits.set(7-0, self.no_local);
-            bits.set(7-1, self.no_ack);
-            bits.set(7-2, self.exclusive);
-            bits.set(7-3, self.nowait);
+            bits.set(7, self.no_local);
+            bits.set(6, self.no_ack);
+            bits.set(5, self.exclusive);
+            bits.set(4, self.nowait);
             writer.write(bits.to_bytes().as_slice()).unwrap();
             encode_table(&mut writer, &self.arguments).unwrap();
             writer.unwrap()
@@ -2625,7 +2625,7 @@ pub mod basic {
      };
             let byte = try!(reader.read_byte());
             let bits = bitv::from_bytes([byte]);
-            let nowait = bits.get(7-0);
+            let nowait = bits.get(7);
             Ok(Cancel { consumer_tag: consumer_tag, nowait: nowait })
           }
 
@@ -2634,7 +2634,7 @@ pub mod basic {
             writer.write_u8(self.consumer_tag.len() as u8).unwrap();
     writer.write(self.consumer_tag.as_bytes()).unwrap();
             let mut bits = Bitv::with_capacity(8, false);
-            bits.set(7-0, self.nowait);
+            bits.set(7, self.nowait);
             writer.write(bits.to_bytes().as_slice()).unwrap();
             writer.unwrap()
         }
@@ -2722,8 +2722,8 @@ pub mod basic {
      };
             let byte = try!(reader.read_byte());
             let bits = bitv::from_bytes([byte]);
-            let mandatory = bits.get(7-0);
-            let immediate = bits.get(7-1);
+            let mandatory = bits.get(7);
+            let immediate = bits.get(6);
             Ok(Publish { ticket: ticket, exchange: exchange, routing_key: routing_key, mandatory: mandatory, immediate: immediate })
           }
 
@@ -2735,8 +2735,8 @@ pub mod basic {
             writer.write_u8(self.routing_key.len() as u8).unwrap();
     writer.write(self.routing_key.as_bytes()).unwrap();
             let mut bits = Bitv::with_capacity(8, false);
-            bits.set(7-0, self.mandatory);
-            bits.set(7-1, self.immediate);
+            bits.set(7, self.mandatory);
+            bits.set(6, self.immediate);
             writer.write(bits.to_bytes().as_slice()).unwrap();
             writer.unwrap()
         }
@@ -2858,7 +2858,7 @@ pub mod basic {
             let delivery_tag = try!(reader.read_be_u64());
             let byte = try!(reader.read_byte());
             let bits = bitv::from_bytes([byte]);
-            let redelivered = bits.get(7-0);
+            let redelivered = bits.get(7);
             let exchange = {
           let size = try!(reader.read_byte()) as uint;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
@@ -2876,7 +2876,7 @@ pub mod basic {
     writer.write(self.consumer_tag.as_bytes()).unwrap();
             writer.write_be_u64(self.delivery_tag).unwrap();
             let mut bits = Bitv::with_capacity(8, false);
-            bits.set(7-0, self.redelivered);
+            bits.set(7, self.redelivered);
             writer.write(bits.to_bytes().as_slice()).unwrap();
             writer.write_u8(self.exchange.len() as u8).unwrap();
     writer.write(self.exchange.as_bytes()).unwrap();
@@ -2921,7 +2921,7 @@ pub mod basic {
      };
             let byte = try!(reader.read_byte());
             let bits = bitv::from_bytes([byte]);
-            let no_ack = bits.get(7-0);
+            let no_ack = bits.get(7);
             Ok(Get { ticket: ticket, queue: queue, no_ack: no_ack })
           }
 
@@ -2931,7 +2931,7 @@ pub mod basic {
             writer.write_u8(self.queue.len() as u8).unwrap();
     writer.write(self.queue.as_bytes()).unwrap();
             let mut bits = Bitv::with_capacity(8, false);
-            bits.set(7-0, self.no_ack);
+            bits.set(7, self.no_ack);
             writer.write(bits.to_bytes().as_slice()).unwrap();
             writer.unwrap()
         }
@@ -2979,7 +2979,7 @@ pub mod basic {
             let delivery_tag = try!(reader.read_be_u64());
             let byte = try!(reader.read_byte());
             let bits = bitv::from_bytes([byte]);
-            let redelivered = bits.get(7-0);
+            let redelivered = bits.get(7);
             let exchange = {
           let size = try!(reader.read_byte()) as uint;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
@@ -2996,7 +2996,7 @@ pub mod basic {
             let mut writer = MemWriter::new();
             writer.write_be_u64(self.delivery_tag).unwrap();
             let mut bits = Bitv::with_capacity(8, false);
-            bits.set(7-0, self.redelivered);
+            bits.set(7, self.redelivered);
             writer.write(bits.to_bytes().as_slice()).unwrap();
             writer.write_u8(self.exchange.len() as u8).unwrap();
     writer.write(self.exchange.as_bytes()).unwrap();
@@ -3085,7 +3085,7 @@ pub mod basic {
             let delivery_tag = try!(reader.read_be_u64());
             let byte = try!(reader.read_byte());
             let bits = bitv::from_bytes([byte]);
-            let multiple = bits.get(7-0);
+            let multiple = bits.get(7);
             Ok(Ack { delivery_tag: delivery_tag, multiple: multiple })
           }
 
@@ -3093,7 +3093,7 @@ pub mod basic {
             let mut writer = MemWriter::new();
             writer.write_be_u64(self.delivery_tag).unwrap();
             let mut bits = Bitv::with_capacity(8, false);
-            bits.set(7-0, self.multiple);
+            bits.set(7, self.multiple);
             writer.write(bits.to_bytes().as_slice()).unwrap();
             writer.unwrap()
         }
@@ -3137,7 +3137,7 @@ pub mod basic {
             let delivery_tag = try!(reader.read_be_u64());
             let byte = try!(reader.read_byte());
             let bits = bitv::from_bytes([byte]);
-            let requeue = bits.get(7-0);
+            let requeue = bits.get(7);
             Ok(Reject { delivery_tag: delivery_tag, requeue: requeue })
           }
 
@@ -3145,7 +3145,7 @@ pub mod basic {
             let mut writer = MemWriter::new();
             writer.write_be_u64(self.delivery_tag).unwrap();
             let mut bits = Bitv::with_capacity(8, false);
-            bits.set(7-0, self.requeue);
+            bits.set(7, self.requeue);
             writer.write(bits.to_bytes().as_slice()).unwrap();
             writer.unwrap()
         }
@@ -3187,14 +3187,14 @@ pub mod basic {
             let mut reader = MemReader::new(method_frame.arguments);
             let byte = try!(reader.read_byte());
             let bits = bitv::from_bytes([byte]);
-            let requeue = bits.get(7-0);
+            let requeue = bits.get(7);
             Ok(RecoverAsync { requeue: requeue })
           }
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = MemWriter::new();
             let mut bits = Bitv::with_capacity(8, false);
-            bits.set(7-0, self.requeue);
+            bits.set(7, self.requeue);
             writer.write(bits.to_bytes().as_slice()).unwrap();
             writer.unwrap()
         }
@@ -3228,14 +3228,14 @@ pub mod basic {
             let mut reader = MemReader::new(method_frame.arguments);
             let byte = try!(reader.read_byte());
             let bits = bitv::from_bytes([byte]);
-            let requeue = bits.get(7-0);
+            let requeue = bits.get(7);
             Ok(Recover { requeue: requeue })
           }
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = MemWriter::new();
             let mut bits = Bitv::with_capacity(8, false);
-            bits.set(7-0, self.requeue);
+            bits.set(7, self.requeue);
             writer.write(bits.to_bytes().as_slice()).unwrap();
             writer.unwrap()
         }
@@ -3303,8 +3303,8 @@ pub mod basic {
             let delivery_tag = try!(reader.read_be_u64());
             let byte = try!(reader.read_byte());
             let bits = bitv::from_bytes([byte]);
-            let multiple = bits.get(7-0);
-            let requeue = bits.get(7-1);
+            let multiple = bits.get(7);
+            let requeue = bits.get(6);
             Ok(Nack { delivery_tag: delivery_tag, multiple: multiple, requeue: requeue })
           }
 
@@ -3312,8 +3312,8 @@ pub mod basic {
             let mut writer = MemWriter::new();
             writer.write_be_u64(self.delivery_tag).unwrap();
             let mut bits = Bitv::with_capacity(8, false);
-            bits.set(7-0, self.multiple);
-            bits.set(7-1, self.requeue);
+            bits.set(7, self.multiple);
+            bits.set(6, self.requeue);
             writer.write(bits.to_bytes().as_slice()).unwrap();
             writer.unwrap()
         }
@@ -3568,14 +3568,14 @@ pub mod confirm {
             let mut reader = MemReader::new(method_frame.arguments);
             let byte = try!(reader.read_byte());
             let bits = bitv::from_bytes([byte]);
-            let nowait = bits.get(7-0);
+            let nowait = bits.get(7);
             Ok(Select { nowait: nowait })
           }
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = MemWriter::new();
             let mut bits = Bitv::with_capacity(8, false);
-            bits.set(7-0, self.nowait);
+            bits.set(7, self.nowait);
             writer.write(bits.to_bytes().as_slice()).unwrap();
             writer.unwrap()
         }

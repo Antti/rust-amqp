@@ -78,7 +78,7 @@ impl <'a> Basic<'a> for Channel {
           let frame = self.read();
                 match frame.frame_type {
                     framing::METHOD => {
-                        let method_frame = MethodFrame::decode(frame.clone());
+                        let method_frame = MethodFrame::decode(frame);
                         match method_frame.method_name() {
                             "basic.deliver" => {
                                 let deliver_method : Deliver = Method::decode(method_frame).unwrap();

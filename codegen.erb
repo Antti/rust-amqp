@@ -91,13 +91,15 @@ pub mod <%= klass["name"] %> {
             Ok(<%=klass["properties_struct_name"]%> { <%= klass["properties_struct_create"].join(", ") %> })
         }
 
-        pub fn encode(&self) -> Vec<u8> {
+        pub fn encode(self) -> Vec<u8> {
             let mut writer = MemWriter::new();
-            let __props = (*self).clone();
 <% klass["properties"].each.with_index do |prop, idx| -%>
-              if self.<%= prop["prop_name"] %>.is_some() {
-                  let <%= prop["prop_name"] %> =  __props.<%= prop["prop_name"] %>.unwrap();
-                  <%= write_type(prop["prop_name"], prop["prop_type"]) %>
+              match self.<%= prop["prop_name"] %> {
+                  Some(prop) => {
+                      let <%= prop["prop_name"] %> =  prop;
+                      <%= write_type(prop["prop_name"], prop["prop_type"]) %>
+                  }
+                  None => {}
               };
 <% end -%>
             writer.unwrap()
@@ -108,7 +110,7 @@ pub mod <%= klass["name"] %> {
 <% klass["properties"].each.with_index do |prop, idx| -%>
             bits.set(<%= idx %>, self.<%= prop["prop_name"] %>.is_some());
 <% end -%>
-            let flags : u16 = bits.to_bytes()[0].clone() as u16;
+            let flags : u16 = bits.to_bytes()[0] as u16;
             (flags << 8 | bits.to_bytes()[1] as u16) as u16
         }
     }

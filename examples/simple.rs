@@ -12,8 +12,11 @@ use std::default::Default;
 
 fn consumer_function(channel: &Channel, deliver: protocol::basic::Deliver, headers: protocol::basic::BasicProperties, body: Vec<u8>){
     println!("Got a delivery:");
-    println!("{}{}{}", deliver, headers, body);
+    println!("Deliver info: {}", deliver);
+    println!("Content headers: {}", headers);
+    println!("Content body: {}", body);
     channel.basic_ack(deliver.delivery_tag, false);
+    std::io::print(format!("{}\r", deliver.delivery_tag).as_slice());
 }
 
 fn main() {
@@ -23,7 +26,7 @@ fn main() {
 
     let queue_name = "test_queue";
     //ticket: u16, queue: &str, passive: bool, durable: bool, exclusive: bool, auto_delete: bool, nowait: bool, arguments: Table
-    let queue_declare = channel.queue_declare(queue_name, true, true, false, false, false, table::new());
+    let queue_declare = channel.queue_declare(queue_name, false, true, false, false, false, table::new());
     println!("Queue declare: {}", queue_declare);
     for get_result in channel.basic_get(queue_name, false) {
         println!("Headers: {}", get_result.headers);
@@ -34,8 +37,8 @@ fn main() {
 
     //queue: &str, consumer_tag: &str, no_local: bool, no_ack: bool, exclusive: bool, nowait: bool, arguments: Table
     println!("Declaring consumer...");
-    channel.basic_consume(consumer_function, queue_name, "", false, false, false, false, table::new());
-    println!("Starting consumer...");
+    let consumer_name = channel.basic_consume(consumer_function, queue_name, "", false, false, false, false, table::new());
+    println!("Starting consumer {}", consumer_name);
     channel.start_consuming();
 
     channel.basic_publish("", queue_name, true, false,

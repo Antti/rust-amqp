@@ -2288,74 +2288,115 @@ pub mod basic {
             Ok(BasicProperties { content_type: content_type, content_encoding: content_encoding, headers: headers, delivery_mode: delivery_mode, priority: priority, correlation_id: correlation_id, reply_to: reply_to, expiration: expiration, message_id: message_id, timestamp: timestamp, _type: _type, user_id: user_id, app_id: app_id, cluster_id: cluster_id })
         }
 
-        pub fn encode(&self) -> Vec<u8> {
+        pub fn encode(self) -> Vec<u8> {
             let mut writer = MemWriter::new();
-            let __props = (*self).clone();
-              if self.content_type.is_some() {
-                  let content_type =  __props.content_type.unwrap();
-                  writer.write_u8(content_type.len() as u8).unwrap();
+              match self.content_type {
+                  Some(prop) => {
+                      let content_type =  prop;
+                      writer.write_u8(content_type.len() as u8).unwrap();
     writer.write(content_type.as_bytes()).unwrap();
+                  }
+                  None => {}
               };
-              if self.content_encoding.is_some() {
-                  let content_encoding =  __props.content_encoding.unwrap();
-                  writer.write_u8(content_encoding.len() as u8).unwrap();
+              match self.content_encoding {
+                  Some(prop) => {
+                      let content_encoding =  prop;
+                      writer.write_u8(content_encoding.len() as u8).unwrap();
     writer.write(content_encoding.as_bytes()).unwrap();
+                  }
+                  None => {}
               };
-              if self.headers.is_some() {
-                  let headers =  __props.headers.unwrap();
-                  encode_table(&mut writer, &headers).unwrap();
+              match self.headers {
+                  Some(prop) => {
+                      let headers =  prop;
+                      encode_table(&mut writer, &headers).unwrap();
+                  }
+                  None => {}
               };
-              if self.delivery_mode.is_some() {
-                  let delivery_mode =  __props.delivery_mode.unwrap();
-                  writer.write_u8(delivery_mode).unwrap();
+              match self.delivery_mode {
+                  Some(prop) => {
+                      let delivery_mode =  prop;
+                      writer.write_u8(delivery_mode).unwrap();
+                  }
+                  None => {}
               };
-              if self.priority.is_some() {
-                  let priority =  __props.priority.unwrap();
-                  writer.write_u8(priority).unwrap();
+              match self.priority {
+                  Some(prop) => {
+                      let priority =  prop;
+                      writer.write_u8(priority).unwrap();
+                  }
+                  None => {}
               };
-              if self.correlation_id.is_some() {
-                  let correlation_id =  __props.correlation_id.unwrap();
-                  writer.write_u8(correlation_id.len() as u8).unwrap();
+              match self.correlation_id {
+                  Some(prop) => {
+                      let correlation_id =  prop;
+                      writer.write_u8(correlation_id.len() as u8).unwrap();
     writer.write(correlation_id.as_bytes()).unwrap();
+                  }
+                  None => {}
               };
-              if self.reply_to.is_some() {
-                  let reply_to =  __props.reply_to.unwrap();
-                  writer.write_u8(reply_to.len() as u8).unwrap();
+              match self.reply_to {
+                  Some(prop) => {
+                      let reply_to =  prop;
+                      writer.write_u8(reply_to.len() as u8).unwrap();
     writer.write(reply_to.as_bytes()).unwrap();
+                  }
+                  None => {}
               };
-              if self.expiration.is_some() {
-                  let expiration =  __props.expiration.unwrap();
-                  writer.write_u8(expiration.len() as u8).unwrap();
+              match self.expiration {
+                  Some(prop) => {
+                      let expiration =  prop;
+                      writer.write_u8(expiration.len() as u8).unwrap();
     writer.write(expiration.as_bytes()).unwrap();
+                  }
+                  None => {}
               };
-              if self.message_id.is_some() {
-                  let message_id =  __props.message_id.unwrap();
-                  writer.write_u8(message_id.len() as u8).unwrap();
+              match self.message_id {
+                  Some(prop) => {
+                      let message_id =  prop;
+                      writer.write_u8(message_id.len() as u8).unwrap();
     writer.write(message_id.as_bytes()).unwrap();
+                  }
+                  None => {}
               };
-              if self.timestamp.is_some() {
-                  let timestamp =  __props.timestamp.unwrap();
-                  writer.write_be_u64(timestamp).unwrap();
+              match self.timestamp {
+                  Some(prop) => {
+                      let timestamp =  prop;
+                      writer.write_be_u64(timestamp).unwrap();
+                  }
+                  None => {}
               };
-              if self._type.is_some() {
-                  let _type =  __props._type.unwrap();
-                  writer.write_u8(_type.len() as u8).unwrap();
+              match self._type {
+                  Some(prop) => {
+                      let _type =  prop;
+                      writer.write_u8(_type.len() as u8).unwrap();
     writer.write(_type.as_bytes()).unwrap();
+                  }
+                  None => {}
               };
-              if self.user_id.is_some() {
-                  let user_id =  __props.user_id.unwrap();
-                  writer.write_u8(user_id.len() as u8).unwrap();
+              match self.user_id {
+                  Some(prop) => {
+                      let user_id =  prop;
+                      writer.write_u8(user_id.len() as u8).unwrap();
     writer.write(user_id.as_bytes()).unwrap();
+                  }
+                  None => {}
               };
-              if self.app_id.is_some() {
-                  let app_id =  __props.app_id.unwrap();
-                  writer.write_u8(app_id.len() as u8).unwrap();
+              match self.app_id {
+                  Some(prop) => {
+                      let app_id =  prop;
+                      writer.write_u8(app_id.len() as u8).unwrap();
     writer.write(app_id.as_bytes()).unwrap();
+                  }
+                  None => {}
               };
-              if self.cluster_id.is_some() {
-                  let cluster_id =  __props.cluster_id.unwrap();
-                  writer.write_u8(cluster_id.len() as u8).unwrap();
+              match self.cluster_id {
+                  Some(prop) => {
+                      let cluster_id =  prop;
+                      writer.write_u8(cluster_id.len() as u8).unwrap();
     writer.write(cluster_id.as_bytes()).unwrap();
+                  }
+                  None => {}
               };
             writer.unwrap()
         }
@@ -2376,7 +2417,7 @@ pub mod basic {
             bits.set(11, self.user_id.is_some());
             bits.set(12, self.app_id.is_some());
             bits.set(13, self.cluster_id.is_some());
-            let flags : u16 = bits.to_bytes()[0].clone() as u16;
+            let flags : u16 = bits.to_bytes()[0] as u16;
             (flags << 8 | bits.to_bytes()[1] as u16) as u16
         }
     }

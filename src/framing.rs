@@ -60,7 +60,7 @@ pub struct ContentHeaderFrame {
 
 impl ContentHeaderFrame {
     pub fn decode(frame: Frame) -> IoResult<ContentHeaderFrame> {
-        let mut reader = MemReader::new(frame.payload.clone());
+        let mut reader = MemReader::new(frame.payload);
         let content_class = try!(reader.read_be_u16());
         let weight = try!(reader.read_be_u16()); //0 all the time for now
         let body_size = try!(reader.read_be_u64());

@@ -1,5 +1,5 @@
 use std::io::IoResult;
-use std::comm::{Sender, Receiver};
+use std::comm::{SyncSender, Receiver};
 
 use framing;
 use framing::{ContentHeaderFrame, Frame};
@@ -9,16 +9,16 @@ use protocol::{MethodFrame, channel, basic};
 use protocol::basic::BasicProperties;
 use std::collections::HashMap;
 
-pub type ConsumerCallback = fn(channel: &Channel, deliver: basic::Deliver, headers: BasicProperties, body: Vec<u8>);
+pub type ConsumerCallback = fn(channel: &Channel, method: basic::Deliver, headers: BasicProperties, body: Vec<u8>);
 
 pub struct Channel {
     pub id: u16,
     pub consumers: HashMap<String, ConsumerCallback>,
-    chan: (Sender<Frame>, Receiver<Frame>)
+    chan: (SyncSender<Frame>, Receiver<Frame>)
 }
 
 impl Channel {
-    pub fn new(id: u16, chan: (Sender<Frame>, Receiver<Frame>)) -> Channel {
+    pub fn new(id: u16, chan: (SyncSender<Frame>, Receiver<Frame>)) -> Channel {
         Channel{id: id, chan: chan, consumers: HashMap::new()}
     }
 

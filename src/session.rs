@@ -14,6 +14,8 @@ use std::collections::HashMap;
 use std::comm::Receiver;
 // use url::Url;
 
+const CHANNEL_BUFFER_SIZE :uint = 100;
+
 
 pub struct Options <'a>  {
     pub host: &'a str,
@@ -39,10 +41,10 @@ impl <'a>  Default for Options <'a>  {
 
 pub struct Session {
 	connection: Connection,
-	channels: Arc<Mutex<HashMap<u16, Sender<Frame>> >>,
+	channels: Arc<Mutex<HashMap<u16, SyncSender<Frame>> >>,
 	channel_max_limit: u16,
 	channel_zero: channel::Channel,
-    sender: Sender<Frame>
+    sender: SyncSender<Frame>
 }
 
 impl Session {
@@ -58,8 +60,8 @@ impl Session {
 
     pub fn new(options: Options) -> IoResult<Session> {
     	let connection = try!(Connection::open(options.host, options.port));
-        let (channel_sender, channel_receiver) = channel(); //channel0
-        let (session_sender, session_receiver) = channel(); //session sender & receiver
+        let (channel_sender, channel_receiver) = sync_channel(CHANNEL_BUFFER_SIZE); //channel0
+        let (session_sender, session_receiver) = sync_channel(CHANNEL_BUFFER_SIZE); //session sender & receiver
         let channel_zero = channel::Channel::new(0, (session_sender.clone(), channel_receiver));
     	let mut session = Session {
 			connection: connection,
@@ -130,7 +132,7 @@ impl Session {
 
 	pub fn open_channel(&mut self, channel_id: u16) -> IoResult<channel::Channel> {
         debug!("Openning channel: {}", channel_id);
-        let (sender, receiver) = channel();
+        let (sender, receiver) = sync_channel(CHANNEL_BUFFER_SIZE);
         let channel = channel::Channel::new(channel_id, (self.sender.clone(), receiver));
         self.channels.lock().insert(channel_id, sender);
         try!(channel.open());
@@ -144,7 +146,7 @@ impl Session {
         self.connection.close();
     }
 
-    pub fn reading_loop(mut connection: Connection, channels: Arc<Mutex<HashMap<u16, Sender<Frame>>>>) -> () {
+    pub fn reading_loop(mut connection: Connection, channels: Arc<Mutex<HashMap<u16, SyncSender<Frame>>>>) -> () {
         debug!("Starting reading loop");
         loop {
             let frame = match connection.read() {

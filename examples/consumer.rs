@@ -9,14 +9,13 @@ use amqp::channel::Channel;
 use std::default::Default;
 
 
-static mut msg_count: uint = 0;
 
 fn consumer_function(channel: &Channel, deliver: protocol::basic::Deliver, headers: protocol::basic::BasicProperties, body: Vec<u8>){
+    println!("Got a delivery:");
+    println!("Deliver info: {}", deliver);
+    println!("Content headers: {}", headers);
+    println!("Content body: {}", body);
     channel.basic_ack(deliver.delivery_tag, false);
-    unsafe {
-        msg_count+= 1;
-        std::io::print(format!("{}\r", msg_count).as_slice());
-    }
 }
 
 fn main() {

@@ -7,12 +7,11 @@ use table::{FieldTable, Bool, LongString};
 use framing::{Frame, BODY};
 
 use std::sync::{Arc, Mutex};
-use std::io::IoResult;
 use std::cmp;
 use std::default::Default;
 use std::collections::HashMap;
 use std::comm::Receiver;
-// use url::Url;
+use amqp_error::AMQPResult;
 
 const CHANNEL_BUFFER_SIZE :uint = 100;
 
@@ -58,7 +57,7 @@ impl Session {
     //     Session::new(opts)
     // }
 
-    pub fn new(options: Options) -> IoResult<Session> {
+    pub fn new(options: Options) -> AMQPResult<Session> {
     	let connection = try!(Connection::open(options.host, options.port));
         let (channel_sender, channel_receiver) = sync_channel(CHANNEL_BUFFER_SIZE); //channel0
         let (session_sender, session_receiver) = sync_channel(CHANNEL_BUFFER_SIZE); //session sender & receiver
@@ -81,7 +80,7 @@ impl Session {
     	Ok(session)
     }
 
-    fn init(&mut self, options: Options) -> IoResult<()> {
+    fn init(&mut self, options: Options) -> AMQPResult<()> {
         debug!("Starting init session");
 	    let frame = self.channel_zero.read(); //Start
         let method_frame = MethodFrame::decode(frame);
@@ -130,7 +129,7 @@ impl Session {
         Ok(())
     }
 
-	pub fn open_channel(&mut self, channel_id: u16) -> IoResult<channel::Channel> {
+	pub fn open_channel(&mut self, channel_id: u16) -> AMQPResult<channel::Channel> {
         debug!("Openning channel: {}", channel_id);
         let (sender, receiver) = sync_channel(CHANNEL_BUFFER_SIZE);
         let channel = channel::Channel::new(channel_id, (self.sender.clone(), receiver));

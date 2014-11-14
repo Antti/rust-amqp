@@ -5,13 +5,12 @@ use amqp::session::Session;
 use amqp::protocol;
 use amqp::table;
 use amqp::basic::Basic;
-use amqp::channel::Channel;
 use std::default::Default;
 
 
 fn main() {
     let mut session = Session::new(Options{.. Default::default()}).unwrap();
-    let mut channel = session.open_channel(1).unwrap();
+    let channel = session.open_channel(1).unwrap();
     println!("Openned channel: {}", channel.id);
 
     let queue_name = "test_queue";

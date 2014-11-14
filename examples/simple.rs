@@ -16,7 +16,6 @@ fn consumer_function(channel: &Channel, deliver: protocol::basic::Deliver, heade
     println!("Content headers: {}", headers);
     println!("Content body: {}", body);
     channel.basic_ack(deliver.delivery_tag, false);
-    std::io::print(format!("{}\r", deliver.delivery_tag).as_slice());
 }
 
 fn main() {

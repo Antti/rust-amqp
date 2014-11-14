@@ -5,7 +5,7 @@ use framing;
 use framing::ContentHeaderFrame;
 use protocol::{MethodFrame, basic, Method};
 use protocol::basic::{BasicProperties, GetOk, Consume, ConsumeOk, Deliver, Publish, Ack, Nack, Reject};
-use std::io::{IoError, EndOfFile};
+use amqp_error::QueueEmpty;
 
 pub struct GetIterator <'a> {
     queue: &'a str,
@@ -45,7 +45,7 @@ impl <'a> Iterator<GetResult> for GetIterator<'a > {
                 let properties = BasicProperties::decode(headers).unwrap();
                 Ok((reply, properties, body))
             }
-            "basic.get-empty" => Err(IoError{kind: EndOfFile, desc: "The queue is empty", detail: None}),
+            "basic.get-empty" => Err(QueueEmpty),
             method => panic!(format!("Not expected method: {}", method))
         };
         match res {

@@ -1,4 +1,5 @@
-use std::io::{MemReader, MemWriter, IoResult, IoError, InvalidInput, OtherIoError};
+use std::io::{MemReader, MemWriter};
+use amqp_error::{AMQPResult, DecodeError};
 
 #[deriving(Show, Clone, Eq, PartialEq, FromPrimitive)]
 pub enum FrameType {
@@ -16,7 +17,7 @@ pub struct Frame {
 }
 
 impl Frame {
-    pub fn decode(reader: &mut Reader) -> IoResult<Frame> {
+    pub fn decode(reader: &mut Reader) -> AMQPResult<Frame> {
         let mut header = MemReader::new(try!(reader.read_exact(7)));
         let frame_type_id = try!(header.read_byte());
         let channel = try!(header.read_be_u16());
@@ -24,14 +25,14 @@ impl Frame {
         let payload = try!(reader.read_exact(size as uint));
         let frame_end = try!(reader.read_u8());
         if payload.len() as u32 != size {
-            return Err(IoError{kind: InvalidInput, desc: "Payload didn't read the full size", detail: None});
+            return Err(DecodeError("Payload didn't read the full size"));
         }
         if frame_end != 0xCE {
-            return Err(IoError{kind: InvalidInput, desc: "Frame end wasn't right", detail: None});
+            return Err(DecodeError("Frame end wasn't right"));
         }
         let frame_type = match FromPrimitive::from_u8(frame_type_id){
             Some(ft) => ft,
-            None => return Err(IoError{kind: OtherIoError, desc: "Unknown frame type", detail: None})
+            None => return Err(DecodeError("Unknown frame type"))
         };
 
         let frame = Frame { frame_type: frame_type, channel: channel, payload : payload };
@@ -59,7 +60,7 @@ pub struct ContentHeaderFrame {
 }
 
 impl ContentHeaderFrame {
-    pub fn decode(frame: Frame) -> IoResult<ContentHeaderFrame> {
+    pub fn decode(frame: Frame) -> AMQPResult<ContentHeaderFrame> {
         let mut reader = MemReader::new(frame.payload);
         let content_class = try!(reader.read_be_u16());
         let weight = try!(reader.read_be_u16()); //0 all the time for now

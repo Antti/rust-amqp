@@ -1,6 +1,5 @@
 extern crate amqp;
 
-use amqp::session::Options;
 use amqp::session::Session;
 use amqp::protocol;
 use amqp::table;
@@ -19,7 +18,7 @@ fn consumer_function(channel: &Channel, deliver: protocol::basic::Deliver, heade
 }
 
 fn main() {
-    let mut session = Session::new(Options{.. Default::default()}).unwrap();
+    let mut session = Session::open_url("amqp://localhost/").unwrap();
     let mut channel = session.open_channel(1).unwrap();
     println!("Openned channel: {}", channel.id);
 

@@ -9,5 +9,5 @@ authors = ["Andrii Dmytrenko <andrey@reevoo.com>"]
 
 name = "amqp"
 
-# [dependencies.url]
-# git = "https://github.com/servo/rust-url.git"
+[dependencies.url]
+git = "https://github.com/servo/rust-url.git"

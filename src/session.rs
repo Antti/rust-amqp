@@ -5,6 +5,7 @@ use protocol::MethodFrame;
 use table;
 use table::{FieldTable, Bool, LongString};
 use framing::{Frame, BODY};
+use url::{UrlParser, RelativeScheme, SchemeType};
 
 use std::sync::{Arc, Mutex};
 use std::cmp;
@@ -16,6 +17,7 @@ use amqp_error::AMQPResult;
 const CHANNEL_BUFFER_SIZE :uint = 100;
 
 
+#[deriving(Show)]
 pub struct Options <'a>  {
     pub host: &'a str,
     pub port: u16,
@@ -47,15 +49,21 @@ pub struct Session {
 }
 
 impl Session {
-    // pub fn from_url(url_string: &str) -> IoResult<Session> {
-    //     let url = Url::parse(url_string).unwrap();
-    //     let vhost = url.serialize_path().expect("vhost not given");
-    //     let vhost = vhost.as_slice();
-    //     let opts = Options { host: url.domain().expect("host not given"), port: url.port().expect("port not given"),
-    //      login: url.username().expect("username not given"), password: url.password().expect("password not given"),
-    //      vhost: vhost, ..Default::default()};
-    //     Session::new(opts)
-    // }
+    pub fn open_url(url_string: &str) -> AMQPResult<Session> {
+        let default: Options = Default::default();
+        let mut url_parser = UrlParser::new();
+        url_parser.scheme_type_mapper(scheme_type_mapper);
+        let url = url_parser.parse(url_string).unwrap();
+        let vhost = url.serialize_path().unwrap_or(default.vhost.to_string());
+        let host  = url.domain().unwrap_or(default.host);
+        let port = url.port().unwrap_or(default.port);
+        let login = url.username().and_then(|username| match username.as_slice(){ "" => None, _ => Some(username)} ).unwrap_or(default.login);
+        let password = url.password().unwrap_or(default.password);
+        let opts = Options { host: host, port: port,
+         login: login, password: password,
+         vhost: vhost.as_slice(), ..Default::default()};
+        Session::new(opts)
+    }
 
     pub fn new(options: Options) -> AMQPResult<Session> {
     	let connection = try!(Connection::open(options.host, options.port));
@@ -205,6 +213,12 @@ fn split_content_into_frames(content: Vec<u8>, frame_limit: uint) -> Vec<Vec<u8>
     content_frames
 }
 
+fn scheme_type_mapper(scheme: &str) -> SchemeType {
+    match scheme{
+        "amqp" => RelativeScheme(5672),
+        _ => {panic!("Uknown scheme: {}", scheme)}
+    }
+}
 
 #[test]
 fn test_split_content_into_frames() {

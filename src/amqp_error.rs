@@ -13,6 +13,6 @@ pub type AMQPResult<T> =  Result<T, AMQPError>;
 
 impl FromError<IoError> for AMQPError {
     fn from_error(err: IoError) -> AMQPError {
-        AMQPIoError(err)
+        AMQPError::AMQPIoError(err)
     }
 }

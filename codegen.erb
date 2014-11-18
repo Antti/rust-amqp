@@ -2,7 +2,7 @@
 // To make some changes, edit codegen.rb and run make
 
 use std::io::{MemWriter, MemReader};
-use framing::{Frame, METHOD};
+use framing::{FrameType, Frame};
 use amqp_error::AMQPResult;
 
 
@@ -37,7 +37,7 @@ impl MethodFrame {
 
     // We need this method, so we can match on class_id & method_id
     pub fn decode(frame: Frame) -> MethodFrame {
-        if frame.frame_type != METHOD {
+        if frame.frame_type != FrameType::METHOD {
             panic!("Not a method frame");
         }
         let mut reader = MemReader::new(frame.payload);
@@ -68,7 +68,7 @@ pub mod <%= klass["name"] %> {
     use table::{Table, decode_table, encode_table};
     use protocol::{Method, MethodFrame};
     use framing::ContentHeaderFrame;
-    use amqp_error::{AMQPResult, DecodeError, AMQPError};
+    use amqp_error::{AMQPResult, AMQPError};
 
 
 <% if klass["properties"] && klass["properties"].any? -%>
@@ -149,7 +149,7 @@ pub mod <%= klass["name"] %> {
         fn decode(method_frame: MethodFrame) -> AMQPResult<<%= method["method_name"] %>> {
             match (method_frame.class_id, method_frame.method_id) {
                 (<%= klass["id"] %>, <%= method["id"] %>) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
 <% if method["arguments"].any? -%>
 <% method["readers"].each do |reader| -%>

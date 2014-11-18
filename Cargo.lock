@@ -1,14 +1,14 @@
 [root]
 name = "amqp"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "url 0.1.0 (git+https://github.com/servo/rust-url.git)",
 ]
 
 [[package]]
 name = "encoding"
-version = "0.2.0"
-source = "git+https://github.com/lifthrasiir/rust-encoding#d67c864d8dfeb16a00656e9472133b0e2206781f"
+version = "0.2.1"
+source = "git+https://github.com/lifthrasiir/rust-encoding#f4a95acf64bfa0faf74c3df93c0454e5b5babeed"
 dependencies = [
  "encoding-index-japanese 1.0.20140915 (git+https://github.com/lifthrasiir/rust-encoding)",
  "encoding-index-korean 1.0.20140915 (git+https://github.com/lifthrasiir/rust-encoding)",
@@ -20,7 +20,7 @@ dependencies = [
 [[package]]
 name = "encoding-index-japanese"
 version = "1.0.20140915"
-source = "git+https://github.com/lifthrasiir/rust-encoding#d67c864d8dfeb16a00656e9472133b0e2206781f"
+source = "git+https://github.com/lifthrasiir/rust-encoding#f4a95acf64bfa0faf74c3df93c0454e5b5babeed"
 dependencies = [
  "encoding_index_tests 0.1.0 (git+https://github.com/lifthrasiir/rust-encoding)",
 ]
@@ -28,7 +28,7 @@ dependencies = [
 [[package]]
 name = "encoding-index-korean"
 version = "1.0.20140915"
-source = "git+https://github.com/lifthrasiir/rust-encoding#d67c864d8dfeb16a00656e9472133b0e2206781f"
+source = "git+https://github.com/lifthrasiir/rust-encoding#f4a95acf64bfa0faf74c3df93c0454e5b5babeed"
 dependencies = [
  "encoding_index_tests 0.1.0 (git+https://github.com/lifthrasiir/rust-encoding)",
 ]
@@ -36,7 +36,7 @@ dependencies = [
 [[package]]
 name = "encoding-index-simpchinese"
 version = "1.0.20140915"
-source = "git+https://github.com/lifthrasiir/rust-encoding#d67c864d8dfeb16a00656e9472133b0e2206781f"
+source = "git+https://github.com/lifthrasiir/rust-encoding#f4a95acf64bfa0faf74c3df93c0454e5b5babeed"
 dependencies = [
  "encoding_index_tests 0.1.0 (git+https://github.com/lifthrasiir/rust-encoding)",
 ]
@@ -44,7 +44,7 @@ dependencies = [
 [[package]]
 name = "encoding-index-singlebyte"
 version = "1.0.20140915"
-source = "git+https://github.com/lifthrasiir/rust-encoding#d67c864d8dfeb16a00656e9472133b0e2206781f"
+source = "git+https://github.com/lifthrasiir/rust-encoding#f4a95acf64bfa0faf74c3df93c0454e5b5babeed"
 dependencies = [
  "encoding_index_tests 0.1.0 (git+https://github.com/lifthrasiir/rust-encoding)",
 ]
@@ -52,7 +52,7 @@ dependencies = [
 [[package]]
 name = "encoding-index-tradchinese"
 version = "1.0.20140915"
-source = "git+https://github.com/lifthrasiir/rust-encoding#d67c864d8dfeb16a00656e9472133b0e2206781f"
+source = "git+https://github.com/lifthrasiir/rust-encoding#f4a95acf64bfa0faf74c3df93c0454e5b5babeed"
 dependencies = [
  "encoding_index_tests 0.1.0 (git+https://github.com/lifthrasiir/rust-encoding)",
 ]
@@ -60,13 +60,13 @@ dependencies = [
 [[package]]
 name = "encoding_index_tests"
 version = "0.1.0"
-source = "git+https://github.com/lifthrasiir/rust-encoding#d67c864d8dfeb16a00656e9472133b0e2206781f"
+source = "git+https://github.com/lifthrasiir/rust-encoding#f4a95acf64bfa0faf74c3df93c0454e5b5babeed"
 
 [[package]]
 name = "url"
 version = "0.1.0"
-source = "git+https://github.com/servo/rust-url.git#8a61b7654ab5378b488225a1d8a9cbbbcbd38894"
+source = "git+https://github.com/servo/rust-url.git#c3d32dae4c5641d034a848d42f88db48dd9feb96"
 dependencies = [
- "encoding 0.2.0 (git+https://github.com/lifthrasiir/rust-encoding)",
+ "encoding 0.2.1 (git+https://github.com/lifthrasiir/rust-encoding)",
 ]
 

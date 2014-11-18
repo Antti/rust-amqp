@@ -1,8 +1,7 @@
 use amqp_error::AMQPResult;
 use std::comm::{SyncSender, Receiver};
 
-use framing;
-use framing::{ContentHeaderFrame, Frame};
+use framing::{ContentHeaderFrame, Frame, FrameType};
 use table::Table;
 use protocol;
 use protocol::{MethodFrame, channel, basic};
@@ -41,7 +40,7 @@ impl Channel {
 
     pub fn send_method_frame<T>(&self, method: &T)  where T: protocol::Method {
         debug!("Sending method {} to channel {}", method.name(), self.id);
-        self.write(Frame {frame_type: framing::METHOD, channel: self.id, payload: MethodFrame::encode_method(method) })
+        self.write(Frame {frame_type: FrameType::METHOD, channel: self.id, payload: MethodFrame::encode_method(method) })
     }
 
     pub fn rpc<T, U>(&self, method: &U, expected_reply: &str) -> AMQPResult<T> where T: protocol::Method, U: protocol::Method {

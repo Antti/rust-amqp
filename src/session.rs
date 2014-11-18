@@ -3,8 +3,8 @@ use connection::Connection;
 use protocol;
 use protocol::MethodFrame;
 use table;
-use table::{FieldTable, Bool, LongString};
-use framing::{Frame, BODY};
+use table::TableEntry::{FieldTable, Bool, LongString};
+use framing::{Frame, FrameType};
 use url::{UrlParser, RelativeScheme, SchemeType};
 
 use std::sync::{Arc, Mutex};
@@ -181,7 +181,7 @@ impl Session {
             match res {
                 Ok(frame) => {
                     match frame.frame_type {
-                        BODY => {
+                        FrameType::BODY => {
                             //TODO: Check if need to include frame header + end octet into calculation. (9 bytes extra)
                             for content_frame in split_content_into_frames(frame.payload, 13107).into_iter() {
                                 connection.write(Frame { frame_type: frame.frame_type, channel: frame.channel, payload: content_frame}).unwrap();

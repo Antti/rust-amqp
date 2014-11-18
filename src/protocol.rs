@@ -2,7 +2,7 @@
 // To make some changes, edit codegen.rb and run make
 
 use std::io::{MemWriter, MemReader};
-use framing::{Frame, METHOD};
+use framing::{FrameType, Frame};
 use amqp_error::AMQPResult;
 
 
@@ -37,7 +37,7 @@ impl MethodFrame {
 
     // We need this method, so we can match on class_id & method_id
     pub fn decode(frame: Frame) -> MethodFrame {
-        if frame.frame_type != METHOD {
+        if frame.frame_type != FrameType::METHOD {
             panic!("Not a method frame");
         }
         let mut reader = MemReader::new(frame.payload);
@@ -129,7 +129,7 @@ pub mod connection {
     use table::{Table, decode_table, encode_table};
     use protocol::{Method, MethodFrame};
     use framing::ContentHeaderFrame;
-    use amqp_error::{AMQPResult, DecodeError, AMQPError};
+    use amqp_error::{AMQPResult, AMQPError};
 
 
 
@@ -159,7 +159,7 @@ pub mod connection {
         fn decode(method_frame: MethodFrame) -> AMQPResult<Start> {
             match (method_frame.class_id, method_frame.method_id) {
                 (10, 10) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let mut reader = MemReader::new(method_frame.arguments);
             let version_major = try!(reader.read_byte());
@@ -226,7 +226,7 @@ pub mod connection {
         fn decode(method_frame: MethodFrame) -> AMQPResult<StartOk> {
             match (method_frame.class_id, method_frame.method_id) {
                 (10, 11) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let mut reader = MemReader::new(method_frame.arguments);
             let client_properties = try!(decode_table(&mut reader));
@@ -291,7 +291,7 @@ pub mod connection {
         fn decode(method_frame: MethodFrame) -> AMQPResult<Secure> {
             match (method_frame.class_id, method_frame.method_id) {
                 (10, 20) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let mut reader = MemReader::new(method_frame.arguments);
             let challenge = {
@@ -332,7 +332,7 @@ pub mod connection {
         fn decode(method_frame: MethodFrame) -> AMQPResult<SecureOk> {
             match (method_frame.class_id, method_frame.method_id) {
                 (10, 21) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let mut reader = MemReader::new(method_frame.arguments);
             let response = {
@@ -375,7 +375,7 @@ pub mod connection {
         fn decode(method_frame: MethodFrame) -> AMQPResult<Tune> {
             match (method_frame.class_id, method_frame.method_id) {
                 (10, 30) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let mut reader = MemReader::new(method_frame.arguments);
             let channel_max = try!(reader.read_be_u16());
@@ -427,7 +427,7 @@ pub mod connection {
         fn decode(method_frame: MethodFrame) -> AMQPResult<TuneOk> {
             match (method_frame.class_id, method_frame.method_id) {
                 (10, 31) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let mut reader = MemReader::new(method_frame.arguments);
             let channel_max = try!(reader.read_be_u16());
@@ -479,7 +479,7 @@ pub mod connection {
         fn decode(method_frame: MethodFrame) -> AMQPResult<Open> {
             match (method_frame.class_id, method_frame.method_id) {
                 (10, 40) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let mut reader = MemReader::new(method_frame.arguments);
             let virtual_host = {
@@ -541,7 +541,7 @@ pub mod connection {
         fn decode(method_frame: MethodFrame) -> AMQPResult<OpenOk> {
             match (method_frame.class_id, method_frame.method_id) {
                 (10, 41) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let mut reader = MemReader::new(method_frame.arguments);
             let known_hosts = {
@@ -592,7 +592,7 @@ pub mod connection {
         fn decode(method_frame: MethodFrame) -> AMQPResult<Close> {
             match (method_frame.class_id, method_frame.method_id) {
                 (10, 50) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let mut reader = MemReader::new(method_frame.arguments);
             let reply_code = try!(reader.read_be_u16());
@@ -647,7 +647,7 @@ pub mod connection {
         fn decode(method_frame: MethodFrame) -> AMQPResult<CloseOk> {
             match (method_frame.class_id, method_frame.method_id) {
                 (10, 51) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             Ok(CloseOk)
           }
@@ -680,7 +680,7 @@ pub mod connection {
         fn decode(method_frame: MethodFrame) -> AMQPResult<Blocked> {
             match (method_frame.class_id, method_frame.method_id) {
                 (10, 60) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let mut reader = MemReader::new(method_frame.arguments);
             let reason = {
@@ -726,7 +726,7 @@ pub mod connection {
         fn decode(method_frame: MethodFrame) -> AMQPResult<Unblocked> {
             match (method_frame.class_id, method_frame.method_id) {
                 (10, 61) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             Ok(Unblocked)
           }
@@ -748,7 +748,7 @@ pub mod channel {
     use table::{Table, decode_table, encode_table};
     use protocol::{Method, MethodFrame};
     use framing::ContentHeaderFrame;
-    use amqp_error::{AMQPResult, DecodeError, AMQPError};
+    use amqp_error::{AMQPResult, AMQPError};
 
 
 
@@ -774,7 +774,7 @@ pub mod channel {
         fn decode(method_frame: MethodFrame) -> AMQPResult<Open> {
             match (method_frame.class_id, method_frame.method_id) {
                 (20, 10) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let mut reader = MemReader::new(method_frame.arguments);
             let out_of_band = {
@@ -822,7 +822,7 @@ pub mod channel {
         fn decode(method_frame: MethodFrame) -> AMQPResult<OpenOk> {
             match (method_frame.class_id, method_frame.method_id) {
                 (20, 11) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let mut reader = MemReader::new(method_frame.arguments);
             let channel_id = {
@@ -870,7 +870,7 @@ pub mod channel {
         fn decode(method_frame: MethodFrame) -> AMQPResult<Flow> {
             match (method_frame.class_id, method_frame.method_id) {
                 (20, 20) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let mut reader = MemReader::new(method_frame.arguments);
             let byte = try!(reader.read_byte());
@@ -911,7 +911,7 @@ pub mod channel {
         fn decode(method_frame: MethodFrame) -> AMQPResult<FlowOk> {
             match (method_frame.class_id, method_frame.method_id) {
                 (20, 21) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let mut reader = MemReader::new(method_frame.arguments);
             let byte = try!(reader.read_byte());
@@ -955,7 +955,7 @@ pub mod channel {
         fn decode(method_frame: MethodFrame) -> AMQPResult<Close> {
             match (method_frame.class_id, method_frame.method_id) {
                 (20, 40) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let mut reader = MemReader::new(method_frame.arguments);
             let reply_code = try!(reader.read_be_u16());
@@ -1010,7 +1010,7 @@ pub mod channel {
         fn decode(method_frame: MethodFrame) -> AMQPResult<CloseOk> {
             match (method_frame.class_id, method_frame.method_id) {
                 (20, 41) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             Ok(CloseOk)
           }
@@ -1032,7 +1032,7 @@ pub mod access {
     use table::{Table, decode_table, encode_table};
     use protocol::{Method, MethodFrame};
     use framing::ContentHeaderFrame;
-    use amqp_error::{AMQPResult, DecodeError, AMQPError};
+    use amqp_error::{AMQPResult, AMQPError};
 
 
 
@@ -1063,7 +1063,7 @@ pub mod access {
         fn decode(method_frame: MethodFrame) -> AMQPResult<Request> {
             match (method_frame.class_id, method_frame.method_id) {
                 (30, 10) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let mut reader = MemReader::new(method_frame.arguments);
             let realm = {
@@ -1130,7 +1130,7 @@ pub mod access {
         fn decode(method_frame: MethodFrame) -> AMQPResult<RequestOk> {
             match (method_frame.class_id, method_frame.method_id) {
                 (30, 11) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let mut reader = MemReader::new(method_frame.arguments);
             let ticket = try!(reader.read_be_u16());
@@ -1163,7 +1163,7 @@ pub mod exchange {
     use table::{Table, decode_table, encode_table};
     use protocol::{Method, MethodFrame};
     use framing::ContentHeaderFrame;
-    use amqp_error::{AMQPResult, DecodeError, AMQPError};
+    use amqp_error::{AMQPResult, AMQPError};
 
 
 
@@ -1197,7 +1197,7 @@ pub mod exchange {
         fn decode(method_frame: MethodFrame) -> AMQPResult<Declare> {
             match (method_frame.class_id, method_frame.method_id) {
                 (40, 10) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let mut reader = MemReader::new(method_frame.arguments);
             let ticket = try!(reader.read_be_u16());
@@ -1275,7 +1275,7 @@ pub mod exchange {
         fn decode(method_frame: MethodFrame) -> AMQPResult<DeclareOk> {
             match (method_frame.class_id, method_frame.method_id) {
                 (40, 11) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             Ok(DeclareOk)
           }
@@ -1311,7 +1311,7 @@ pub mod exchange {
         fn decode(method_frame: MethodFrame) -> AMQPResult<Delete> {
             match (method_frame.class_id, method_frame.method_id) {
                 (40, 20) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let mut reader = MemReader::new(method_frame.arguments);
             let ticket = try!(reader.read_be_u16());
@@ -1370,7 +1370,7 @@ pub mod exchange {
         fn decode(method_frame: MethodFrame) -> AMQPResult<DeleteOk> {
             match (method_frame.class_id, method_frame.method_id) {
                 (40, 21) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             Ok(DeleteOk)
           }
@@ -1408,7 +1408,7 @@ pub mod exchange {
         fn decode(method_frame: MethodFrame) -> AMQPResult<Bind> {
             match (method_frame.class_id, method_frame.method_id) {
                 (40, 30) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let mut reader = MemReader::new(method_frame.arguments);
             let ticket = try!(reader.read_be_u16());
@@ -1481,7 +1481,7 @@ pub mod exchange {
         fn decode(method_frame: MethodFrame) -> AMQPResult<BindOk> {
             match (method_frame.class_id, method_frame.method_id) {
                 (40, 31) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             Ok(BindOk)
           }
@@ -1519,7 +1519,7 @@ pub mod exchange {
         fn decode(method_frame: MethodFrame) -> AMQPResult<Unbind> {
             match (method_frame.class_id, method_frame.method_id) {
                 (40, 40) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let mut reader = MemReader::new(method_frame.arguments);
             let ticket = try!(reader.read_be_u16());
@@ -1592,7 +1592,7 @@ pub mod exchange {
         fn decode(method_frame: MethodFrame) -> AMQPResult<UnbindOk> {
             match (method_frame.class_id, method_frame.method_id) {
                 (40, 51) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             Ok(UnbindOk)
           }
@@ -1614,7 +1614,7 @@ pub mod queue {
     use table::{Table, decode_table, encode_table};
     use protocol::{Method, MethodFrame};
     use framing::ContentHeaderFrame;
-    use amqp_error::{AMQPResult, DecodeError, AMQPError};
+    use amqp_error::{AMQPResult, AMQPError};
 
 
 
@@ -1647,7 +1647,7 @@ pub mod queue {
         fn decode(method_frame: MethodFrame) -> AMQPResult<Declare> {
             match (method_frame.class_id, method_frame.method_id) {
                 (50, 10) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let mut reader = MemReader::new(method_frame.arguments);
             let ticket = try!(reader.read_be_u16());
@@ -1722,7 +1722,7 @@ pub mod queue {
         fn decode(method_frame: MethodFrame) -> AMQPResult<DeclareOk> {
             match (method_frame.class_id, method_frame.method_id) {
                 (50, 11) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let mut reader = MemReader::new(method_frame.arguments);
             let queue = {
@@ -1772,7 +1772,7 @@ pub mod queue {
         fn decode(method_frame: MethodFrame) -> AMQPResult<Bind> {
             match (method_frame.class_id, method_frame.method_id) {
                 (50, 20) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let mut reader = MemReader::new(method_frame.arguments);
             let ticket = try!(reader.read_be_u16());
@@ -1845,7 +1845,7 @@ pub mod queue {
         fn decode(method_frame: MethodFrame) -> AMQPResult<BindOk> {
             match (method_frame.class_id, method_frame.method_id) {
                 (50, 21) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             Ok(BindOk)
           }
@@ -1880,7 +1880,7 @@ pub mod queue {
         fn decode(method_frame: MethodFrame) -> AMQPResult<Purge> {
             match (method_frame.class_id, method_frame.method_id) {
                 (50, 30) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let mut reader = MemReader::new(method_frame.arguments);
             let ticket = try!(reader.read_be_u16());
@@ -1938,7 +1938,7 @@ pub mod queue {
         fn decode(method_frame: MethodFrame) -> AMQPResult<PurgeOk> {
             match (method_frame.class_id, method_frame.method_id) {
                 (50, 31) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let mut reader = MemReader::new(method_frame.arguments);
             let message_count = try!(reader.read_be_u32());
@@ -1979,7 +1979,7 @@ pub mod queue {
         fn decode(method_frame: MethodFrame) -> AMQPResult<Delete> {
             match (method_frame.class_id, method_frame.method_id) {
                 (50, 40) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let mut reader = MemReader::new(method_frame.arguments);
             let ticket = try!(reader.read_be_u16());
@@ -2043,7 +2043,7 @@ pub mod queue {
         fn decode(method_frame: MethodFrame) -> AMQPResult<DeleteOk> {
             match (method_frame.class_id, method_frame.method_id) {
                 (50, 41) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let mut reader = MemReader::new(method_frame.arguments);
             let message_count = try!(reader.read_be_u32());
@@ -2084,7 +2084,7 @@ pub mod queue {
         fn decode(method_frame: MethodFrame) -> AMQPResult<Unbind> {
             match (method_frame.class_id, method_frame.method_id) {
                 (50, 50) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let mut reader = MemReader::new(method_frame.arguments);
             let ticket = try!(reader.read_be_u16());
@@ -2150,7 +2150,7 @@ pub mod queue {
         fn decode(method_frame: MethodFrame) -> AMQPResult<UnbindOk> {
             match (method_frame.class_id, method_frame.method_id) {
                 (50, 51) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             Ok(UnbindOk)
           }
@@ -2172,7 +2172,7 @@ pub mod basic {
     use table::{Table, decode_table, encode_table};
     use protocol::{Method, MethodFrame};
     use framing::ContentHeaderFrame;
-    use amqp_error::{AMQPResult, DecodeError, AMQPError};
+    use amqp_error::{AMQPResult, AMQPError};
 
 
     //properties struct for basic
@@ -2460,7 +2460,7 @@ pub mod basic {
         fn decode(method_frame: MethodFrame) -> AMQPResult<Qos> {
             match (method_frame.class_id, method_frame.method_id) {
                 (60, 10) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let mut reader = MemReader::new(method_frame.arguments);
             let prefetch_size = try!(reader.read_be_u32());
@@ -2512,7 +2512,7 @@ pub mod basic {
         fn decode(method_frame: MethodFrame) -> AMQPResult<QosOk> {
             match (method_frame.class_id, method_frame.method_id) {
                 (60, 11) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             Ok(QosOk)
           }
@@ -2552,7 +2552,7 @@ pub mod basic {
         fn decode(method_frame: MethodFrame) -> AMQPResult<Consume> {
             match (method_frame.class_id, method_frame.method_id) {
                 (60, 20) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let mut reader = MemReader::new(method_frame.arguments);
             let ticket = try!(reader.read_be_u16());
@@ -2629,7 +2629,7 @@ pub mod basic {
         fn decode(method_frame: MethodFrame) -> AMQPResult<ConsumeOk> {
             match (method_frame.class_id, method_frame.method_id) {
                 (60, 21) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let mut reader = MemReader::new(method_frame.arguments);
             let consumer_tag = {
@@ -2671,7 +2671,7 @@ pub mod basic {
         fn decode(method_frame: MethodFrame) -> AMQPResult<Cancel> {
             match (method_frame.class_id, method_frame.method_id) {
                 (60, 30) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let mut reader = MemReader::new(method_frame.arguments);
             let consumer_tag = {
@@ -2718,7 +2718,7 @@ pub mod basic {
         fn decode(method_frame: MethodFrame) -> AMQPResult<CancelOk> {
             match (method_frame.class_id, method_frame.method_id) {
                 (60, 31) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let mut reader = MemReader::new(method_frame.arguments);
             let consumer_tag = {
@@ -2763,7 +2763,7 @@ pub mod basic {
         fn decode(method_frame: MethodFrame) -> AMQPResult<Publish> {
             match (method_frame.class_id, method_frame.method_id) {
                 (60, 40) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let mut reader = MemReader::new(method_frame.arguments);
             let ticket = try!(reader.read_be_u16());
@@ -2834,7 +2834,7 @@ pub mod basic {
         fn decode(method_frame: MethodFrame) -> AMQPResult<Return> {
             match (method_frame.class_id, method_frame.method_id) {
                 (60, 50) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let mut reader = MemReader::new(method_frame.arguments);
             let reply_code = try!(reader.read_be_u16());
@@ -2903,7 +2903,7 @@ pub mod basic {
         fn decode(method_frame: MethodFrame) -> AMQPResult<Deliver> {
             match (method_frame.class_id, method_frame.method_id) {
                 (60, 60) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let mut reader = MemReader::new(method_frame.arguments);
             let consumer_tag = {
@@ -2966,7 +2966,7 @@ pub mod basic {
         fn decode(method_frame: MethodFrame) -> AMQPResult<Get> {
             match (method_frame.class_id, method_frame.method_id) {
                 (60, 70) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let mut reader = MemReader::new(method_frame.arguments);
             let ticket = try!(reader.read_be_u16());
@@ -3028,7 +3028,7 @@ pub mod basic {
         fn decode(method_frame: MethodFrame) -> AMQPResult<GetOk> {
             match (method_frame.class_id, method_frame.method_id) {
                 (60, 71) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let mut reader = MemReader::new(method_frame.arguments);
             let delivery_tag = try!(reader.read_be_u64());
@@ -3085,7 +3085,7 @@ pub mod basic {
         fn decode(method_frame: MethodFrame) -> AMQPResult<GetEmpty> {
             match (method_frame.class_id, method_frame.method_id) {
                 (60, 72) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let mut reader = MemReader::new(method_frame.arguments);
             let cluster_id = {
@@ -3134,7 +3134,7 @@ pub mod basic {
         fn decode(method_frame: MethodFrame) -> AMQPResult<Ack> {
             match (method_frame.class_id, method_frame.method_id) {
                 (60, 80) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let mut reader = MemReader::new(method_frame.arguments);
             let delivery_tag = try!(reader.read_be_u64());
@@ -3186,7 +3186,7 @@ pub mod basic {
         fn decode(method_frame: MethodFrame) -> AMQPResult<Reject> {
             match (method_frame.class_id, method_frame.method_id) {
                 (60, 90) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let mut reader = MemReader::new(method_frame.arguments);
             let delivery_tag = try!(reader.read_be_u64());
@@ -3237,7 +3237,7 @@ pub mod basic {
         fn decode(method_frame: MethodFrame) -> AMQPResult<RecoverAsync> {
             match (method_frame.class_id, method_frame.method_id) {
                 (60, 100) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let mut reader = MemReader::new(method_frame.arguments);
             let byte = try!(reader.read_byte());
@@ -3278,7 +3278,7 @@ pub mod basic {
         fn decode(method_frame: MethodFrame) -> AMQPResult<Recover> {
             match (method_frame.class_id, method_frame.method_id) {
                 (60, 110) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let mut reader = MemReader::new(method_frame.arguments);
             let byte = try!(reader.read_byte());
@@ -3317,7 +3317,7 @@ pub mod basic {
         fn decode(method_frame: MethodFrame) -> AMQPResult<RecoverOk> {
             match (method_frame.class_id, method_frame.method_id) {
                 (60, 111) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             Ok(RecoverOk)
           }
@@ -3352,7 +3352,7 @@ pub mod basic {
         fn decode(method_frame: MethodFrame) -> AMQPResult<Nack> {
             match (method_frame.class_id, method_frame.method_id) {
                 (60, 120) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let mut reader = MemReader::new(method_frame.arguments);
             let delivery_tag = try!(reader.read_be_u64());
@@ -3395,7 +3395,7 @@ pub mod tx {
     use table::{Table, decode_table, encode_table};
     use protocol::{Method, MethodFrame};
     use framing::ContentHeaderFrame;
-    use amqp_error::{AMQPResult, DecodeError, AMQPError};
+    use amqp_error::{AMQPResult, AMQPError};
 
 
 
@@ -3419,7 +3419,7 @@ pub mod tx {
         fn decode(method_frame: MethodFrame) -> AMQPResult<Select> {
             match (method_frame.class_id, method_frame.method_id) {
                 (90, 10) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             Ok(Select)
           }
@@ -3450,7 +3450,7 @@ pub mod tx {
         fn decode(method_frame: MethodFrame) -> AMQPResult<SelectOk> {
             match (method_frame.class_id, method_frame.method_id) {
                 (90, 11) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             Ok(SelectOk)
           }
@@ -3481,7 +3481,7 @@ pub mod tx {
         fn decode(method_frame: MethodFrame) -> AMQPResult<Commit> {
             match (method_frame.class_id, method_frame.method_id) {
                 (90, 20) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             Ok(Commit)
           }
@@ -3512,7 +3512,7 @@ pub mod tx {
         fn decode(method_frame: MethodFrame) -> AMQPResult<CommitOk> {
             match (method_frame.class_id, method_frame.method_id) {
                 (90, 21) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             Ok(CommitOk)
           }
@@ -3543,7 +3543,7 @@ pub mod tx {
         fn decode(method_frame: MethodFrame) -> AMQPResult<Rollback> {
             match (method_frame.class_id, method_frame.method_id) {
                 (90, 30) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             Ok(Rollback)
           }
@@ -3574,7 +3574,7 @@ pub mod tx {
         fn decode(method_frame: MethodFrame) -> AMQPResult<RollbackOk> {
             match (method_frame.class_id, method_frame.method_id) {
                 (90, 31) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             Ok(RollbackOk)
           }
@@ -3596,7 +3596,7 @@ pub mod confirm {
     use table::{Table, decode_table, encode_table};
     use protocol::{Method, MethodFrame};
     use framing::ContentHeaderFrame;
-    use amqp_error::{AMQPResult, DecodeError, AMQPError};
+    use amqp_error::{AMQPResult, AMQPError};
 
 
 
@@ -3622,7 +3622,7 @@ pub mod confirm {
         fn decode(method_frame: MethodFrame) -> AMQPResult<Select> {
             match (method_frame.class_id, method_frame.method_id) {
                 (85, 10) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let mut reader = MemReader::new(method_frame.arguments);
             let byte = try!(reader.read_byte());
@@ -3661,7 +3661,7 @@ pub mod confirm {
         fn decode(method_frame: MethodFrame) -> AMQPResult<SelectOk> {
             match (method_frame.class_id, method_frame.method_id) {
                 (85, 11) => {},
-                (_,_) => {return Err(DecodeError("Frame class_id & method_id didn't match"))}
+                (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             Ok(SelectOk)
           }

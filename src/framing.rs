@@ -1,5 +1,5 @@
 use std::io::{MemReader, MemWriter};
-use amqp_error::{AMQPResult, DecodeError};
+use amqp_error::{AMQPResult, AMQPError};
 
 #[deriving(Show, Clone, Eq, PartialEq, FromPrimitive)]
 pub enum FrameType {
@@ -25,14 +25,14 @@ impl Frame {
         let payload = try!(reader.read_exact(size as uint));
         let frame_end = try!(reader.read_u8());
         if payload.len() as u32 != size {
-            return Err(DecodeError("Payload didn't read the full size"));
+            return Err(AMQPError::DecodeError("Payload didn't read the full size"));
         }
         if frame_end != 0xCE {
-            return Err(DecodeError("Frame end wasn't right"));
+            return Err(AMQPError::DecodeError("Frame end wasn't right"));
         }
         let frame_type = match FromPrimitive::from_u8(frame_type_id){
             Some(ft) => ft,
-            None => return Err(DecodeError("Unknown frame type"))
+            None => return Err(AMQPError::DecodeError("Unknown frame type"))
         };
 
         let frame = Frame { frame_type: frame_type, channel: channel, payload : payload };

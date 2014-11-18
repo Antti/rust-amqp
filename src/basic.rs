@@ -1,11 +1,10 @@
 use channel::Channel;
 use channel::ConsumerCallback;
 use table::Table;
-use framing;
-use framing::ContentHeaderFrame;
+use framing::{ContentHeaderFrame, FrameType, Frame};
 use protocol::{MethodFrame, basic, Method};
 use protocol::basic::{BasicProperties, GetOk, Consume, ConsumeOk, Deliver, Publish, Ack, Nack, Reject};
-use amqp_error::QueueEmpty;
+use amqp_error::AMQPError;
 
 pub struct GetIterator <'a> {
     queue: &'a str,
@@ -45,7 +44,7 @@ impl <'a> Iterator<GetResult> for GetIterator<'a > {
                 let properties = BasicProperties::decode(headers).unwrap();
                 Ok((reply, properties, body))
             }
-            "basic.get-empty" => Err(QueueEmpty),
+            "basic.get-empty" => Err(AMQPError::QueueEmpty),
             method => panic!(format!("Not expected method: {}", method))
         };
         match res {
@@ -77,7 +76,7 @@ impl <'a> Basic<'a> for Channel {
         loop {
           let frame = self.read();
                 match frame.frame_type {
-                    framing::METHOD => {
+                    FrameType::METHOD => {
                         let method_frame = MethodFrame::decode(frame);
                         match method_frame.method_name() {
                             "basic.deliver" => {
@@ -104,9 +103,9 @@ impl <'a> Basic<'a> for Channel {
         let properties_flags = properties.flags();
         let content_header = ContentHeaderFrame { content_class: 60, weight: 0, body_size: content.len() as u64,
             properties_flags: properties_flags, properties: properties.encode() };
-        let content_header_frame = framing::Frame {frame_type: framing::HEADERS, channel: self.id,
+        let content_header_frame = Frame {frame_type: FrameType::HEADERS, channel: self.id,
             payload: content_header.encode() };
-        let content_frame = framing::Frame { frame_type: framing::BODY, channel: self.id, payload: content};
+        let content_frame = Frame { frame_type: FrameType::BODY, channel: self.id, payload: content};
 
         self.send_method_frame(publish);
         self.write(content_header_frame);

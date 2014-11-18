@@ -27,7 +27,7 @@ impl Channel {
     }
     pub fn close(&self, reply_code: u16, reply_text: &str) {
         let close = &channel::Close {reply_code: reply_code, reply_text: reply_text.to_string(), class_id: 0, method_id: 0};
-        let reply: channel::CloseOk = self.rpc(close, "channel.close-ok").unwrap();
+        let _: channel::CloseOk = self.rpc(close, "channel.close-ok").unwrap();
     }
 
     pub fn read(&self) -> Frame {

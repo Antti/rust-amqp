@@ -96,7 +96,7 @@ impl Session {
             "connection.start" => protocol::Method::decode(method_frame).unwrap(),
             meth => panic!("Unexpected method frame: {}", meth) //In reality you would probably skip the frame and try to read another?
         };
-        debug!("Received connection.start");
+        debug!("Received connection.start: {}", start);
         //  The client selects a security mechanism (Start-Ok).
         //  The server starts the authentication process, which uses the SASL challenge-response model. It sends
         // the client a challenge (Secure).
@@ -133,7 +133,7 @@ impl Session {
         self.channel_zero.send_method_frame(&tune_ok);
 
         let open = protocol::connection::Open{virtual_host: options.vhost.to_string(), capabilities: "".to_string(), insist: false };
-        let open_ok : protocol::connection::OpenOk = try!(self.channel_zero.rpc(&open, "connection.open-ok"));
+        let _ : protocol::connection::OpenOk = try!(self.channel_zero.rpc(&open, "connection.open-ok"));
         Ok(())
     }
 
@@ -149,7 +149,7 @@ impl Session {
     pub fn close(&mut self, reply_code: u16, reply_text: String) {
         debug!("Closing session: reply_code: {}, reply_text: {}", reply_code, reply_text);
         let close = protocol::connection::Close {reply_code: reply_code, reply_text: reply_text, class_id: 0, method_id: 0};
-        let close_ok : protocol::connection::CloseOk = self.channel_zero.rpc(&close, "connection.close-ok").unwrap();
+        let _ : protocol::connection::CloseOk = self.channel_zero.rpc(&close, "connection.close-ok").unwrap();
         self.connection.close();
     }
 

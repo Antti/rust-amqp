@@ -86,6 +86,6 @@ impl ContentHeaderFrame {
 
 #[test]
 fn test_encode_decode(){
-    let frame = Frame{ frame_type: METHOD, channel: 5, payload: vec!(1,2,3,4,5) };
+    let frame = Frame{ frame_type: FrameType::METHOD, channel: 5, payload: vec!(1,2,3,4,5) };
     assert_eq!(frame, Frame::decode(&mut MemReader::new(frame.encode())).unwrap());
 }

@@ -14,7 +14,7 @@ fn main() {
     println!("Openned channel: {}", channel.id);
 
     let queue_name = "test_queue";
-    //ticket: u16, queue: &str, passive: bool, durable: bool, exclusive: bool, auto_delete: bool, nowait: bool, arguments: Table
+    //queue: &str, passive: bool, durable: bool, exclusive: bool, auto_delete: bool, nowait: bool, arguments: Table
     let queue_declare = channel.queue_declare(queue_name, false, true, false, false, false, table::new());
     println!("Queue declare: {}", queue_declare);
 

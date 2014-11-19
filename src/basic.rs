@@ -84,7 +84,10 @@ impl <'a> Basic<'a> for Channel {
                                 let headers = self.read_headers().unwrap();
                                 let body = self.read_body(headers.body_size).unwrap();
                                 let properties = BasicProperties::decode(headers).unwrap();
-                                self.consumers[deliver_method.consumer_tag](self, deliver_method, properties, body);
+                                match self.consumers.get(&deliver_method.consumer_tag) {
+                                    Some(callback) => (*callback)(self, deliver_method, properties, body),
+                                    None => {error!("Received deliver frame for the unknown consumer: {}", deliver_method.consumer_tag)}
+                                }
                             }
                             _ => {}
                         }

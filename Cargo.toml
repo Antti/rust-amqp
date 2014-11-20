@@ -3,6 +3,8 @@
 name = "amqp"
 version = "0.0.3"
 authors = ["Andrii Dmytrenko <andrey@reevoo.com>"]
+description = "AMQP/RabbitMQ protocol client."
+license = "MIT/BSD-2-Clause"
 # build = "build.rs"
 
 [lib]

@@ -23,7 +23,6 @@ pub enum TableEntry {
     Void
 }
 
-#[deriving(Show)]
 pub type Table = TreeMap<String, TableEntry>;
 
 pub fn new() -> Table {

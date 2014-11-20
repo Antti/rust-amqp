@@ -73,7 +73,7 @@ def generate_reader_body(arguments)
       if type == "bit"
         if n_bits == 0
           body << "let byte = try!(reader.read_byte());"
-          body << "let bits = bitv::from_bytes([byte]);"
+          body << "let bits = bitv::from_bytes(&[byte]);"
         end
         body << "let #{snake_name(argument["name"])} = bits.get(#{7-n_bits});"
         n_bits += 1
@@ -90,7 +90,7 @@ end
 
 def generate_writer_body(arguments)
     body = []
-    body << "let mut writer = MemWriter::new();"
+    body << "let mut writer = vec!();"
     n_bits = 0
     arguments.each do |argument|
       type = argument["domain"] ? map_domain(argument["domain"]) : argument["type"]
@@ -113,7 +113,7 @@ def generate_writer_body(arguments)
       end
     end
     body << "writer.write(bits.to_bytes().as_slice()).unwrap();" if n_bits > 0 #if bits were the last element
-    body << "writer.unwrap()"
+    body << "writer"
     body
 end
 

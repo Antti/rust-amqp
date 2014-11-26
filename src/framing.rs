@@ -1,4 +1,4 @@
-use std::io::{MemReader, MemWriter};
+use std::io::MemReader;
 use amqp_error::{AMQPResult, AMQPError};
 
 #[deriving(Show, Clone, Eq, PartialEq, FromPrimitive)]
@@ -40,13 +40,13 @@ impl Frame {
     }
 
     pub fn encode(&self) -> Vec<u8> {
-        let mut writer = MemWriter::new();
+        let mut writer = vec!();
         writer.write_u8(self.frame_type as u8).unwrap();
         writer.write_be_u16(self.channel).unwrap();
         writer.write_be_u32(self.payload.len() as u32).unwrap();
         writer.write(self.payload.as_slice()).unwrap();
         writer.write_u8(0xCE).unwrap();
-        writer.unwrap()
+        writer
     }
 }
 
@@ -74,13 +74,13 @@ impl ContentHeaderFrame {
     }
 
     pub fn encode(&self) -> Vec<u8> {
-        let mut writer = MemWriter::new();
+        let mut writer = vec!();
         writer.write_be_u16(self.content_class).unwrap();
         writer.write_be_u16(self.weight).unwrap(); //0 all the time for now
         writer.write_be_u64(self.body_size).unwrap();
         writer.write_be_u16(self.properties_flags).unwrap();
         writer.write(self.properties.as_slice()).unwrap();
-        writer.unwrap()
+        writer
     }
 }
 

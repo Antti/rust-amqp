@@ -1,5 +1,6 @@
-use std::io::{MemReader, MemWriter, Seek, IoResult};
+use std::io::{MemReader, Seek};
 use std::collections::TreeMap;
+use amqp_error::AMQPResult;
 
 #[deriving(Show, Clone)]
 pub enum TableEntry {
@@ -29,7 +30,7 @@ pub fn new() -> Table {
     TreeMap::new()
 }
 
-fn read_table_entry(reader: &mut MemReader) -> IoResult<TableEntry> {
+fn read_table_entry(reader: &mut MemReader) -> AMQPResult<TableEntry> {
     let entry = match try!(reader.read_u8()) {
         b't' => TableEntry::Bool(if try!(reader.read_u8()) == 0 {false}else{true} ),
         b'b' => TableEntry::ShortShortInt(try!(reader.read_i8())),
@@ -66,7 +67,7 @@ fn read_table_entry(reader: &mut MemReader) -> IoResult<TableEntry> {
     Ok(entry)
 }
 
-fn write_table_entry(writer: &mut MemWriter, table_entry: &TableEntry) -> IoResult<()> {
+fn write_table_entry(writer: &mut Vec<u8>, table_entry: &TableEntry) -> AMQPResult<()> {
     match table_entry {
         &TableEntry::Bool(val) => { try!(writer.write_u8(b't')); try!(writer.write_u8(val as u8)); },
         &TableEntry::ShortShortInt(val) => { try!(writer.write_u8(b'b')); try!(writer.write_i8(val)); },
@@ -111,7 +112,7 @@ fn write_table_entry(writer: &mut MemWriter, table_entry: &TableEntry) -> IoResu
     Ok(())
 }
 
-pub fn decode_table(reader: &mut MemReader) -> IoResult<Table> {
+pub fn decode_table(reader: &mut MemReader) -> AMQPResult<Table> {
     let mut table = new();
     let size = try!(reader.read_be_u32()) as u64;
     let pos = try!(reader.tell());
@@ -125,15 +126,14 @@ pub fn decode_table(reader: &mut MemReader) -> IoResult<Table> {
     Ok(table)
 }
 
-pub fn encode_table(writer: &mut Writer, table: &Table) -> IoResult<()> {
-    let mut tmp_writer = MemWriter::new();
+pub fn encode_table(writer: &mut Writer, table: &Table) -> AMQPResult<()> {
+    let mut tmp_buffer = vec!();
     for (field_name, table_entry) in table.iter() {
-        try!(tmp_writer.write_u8(field_name.len() as u8));
-        try!(tmp_writer.write(field_name.as_bytes()));
-        try!(write_table_entry(&mut tmp_writer, table_entry));
+        try!(tmp_buffer.write_u8(field_name.len() as u8));
+        try!(tmp_buffer.write(field_name.as_bytes()));
+        try!(write_table_entry(&mut tmp_buffer, table_entry));
     }
-    let buffer = tmp_writer.unwrap();
-    try!(writer.write_be_u32(buffer.len() as u32));
-    try!(writer.write(buffer.as_slice()));
+    try!(writer.write_be_u32(tmp_buffer.len() as u32));
+    try!(writer.write(tmp_buffer.as_slice()));
     Ok(())
 }

@@ -25,8 +25,8 @@ impl Channel {
         let meth = protocol::channel::Open {out_of_band: "".to_string()};
         self.rpc(&meth, "channel.open-ok")
     }
-    pub fn close(&self, reply_code: u16, reply_text: &str) {
-        let close = &channel::Close {reply_code: reply_code, reply_text: reply_text.to_string(), class_id: 0, method_id: 0};
+    pub fn close(&self, reply_code: u16, reply_text: String) {
+        let close = &channel::Close {reply_code: reply_code, reply_text: reply_text, class_id: 0, method_id: 0};
         let _: channel::CloseOk = self.rpc(close, "channel.close-ok").unwrap();
     }
 

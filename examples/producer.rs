@@ -23,6 +23,6 @@ fn main() {
             protocol::basic::BasicProperties{ content_type: Some("text".to_string()), ..Default::default()},
             (b"Hello from rust!").to_vec());
     }
-    channel.close(200, "Bye");
+    channel.close(200, "Bye".to_string());
     session.close(200, "Good Bye".to_string());
 }

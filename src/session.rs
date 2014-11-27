@@ -5,7 +5,7 @@ use protocol::MethodFrame;
 use table;
 use table::TableEntry::{FieldTable, Bool, LongString};
 use framing::{Frame, FrameType};
-use url::{UrlParser, RelativeScheme, SchemeType};
+use url::{UrlParser, SchemeType};
 
 use std::sync::{Arc, Mutex};
 use std::cmp;
@@ -215,7 +215,7 @@ fn split_content_into_frames(content: Vec<u8>, frame_limit: uint) -> Vec<Vec<u8>
 
 fn scheme_type_mapper(scheme: &str) -> SchemeType {
     match scheme{
-        "amqp" => RelativeScheme(5672),
+        "amqp" => SchemeType::Relative(5672),
         _ => {panic!("Uknown scheme: {}", scheme)}
     }
 }

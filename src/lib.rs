@@ -1,7 +1,3 @@
-#![desc = "Rust AMQP library"]
-#![comment = "AMQP client"]
-#![license = "MIT/BSD"]
-
 #![feature(phase)]
 extern crate collections;
 extern crate url;

@@ -1,4 +1,3 @@
-use std::io::{MemReader, Seek};
 use std::collections::TreeMap;
 use amqp_error::AMQPResult;
 
@@ -30,7 +29,7 @@ pub fn new() -> Table {
     TreeMap::new()
 }
 
-fn read_table_entry(reader: &mut MemReader) -> AMQPResult<TableEntry> {
+fn read_table_entry(reader: &mut &[u8]) -> AMQPResult<TableEntry> {
     let entry = match try!(reader.read_u8()) {
         b't' => TableEntry::Bool(if try!(reader.read_u8()) == 0 {false}else{true} ),
         b'b' => TableEntry::ShortShortInt(try!(reader.read_i8())),
@@ -112,15 +111,17 @@ fn write_table_entry(writer: &mut Vec<u8>, table_entry: &TableEntry) -> AMQPResu
     Ok(())
 }
 
-pub fn decode_table(reader: &mut MemReader) -> AMQPResult<Table> {
+pub fn decode_table(reader: &mut &[u8]) -> AMQPResult<Table> {
+    debug!("decoding table");
     let mut table = new();
-    let size = try!(reader.read_be_u32()) as u64;
-    let pos = try!(reader.tell());
+    let size = try!(reader.read_be_u32()) as uint;
+    let total_len = reader.len();
 
-    while try!(reader.tell()) < (pos + size) {
-        let size = try!(reader.read_u8()) as uint;
-        let field_name = try!(reader.read_exact(size));
+    while reader.len() > total_len - size {
+        let field_name_size = try!(reader.read_u8()) as uint;
+        let field_name = try!(reader.read_exact(field_name_size));
         let table_entry = try!(read_table_entry(reader));
+        debug!("Read table entry: {} = {}", field_name, table_entry);
         table.insert(String::from_utf8_lossy(field_name.as_slice()).into_string(), table_entry);
     }
     Ok(table)

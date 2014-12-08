@@ -29,7 +29,7 @@ def read_type(type)
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
       }"
   when "table"
-    "try!(decode_table(&mut reader))"
+    "try!(decode_table(reader))"
   when "timestamp"
     "try!(reader.read_be_u64())"
   else
@@ -66,7 +66,7 @@ end
 
 def generate_reader_body(arguments)
     body = []
-    body << "let mut reader = MemReader::new(method_frame.arguments);"
+    body << "let reader = &mut method_frame.arguments.as_slice();"
     n_bits = 0
     arguments.each do |argument|
       type = argument["domain"] ? map_domain(argument["domain"]) : argument["type"]

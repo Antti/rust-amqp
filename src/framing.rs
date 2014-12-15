@@ -9,6 +9,8 @@ pub enum FrameType {
     HEARTBEAT = 8
 }
 
+impl Copy for FrameType {}
+
 #[deriving(Show, Clone, Eq, PartialEq)]
 pub struct Frame {
     pub frame_type: FrameType,

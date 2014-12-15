@@ -59,6 +59,7 @@ impl MethodFrame {
 
 <% classes.each do |klass| %>
 #[allow(unused_imports)]
+#[allow(missing_copy_implementations)]
 pub mod <%= klass["name"] %> {
     use std::collections::bitv;
     use std::collections::bitv::Bitv;

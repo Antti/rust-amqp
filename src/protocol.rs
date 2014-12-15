@@ -120,6 +120,7 @@ impl MethodFrame {
 
 
 #[allow(unused_imports)]
+#[allow(missing_copy_implementations)]
 pub mod connection {
     use std::collections::bitv;
     use std::collections::bitv::Bitv;
@@ -738,6 +739,7 @@ pub mod connection {
 }
 
 #[allow(unused_imports)]
+#[allow(missing_copy_implementations)]
 pub mod channel {
     use std::collections::bitv;
     use std::collections::bitv::Bitv;
@@ -1021,6 +1023,7 @@ pub mod channel {
 }
 
 #[allow(unused_imports)]
+#[allow(missing_copy_implementations)]
 pub mod access {
     use std::collections::bitv;
     use std::collections::bitv::Bitv;
@@ -1151,6 +1154,7 @@ pub mod access {
 }
 
 #[allow(unused_imports)]
+#[allow(missing_copy_implementations)]
 pub mod exchange {
     use std::collections::bitv;
     use std::collections::bitv::Bitv;
@@ -1601,6 +1605,7 @@ pub mod exchange {
 }
 
 #[allow(unused_imports)]
+#[allow(missing_copy_implementations)]
 pub mod queue {
     use std::collections::bitv;
     use std::collections::bitv::Bitv;
@@ -2158,6 +2163,7 @@ pub mod queue {
 }
 
 #[allow(unused_imports)]
+#[allow(missing_copy_implementations)]
 pub mod basic {
     use std::collections::bitv;
     use std::collections::bitv::Bitv;
@@ -3380,6 +3386,7 @@ pub mod basic {
 }
 
 #[allow(unused_imports)]
+#[allow(missing_copy_implementations)]
 pub mod tx {
     use std::collections::bitv;
     use std::collections::bitv::Bitv;
@@ -3580,6 +3587,7 @@ pub mod tx {
 }
 
 #[allow(unused_imports)]
+#[allow(missing_copy_implementations)]
 pub mod confirm {
     use std::collections::bitv;
     use std::collections::bitv::Bitv;

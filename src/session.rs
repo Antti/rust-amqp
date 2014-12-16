@@ -81,8 +81,8 @@ impl Session {
         let con1 = session.connection.clone();
         let con2 = session.connection.clone();
         let channels_clone = session.channels.clone();
-        spawn( proc(){ Session::reading_loop(con1, channels_clone ) });
-        spawn( proc(){ Session::writing_loop(con2, session_receiver ) });
+        spawn( move || Session::reading_loop(con1, channels_clone ) );
+        spawn( move || Session::writing_loop(con2, session_receiver ) );
 
     	try!(session.init(options))
     	Ok(session)

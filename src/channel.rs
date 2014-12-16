@@ -31,11 +31,11 @@ impl Channel {
     }
 
     pub fn read(&self) -> Frame {
-        self.chan.ref1().recv()
+        self.chan.1.recv()
     }
 
     pub fn write(&self, frame: Frame) {
-        self.chan.ref0().send(frame)
+        self.chan.0.send(frame)
     }
 
     pub fn send_method_frame<T>(&self, method: &T)  where T: protocol::Method {

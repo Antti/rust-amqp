@@ -22,26 +22,26 @@ Have a look at the examples in examples folder.
 ### Connecting to the server & openning channel:
 >Note: Currently it can't connect using TLS connections.
 
-```rust
-extern crate amqp;
-use amqp::session::Session;
-use amqp::table;
+```ignore
+    use amqp::session::Session;
+    use amqp::table;
 
-let mut session = Session::open_url("amqp://localhost/").unwrap();
-let mut channel = session.open_channel(1).unwrap();
+    let mut session = Session::open_url("amqp://localhost/").unwrap();
+    let mut channel = session.open_channel(1).unwrap();
 ```
 
 ### Declaring queue:
-```rust
-//The arguments come in following order:
-//queue: &str, passive: bool, durable: bool, exclusive: bool, auto_delete: bool, nowait: bool, arguments: Table
-let queue_declare = channel.queue_declare("my_queue_name", false, true, false, false, false, table::new());
+```ignore
+    use amqp::table;
+    //The arguments come in following order:
+    //queue: &str, passive: bool, durable: bool, exclusive: bool, auto_delete: bool, nowait: bool, arguments: Table
+    let queue_declare = channel.queue_declare("my_queue_name", false, true, false, false, false, table::new());
 ```
 
 ### Publishing message:
-```rust
-channel.basic_publish("", "my_queue_name", true, false,
-    protocol::basic::BasicProperties{ content_type: Some("text".to_string()), ..Default::default()}, (b"Hello from rust!").to_vec());
+```ignore
+    channel.basic_publish("", "my_queue_name", true, false,
+    amqp::protocol::basic::BasicProperties{ content_type: Some("text".to_string()), ..Default::default()}, (b"Hello from rust!").to_vec());
 ```
 
 This will send message: "Hello from rust!" to the queue named "my_queue_name".

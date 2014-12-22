@@ -80,12 +80,13 @@ impl Session {
     /// Initialize new rabbitmq session.
     /// You can use default options:
     /// # Example
-    /// ```rust
-    /// use amqp::session::{Session, Options};
+    /// ```no_run
+    /// use std::default::Default;
+    /// use amqp::session::{Options, Session};
     /// let session = match Session::new(Options { .. Default::default() }){
     ///     Ok(session) => session,
-    ///     Err(error) => panic!("Failed openning an amqp session: {}", error);
-    /// }
+    ///     Err(error) => panic!("Failed openning an amqp session: {}", error)
+    /// };
     /// ```
     pub fn new(options: Options) -> AMQPResult<Session> {
     	let connection = try!(Connection::open(options.host, options.port));
@@ -167,11 +168,14 @@ impl Session {
     /// * `channel_id` - channel number
     ///
     /// # Exmaple
-    /// ```rust
+    /// ```no_run
+    /// use std::default::Default;
+    /// use amqp::session::{Options, Session};
+    /// let mut session =  Session::new(Options { .. Default::default() }).unwrap();
     /// let channel = match session.open_channel(1){
     ///     Ok(channel) => channel,
     ///     Err(error) => panic!("Failed openning channel: {}", error)
-    /// }
+    /// };
     /// ```
 	pub fn open_channel(&mut self, channel_id: u16) -> AMQPResult<channel::Channel> {
         debug!("Openning channel: {}", channel_id);

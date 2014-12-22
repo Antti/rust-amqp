@@ -1,4 +1,4 @@
-use std::collections::TreeMap;
+use collect::tree_map::TreeMap;
 use amqp_error::AMQPResult;
 
 #[deriving(Show, Clone)]

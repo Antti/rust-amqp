@@ -1,5 +1,5 @@
 #![feature(phase)]
-extern crate collections;
+extern crate collect;
 extern crate url;
 #[phase(plugin, link)] extern crate log;
 

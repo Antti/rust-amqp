@@ -5,14 +5,16 @@ use protocol::MethodFrame;
 use table;
 use table::TableEntry::{FieldTable, Bool, LongString};
 use framing::{Frame, FrameType};
-use url::{UrlParser, SchemeType};
+use amqp_error::AMQPResult;
 
 use std::sync::{Arc, Mutex};
 use std::cmp;
 use std::default::Default;
 use std::collections::HashMap;
 use std::comm::Receiver;
-use amqp_error::AMQPResult;
+use std::thread::{JoinGuard, Thread};
+
+use url::{UrlParser, SchemeType};
 
 const CHANNEL_BUFFER_SIZE :uint = 100;
 
@@ -45,7 +47,9 @@ pub struct Session {
 	channels: Arc<Mutex<HashMap<u16, SyncSender<Frame>> >>,
 	channel_max_limit: u16,
 	channel_zero: channel::Channel,
-    sender: SyncSender<Frame>
+    sender: SyncSender<Frame>,
+    reading_loop: JoinGuard<()>,
+    writing_loop: JoinGuard<()>
 }
 
 impl Session {
@@ -69,22 +73,24 @@ impl Session {
     	let connection = try!(Connection::open(options.host, options.port));
         let (channel_sender, channel_receiver) = sync_channel(CHANNEL_BUFFER_SIZE); //channel0
         let (session_sender, session_receiver) = sync_channel(CHANNEL_BUFFER_SIZE); //session sender & receiver
+        let channels = Arc::new(Mutex::new(HashMap::new()));
         let channel_zero = channel::Channel::new(0, (session_sender.clone(), channel_receiver));
-    	let mut session = Session {
-			connection: connection,
-			channels: Arc::new(Mutex::new(HashMap::new())),
-			channel_max_limit: 0,
-			channel_zero: channel_zero,
-            sender: session_sender
-    	};
-        session.channels.lock().insert(0, channel_sender);
-        let con1 = session.connection.clone();
-        let con2 = session.connection.clone();
-        let channels_clone = session.channels.clone();
-        spawn( move || Session::reading_loop(con1, channels_clone ) );
-        spawn( move || Session::writing_loop(con2, session_receiver ) );
-
-    	try!(session.init(options))
+        channels.lock().insert(0, channel_sender);
+        let con1 = connection.clone();
+        let con2 = connection.clone();
+        let channels_clone = channels.clone();
+        let reading_loop = Thread::spawn( move || Session::reading_loop(con1, channels_clone ) );
+        let writing_loop = Thread::spawn( move || Session::writing_loop(con2, session_receiver ) );
+        let mut session = Session {
+            connection: connection,
+            channels: channels,
+            channel_max_limit: 0,
+            channel_zero: channel_zero,
+            sender: session_sender,
+            reading_loop: reading_loop,
+            writing_loop: writing_loop
+        };
+        try!(session.init(options));
     	Ok(session)
     }
 

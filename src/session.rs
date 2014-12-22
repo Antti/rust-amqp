@@ -53,6 +53,14 @@ pub struct Session {
 }
 
 impl Session {
+    /// Use `open_url` to create new amqp session from a "amqp url"
+    ///
+    /// # Arguments
+    /// * `url_string`: The format is: `amqp://username:password@host:port/virtual_host`
+    ///
+    /// Most of the params have their default, so you can just pass this:
+    /// `"amqp://localhost/"` and it will connect to rabbitmq server, running on `localhost` on port `65535`,
+    /// with login `"guest"`, password: `"guest"` to vhost `"/"`
     pub fn open_url(url_string: &str) -> AMQPResult<Session> {
         let default: Options = Default::default();
         let mut url_parser = UrlParser::new();
@@ -69,6 +77,16 @@ impl Session {
         Session::new(opts)
     }
 
+    /// Initialize new rabbitmq session.
+    /// You can use default options:
+    /// # Example
+    /// ```rust
+    /// use amqp::session::{Session, Options};
+    /// let session = match Session::new(Options { .. Default::default() }){
+    ///     Ok(session) => session,
+    ///     Err(error) => panic!("Failed openning an amqp session: {}", error);
+    /// }
+    /// ```
     pub fn new(options: Options) -> AMQPResult<Session> {
     	let connection = try!(Connection::open(options.host, options.port));
         let (channel_sender, channel_receiver) = sync_channel(CHANNEL_BUFFER_SIZE); //channel0
@@ -143,6 +161,18 @@ impl Session {
         Ok(())
     }
 
+    /// `open_channel` will open a new amqp channel:
+    /// # Arguments
+    ///
+    /// * `channel_id` - channel number
+    ///
+    /// # Exmaple
+    /// ```rust
+    /// let channel = match session.open_channel(1){
+    ///     Ok(channel) => channel,
+    ///     Err(error) => panic!("Failed openning channel: {}", error)
+    /// }
+    /// ```
 	pub fn open_channel(&mut self, channel_id: u16) -> AMQPResult<channel::Channel> {
         debug!("Openning channel: {}", channel_id);
         let (sender, receiver) = sync_channel(CHANNEL_BUFFER_SIZE);

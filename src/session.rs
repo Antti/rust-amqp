@@ -48,7 +48,9 @@ pub struct Session {
 	channel_max_limit: u16,
 	channel_zero: channel::Channel,
     sender: SyncSender<Frame>,
+    #[allow(dead_code)]
     reading_loop: JoinGuard<()>,
+    #[allow(dead_code)]
     writing_loop: JoinGuard<()>
 }
 

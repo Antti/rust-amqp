@@ -166,11 +166,11 @@ pub mod connection {
             let server_properties = try!(decode_table(reader));
             let mechanisms = {
           let size = try!(reader.read_be_u32()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
       };
             let locales = {
           let size = try!(reader.read_be_u32()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
       };
             Ok(Start { version_major: version_major, version_minor: version_minor, server_properties: server_properties, mechanisms: mechanisms, locales: locales })
           }
@@ -231,15 +231,15 @@ pub mod connection {
             let client_properties = try!(decode_table(reader));
             let mechanism = {
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let response = {
           let size = try!(reader.read_be_u32()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
       };
             let locale = {
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             Ok(StartOk { client_properties: client_properties, mechanism: mechanism, response: response, locale: locale })
           }
@@ -295,7 +295,7 @@ pub mod connection {
             let reader = &mut method_frame.arguments.as_slice();
             let challenge = {
           let size = try!(reader.read_be_u32()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
       };
             Ok(Secure { challenge: challenge })
           }
@@ -336,7 +336,7 @@ pub mod connection {
             let reader = &mut method_frame.arguments.as_slice();
             let response = {
           let size = try!(reader.read_be_u32()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
       };
             Ok(SecureOk { response: response })
           }
@@ -483,15 +483,15 @@ pub mod connection {
             let reader = &mut method_frame.arguments.as_slice();
             let virtual_host = {
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let capabilities = {
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let byte = try!(reader.read_byte());
-            let bits = bitv::from_bytes(&[byte]);
-            let insist = bits.get(7);
+            let bits = Bitv::from_bytes(&[byte]);
+            let insist = bits.get(7).unwrap();
             Ok(Open { virtual_host: virtual_host, capabilities: capabilities, insist: insist })
           }
 
@@ -501,7 +501,7 @@ pub mod connection {
     writer.write(self.virtual_host.as_bytes()).unwrap();
             writer.write_u8(self.capabilities.len() as u8).unwrap();
     writer.write(self.capabilities.as_bytes()).unwrap();
-            let mut bits = Bitv::with_capacity(8, false);
+            let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.insist);
             writer.write(bits.to_bytes().as_slice()).unwrap();
             writer
@@ -545,7 +545,7 @@ pub mod connection {
             let reader = &mut method_frame.arguments.as_slice();
             let known_hosts = {
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             Ok(OpenOk { known_hosts: known_hosts })
           }
@@ -597,7 +597,7 @@ pub mod connection {
             let reply_code = try!(reader.read_be_u16());
             let reply_text = {
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let class_id = try!(reader.read_be_u16());
             let method_id = try!(reader.read_be_u16());
@@ -684,7 +684,7 @@ pub mod connection {
             let reader = &mut method_frame.arguments.as_slice();
             let reason = {
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             Ok(Blocked { reason: reason })
           }
@@ -778,7 +778,7 @@ pub mod channel {
             let reader = &mut method_frame.arguments.as_slice();
             let out_of_band = {
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             Ok(Open { out_of_band: out_of_band })
           }
@@ -826,7 +826,7 @@ pub mod channel {
             let reader = &mut method_frame.arguments.as_slice();
             let channel_id = {
           let size = try!(reader.read_be_u32()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
       };
             Ok(OpenOk { channel_id: channel_id })
           }
@@ -873,14 +873,14 @@ pub mod channel {
             };
             let reader = &mut method_frame.arguments.as_slice();
             let byte = try!(reader.read_byte());
-            let bits = bitv::from_bytes(&[byte]);
-            let active = bits.get(7);
+            let bits = Bitv::from_bytes(&[byte]);
+            let active = bits.get(7).unwrap();
             Ok(Flow { active: active })
           }
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = vec!();
-            let mut bits = Bitv::with_capacity(8, false);
+            let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.active);
             writer.write(bits.to_bytes().as_slice()).unwrap();
             writer
@@ -914,14 +914,14 @@ pub mod channel {
             };
             let reader = &mut method_frame.arguments.as_slice();
             let byte = try!(reader.read_byte());
-            let bits = bitv::from_bytes(&[byte]);
-            let active = bits.get(7);
+            let bits = Bitv::from_bytes(&[byte]);
+            let active = bits.get(7).unwrap();
             Ok(FlowOk { active: active })
           }
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = vec!();
-            let mut bits = Bitv::with_capacity(8, false);
+            let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.active);
             writer.write(bits.to_bytes().as_slice()).unwrap();
             writer
@@ -960,7 +960,7 @@ pub mod channel {
             let reply_code = try!(reader.read_be_u16());
             let reply_text = {
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let class_id = try!(reader.read_be_u16());
             let method_id = try!(reader.read_be_u16());
@@ -1067,15 +1067,15 @@ pub mod access {
             let reader = &mut method_frame.arguments.as_slice();
             let realm = {
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let byte = try!(reader.read_byte());
-            let bits = bitv::from_bytes(&[byte]);
-            let exclusive = bits.get(7);
-            let passive = bits.get(6);
-            let active = bits.get(5);
-            let write = bits.get(4);
-            let read = bits.get(3);
+            let bits = Bitv::from_bytes(&[byte]);
+            let exclusive = bits.get(7).unwrap();
+            let passive = bits.get(6).unwrap();
+            let active = bits.get(5).unwrap();
+            let write = bits.get(4).unwrap();
+            let read = bits.get(3).unwrap();
             Ok(Request { realm: realm, exclusive: exclusive, passive: passive, active: active, write: write, read: read })
           }
 
@@ -1083,7 +1083,7 @@ pub mod access {
             let mut writer = vec!();
             writer.write_u8(self.realm.len() as u8).unwrap();
     writer.write(self.realm.as_bytes()).unwrap();
-            let mut bits = Bitv::with_capacity(8, false);
+            let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.exclusive);
             bits.set(6, self.passive);
             bits.set(5, self.active);
@@ -1202,19 +1202,19 @@ pub mod exchange {
             let ticket = try!(reader.read_be_u16());
             let exchange = {
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let _type = {
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let byte = try!(reader.read_byte());
-            let bits = bitv::from_bytes(&[byte]);
-            let passive = bits.get(7);
-            let durable = bits.get(6);
-            let auto_delete = bits.get(5);
-            let internal = bits.get(4);
-            let nowait = bits.get(3);
+            let bits = Bitv::from_bytes(&[byte]);
+            let passive = bits.get(7).unwrap();
+            let durable = bits.get(6).unwrap();
+            let auto_delete = bits.get(5).unwrap();
+            let internal = bits.get(4).unwrap();
+            let nowait = bits.get(3).unwrap();
             let arguments = try!(decode_table(reader));
             Ok(Declare { ticket: ticket, exchange: exchange, _type: _type, passive: passive, durable: durable, auto_delete: auto_delete, internal: internal, nowait: nowait, arguments: arguments })
           }
@@ -1226,7 +1226,7 @@ pub mod exchange {
     writer.write(self.exchange.as_bytes()).unwrap();
             writer.write_u8(self._type.len() as u8).unwrap();
     writer.write(self._type.as_bytes()).unwrap();
-            let mut bits = Bitv::with_capacity(8, false);
+            let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.passive);
             bits.set(6, self.durable);
             bits.set(5, self.auto_delete);
@@ -1316,12 +1316,12 @@ pub mod exchange {
             let ticket = try!(reader.read_be_u16());
             let exchange = {
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let byte = try!(reader.read_byte());
-            let bits = bitv::from_bytes(&[byte]);
-            let if_unused = bits.get(7);
-            let nowait = bits.get(6);
+            let bits = Bitv::from_bytes(&[byte]);
+            let if_unused = bits.get(7).unwrap();
+            let nowait = bits.get(6).unwrap();
             Ok(Delete { ticket: ticket, exchange: exchange, if_unused: if_unused, nowait: nowait })
           }
 
@@ -1330,7 +1330,7 @@ pub mod exchange {
             writer.write_be_u16(self.ticket).unwrap();
             writer.write_u8(self.exchange.len() as u8).unwrap();
     writer.write(self.exchange.as_bytes()).unwrap();
-            let mut bits = Bitv::with_capacity(8, false);
+            let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.if_unused);
             bits.set(6, self.nowait);
             writer.write(bits.to_bytes().as_slice()).unwrap();
@@ -1413,19 +1413,19 @@ pub mod exchange {
             let ticket = try!(reader.read_be_u16());
             let destination = {
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let source = {
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let routing_key = {
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let byte = try!(reader.read_byte());
-            let bits = bitv::from_bytes(&[byte]);
-            let nowait = bits.get(7);
+            let bits = Bitv::from_bytes(&[byte]);
+            let nowait = bits.get(7).unwrap();
             let arguments = try!(decode_table(reader));
             Ok(Bind { ticket: ticket, destination: destination, source: source, routing_key: routing_key, nowait: nowait, arguments: arguments })
           }
@@ -1439,7 +1439,7 @@ pub mod exchange {
     writer.write(self.source.as_bytes()).unwrap();
             writer.write_u8(self.routing_key.len() as u8).unwrap();
     writer.write(self.routing_key.as_bytes()).unwrap();
-            let mut bits = Bitv::with_capacity(8, false);
+            let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.nowait);
             writer.write(bits.to_bytes().as_slice()).unwrap();
             encode_table(&mut writer, &self.arguments).unwrap();
@@ -1524,19 +1524,19 @@ pub mod exchange {
             let ticket = try!(reader.read_be_u16());
             let destination = {
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let source = {
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let routing_key = {
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let byte = try!(reader.read_byte());
-            let bits = bitv::from_bytes(&[byte]);
-            let nowait = bits.get(7);
+            let bits = Bitv::from_bytes(&[byte]);
+            let nowait = bits.get(7).unwrap();
             let arguments = try!(decode_table(reader));
             Ok(Unbind { ticket: ticket, destination: destination, source: source, routing_key: routing_key, nowait: nowait, arguments: arguments })
           }
@@ -1550,7 +1550,7 @@ pub mod exchange {
     writer.write(self.source.as_bytes()).unwrap();
             writer.write_u8(self.routing_key.len() as u8).unwrap();
     writer.write(self.routing_key.as_bytes()).unwrap();
-            let mut bits = Bitv::with_capacity(8, false);
+            let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.nowait);
             writer.write(bits.to_bytes().as_slice()).unwrap();
             encode_table(&mut writer, &self.arguments).unwrap();
@@ -1652,15 +1652,15 @@ pub mod queue {
             let ticket = try!(reader.read_be_u16());
             let queue = {
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let byte = try!(reader.read_byte());
-            let bits = bitv::from_bytes(&[byte]);
-            let passive = bits.get(7);
-            let durable = bits.get(6);
-            let exclusive = bits.get(5);
-            let auto_delete = bits.get(4);
-            let nowait = bits.get(3);
+            let bits = Bitv::from_bytes(&[byte]);
+            let passive = bits.get(7).unwrap();
+            let durable = bits.get(6).unwrap();
+            let exclusive = bits.get(5).unwrap();
+            let auto_delete = bits.get(4).unwrap();
+            let nowait = bits.get(3).unwrap();
             let arguments = try!(decode_table(reader));
             Ok(Declare { ticket: ticket, queue: queue, passive: passive, durable: durable, exclusive: exclusive, auto_delete: auto_delete, nowait: nowait, arguments: arguments })
           }
@@ -1670,7 +1670,7 @@ pub mod queue {
             writer.write_be_u16(self.ticket).unwrap();
             writer.write_u8(self.queue.len() as u8).unwrap();
     writer.write(self.queue.as_bytes()).unwrap();
-            let mut bits = Bitv::with_capacity(8, false);
+            let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.passive);
             bits.set(6, self.durable);
             bits.set(5, self.exclusive);
@@ -1726,7 +1726,7 @@ pub mod queue {
             let reader = &mut method_frame.arguments.as_slice();
             let queue = {
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let message_count = try!(reader.read_be_u32());
             let consumer_count = try!(reader.read_be_u32());
@@ -1777,19 +1777,19 @@ pub mod queue {
             let ticket = try!(reader.read_be_u16());
             let queue = {
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let exchange = {
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let routing_key = {
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let byte = try!(reader.read_byte());
-            let bits = bitv::from_bytes(&[byte]);
-            let nowait = bits.get(7);
+            let bits = Bitv::from_bytes(&[byte]);
+            let nowait = bits.get(7).unwrap();
             let arguments = try!(decode_table(reader));
             Ok(Bind { ticket: ticket, queue: queue, exchange: exchange, routing_key: routing_key, nowait: nowait, arguments: arguments })
           }
@@ -1803,7 +1803,7 @@ pub mod queue {
     writer.write(self.exchange.as_bytes()).unwrap();
             writer.write_u8(self.routing_key.len() as u8).unwrap();
     writer.write(self.routing_key.as_bytes()).unwrap();
-            let mut bits = Bitv::with_capacity(8, false);
+            let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.nowait);
             writer.write(bits.to_bytes().as_slice()).unwrap();
             encode_table(&mut writer, &self.arguments).unwrap();
@@ -1885,11 +1885,11 @@ pub mod queue {
             let ticket = try!(reader.read_be_u16());
             let queue = {
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let byte = try!(reader.read_byte());
-            let bits = bitv::from_bytes(&[byte]);
-            let nowait = bits.get(7);
+            let bits = Bitv::from_bytes(&[byte]);
+            let nowait = bits.get(7).unwrap();
             Ok(Purge { ticket: ticket, queue: queue, nowait: nowait })
           }
 
@@ -1898,7 +1898,7 @@ pub mod queue {
             writer.write_be_u16(self.ticket).unwrap();
             writer.write_u8(self.queue.len() as u8).unwrap();
     writer.write(self.queue.as_bytes()).unwrap();
-            let mut bits = Bitv::with_capacity(8, false);
+            let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.nowait);
             writer.write(bits.to_bytes().as_slice()).unwrap();
             writer
@@ -1984,13 +1984,13 @@ pub mod queue {
             let ticket = try!(reader.read_be_u16());
             let queue = {
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let byte = try!(reader.read_byte());
-            let bits = bitv::from_bytes(&[byte]);
-            let if_unused = bits.get(7);
-            let if_empty = bits.get(6);
-            let nowait = bits.get(5);
+            let bits = Bitv::from_bytes(&[byte]);
+            let if_unused = bits.get(7).unwrap();
+            let if_empty = bits.get(6).unwrap();
+            let nowait = bits.get(5).unwrap();
             Ok(Delete { ticket: ticket, queue: queue, if_unused: if_unused, if_empty: if_empty, nowait: nowait })
           }
 
@@ -1999,7 +1999,7 @@ pub mod queue {
             writer.write_be_u16(self.ticket).unwrap();
             writer.write_u8(self.queue.len() as u8).unwrap();
     writer.write(self.queue.as_bytes()).unwrap();
-            let mut bits = Bitv::with_capacity(8, false);
+            let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.if_unused);
             bits.set(6, self.if_empty);
             bits.set(5, self.nowait);
@@ -2089,15 +2089,15 @@ pub mod queue {
             let ticket = try!(reader.read_be_u16());
             let queue = {
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let exchange = {
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let routing_key = {
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let arguments = try!(decode_table(reader));
             Ok(Unbind { ticket: ticket, queue: queue, exchange: exchange, routing_key: routing_key, arguments: arguments })
@@ -2196,104 +2196,104 @@ pub mod basic {
     impl BasicProperties {
         pub fn decode(content_header_frame: ContentHeaderFrame) -> AMQPResult<BasicProperties> {
             let reader = &mut content_header_frame.properties.as_slice();
-            let properties_flags = bitv::from_bytes(&[((content_header_frame.properties_flags >> 8) & 0xff) as u8,
+            let properties_flags = Bitv::from_bytes(&[((content_header_frame.properties_flags >> 8) & 0xff) as u8,
                 (content_header_frame.properties_flags & 0xff) as u8]);
-            let content_type = if properties_flags.get(0) {
+            let content_type = if properties_flags.get(0).unwrap() {
                 Some({
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      })
             } else {
                 None
             };
-            let content_encoding = if properties_flags.get(1) {
+            let content_encoding = if properties_flags.get(1).unwrap() {
                 Some({
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      })
             } else {
                 None
             };
-            let headers = if properties_flags.get(2) {
+            let headers = if properties_flags.get(2).unwrap() {
                 Some(try!(decode_table(reader)))
             } else {
                 None
             };
-            let delivery_mode = if properties_flags.get(3) {
+            let delivery_mode = if properties_flags.get(3).unwrap() {
                 Some(try!(reader.read_byte()))
             } else {
                 None
             };
-            let priority = if properties_flags.get(4) {
+            let priority = if properties_flags.get(4).unwrap() {
                 Some(try!(reader.read_byte()))
             } else {
                 None
             };
-            let correlation_id = if properties_flags.get(5) {
+            let correlation_id = if properties_flags.get(5).unwrap() {
                 Some({
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      })
             } else {
                 None
             };
-            let reply_to = if properties_flags.get(6) {
+            let reply_to = if properties_flags.get(6).unwrap() {
                 Some({
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      })
             } else {
                 None
             };
-            let expiration = if properties_flags.get(7) {
+            let expiration = if properties_flags.get(7).unwrap() {
                 Some({
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      })
             } else {
                 None
             };
-            let message_id = if properties_flags.get(8) {
+            let message_id = if properties_flags.get(8).unwrap() {
                 Some({
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      })
             } else {
                 None
             };
-            let timestamp = if properties_flags.get(9) {
+            let timestamp = if properties_flags.get(9).unwrap() {
                 Some(try!(reader.read_be_u64()))
             } else {
                 None
             };
-            let _type = if properties_flags.get(10) {
+            let _type = if properties_flags.get(10).unwrap() {
                 Some({
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      })
             } else {
                 None
             };
-            let user_id = if properties_flags.get(11) {
+            let user_id = if properties_flags.get(11).unwrap() {
                 Some({
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      })
             } else {
                 None
             };
-            let app_id = if properties_flags.get(12) {
+            let app_id = if properties_flags.get(12).unwrap() {
                 Some({
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      })
             } else {
                 None
             };
-            let cluster_id = if properties_flags.get(13) {
+            let cluster_id = if properties_flags.get(13).unwrap() {
                 Some({
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      })
             } else {
                 None
@@ -2415,7 +2415,7 @@ pub mod basic {
         }
 
         pub fn flags(&self) -> u16 {
-            let mut bits = Bitv::with_capacity(16, false);
+            let mut bits = Bitv::from_elem(16, false);
             bits.set(0, self.content_type.is_some());
             bits.set(1, self.content_encoding.is_some());
             bits.set(2, self.headers.is_some());
@@ -2465,8 +2465,8 @@ pub mod basic {
             let prefetch_size = try!(reader.read_be_u32());
             let prefetch_count = try!(reader.read_be_u16());
             let byte = try!(reader.read_byte());
-            let bits = bitv::from_bytes(&[byte]);
-            let global = bits.get(7);
+            let bits = Bitv::from_bytes(&[byte]);
+            let global = bits.get(7).unwrap();
             Ok(Qos { prefetch_size: prefetch_size, prefetch_count: prefetch_count, global: global })
           }
 
@@ -2474,7 +2474,7 @@ pub mod basic {
             let mut writer = vec!();
             writer.write_be_u32(self.prefetch_size).unwrap();
             writer.write_be_u16(self.prefetch_count).unwrap();
-            let mut bits = Bitv::with_capacity(8, false);
+            let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.global);
             writer.write(bits.to_bytes().as_slice()).unwrap();
             writer
@@ -2557,18 +2557,18 @@ pub mod basic {
             let ticket = try!(reader.read_be_u16());
             let queue = {
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let consumer_tag = {
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let byte = try!(reader.read_byte());
-            let bits = bitv::from_bytes(&[byte]);
-            let no_local = bits.get(7);
-            let no_ack = bits.get(6);
-            let exclusive = bits.get(5);
-            let nowait = bits.get(4);
+            let bits = Bitv::from_bytes(&[byte]);
+            let no_local = bits.get(7).unwrap();
+            let no_ack = bits.get(6).unwrap();
+            let exclusive = bits.get(5).unwrap();
+            let nowait = bits.get(4).unwrap();
             let arguments = try!(decode_table(reader));
             Ok(Consume { ticket: ticket, queue: queue, consumer_tag: consumer_tag, no_local: no_local, no_ack: no_ack, exclusive: exclusive, nowait: nowait, arguments: arguments })
           }
@@ -2580,7 +2580,7 @@ pub mod basic {
     writer.write(self.queue.as_bytes()).unwrap();
             writer.write_u8(self.consumer_tag.len() as u8).unwrap();
     writer.write(self.consumer_tag.as_bytes()).unwrap();
-            let mut bits = Bitv::with_capacity(8, false);
+            let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.no_local);
             bits.set(6, self.no_ack);
             bits.set(5, self.exclusive);
@@ -2633,7 +2633,7 @@ pub mod basic {
             let reader = &mut method_frame.arguments.as_slice();
             let consumer_tag = {
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             Ok(ConsumeOk { consumer_tag: consumer_tag })
           }
@@ -2675,11 +2675,11 @@ pub mod basic {
             let reader = &mut method_frame.arguments.as_slice();
             let consumer_tag = {
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let byte = try!(reader.read_byte());
-            let bits = bitv::from_bytes(&[byte]);
-            let nowait = bits.get(7);
+            let bits = Bitv::from_bytes(&[byte]);
+            let nowait = bits.get(7).unwrap();
             Ok(Cancel { consumer_tag: consumer_tag, nowait: nowait })
           }
 
@@ -2687,7 +2687,7 @@ pub mod basic {
             let mut writer = vec!();
             writer.write_u8(self.consumer_tag.len() as u8).unwrap();
     writer.write(self.consumer_tag.as_bytes()).unwrap();
-            let mut bits = Bitv::with_capacity(8, false);
+            let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.nowait);
             writer.write(bits.to_bytes().as_slice()).unwrap();
             writer
@@ -2722,7 +2722,7 @@ pub mod basic {
             let reader = &mut method_frame.arguments.as_slice();
             let consumer_tag = {
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             Ok(CancelOk { consumer_tag: consumer_tag })
           }
@@ -2768,16 +2768,16 @@ pub mod basic {
             let ticket = try!(reader.read_be_u16());
             let exchange = {
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let routing_key = {
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let byte = try!(reader.read_byte());
-            let bits = bitv::from_bytes(&[byte]);
-            let mandatory = bits.get(7);
-            let immediate = bits.get(6);
+            let bits = Bitv::from_bytes(&[byte]);
+            let mandatory = bits.get(7).unwrap();
+            let immediate = bits.get(6).unwrap();
             Ok(Publish { ticket: ticket, exchange: exchange, routing_key: routing_key, mandatory: mandatory, immediate: immediate })
           }
 
@@ -2788,7 +2788,7 @@ pub mod basic {
     writer.write(self.exchange.as_bytes()).unwrap();
             writer.write_u8(self.routing_key.len() as u8).unwrap();
     writer.write(self.routing_key.as_bytes()).unwrap();
-            let mut bits = Bitv::with_capacity(8, false);
+            let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.mandatory);
             bits.set(6, self.immediate);
             writer.write(bits.to_bytes().as_slice()).unwrap();
@@ -2839,15 +2839,15 @@ pub mod basic {
             let reply_code = try!(reader.read_be_u16());
             let reply_text = {
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let exchange = {
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let routing_key = {
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             Ok(Return { reply_code: reply_code, reply_text: reply_text, exchange: exchange, routing_key: routing_key })
           }
@@ -2907,19 +2907,19 @@ pub mod basic {
             let reader = &mut method_frame.arguments.as_slice();
             let consumer_tag = {
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let delivery_tag = try!(reader.read_be_u64());
             let byte = try!(reader.read_byte());
-            let bits = bitv::from_bytes(&[byte]);
-            let redelivered = bits.get(7);
+            let bits = Bitv::from_bytes(&[byte]);
+            let redelivered = bits.get(7).unwrap();
             let exchange = {
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let routing_key = {
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             Ok(Deliver { consumer_tag: consumer_tag, delivery_tag: delivery_tag, redelivered: redelivered, exchange: exchange, routing_key: routing_key })
           }
@@ -2929,7 +2929,7 @@ pub mod basic {
             writer.write_u8(self.consumer_tag.len() as u8).unwrap();
     writer.write(self.consumer_tag.as_bytes()).unwrap();
             writer.write_be_u64(self.delivery_tag).unwrap();
-            let mut bits = Bitv::with_capacity(8, false);
+            let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.redelivered);
             writer.write(bits.to_bytes().as_slice()).unwrap();
             writer.write_u8(self.exchange.len() as u8).unwrap();
@@ -2971,11 +2971,11 @@ pub mod basic {
             let ticket = try!(reader.read_be_u16());
             let queue = {
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let byte = try!(reader.read_byte());
-            let bits = bitv::from_bytes(&[byte]);
-            let no_ack = bits.get(7);
+            let bits = Bitv::from_bytes(&[byte]);
+            let no_ack = bits.get(7).unwrap();
             Ok(Get { ticket: ticket, queue: queue, no_ack: no_ack })
           }
 
@@ -2984,7 +2984,7 @@ pub mod basic {
             writer.write_be_u16(self.ticket).unwrap();
             writer.write_u8(self.queue.len() as u8).unwrap();
     writer.write(self.queue.as_bytes()).unwrap();
-            let mut bits = Bitv::with_capacity(8, false);
+            let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.no_ack);
             writer.write(bits.to_bytes().as_slice()).unwrap();
             writer
@@ -3032,15 +3032,15 @@ pub mod basic {
             let reader = &mut method_frame.arguments.as_slice();
             let delivery_tag = try!(reader.read_be_u64());
             let byte = try!(reader.read_byte());
-            let bits = bitv::from_bytes(&[byte]);
-            let redelivered = bits.get(7);
+            let bits = Bitv::from_bytes(&[byte]);
+            let redelivered = bits.get(7).unwrap();
             let exchange = {
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let routing_key = {
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let message_count = try!(reader.read_be_u32());
             Ok(GetOk { delivery_tag: delivery_tag, redelivered: redelivered, exchange: exchange, routing_key: routing_key, message_count: message_count })
@@ -3049,7 +3049,7 @@ pub mod basic {
         fn encode(&self) -> Vec<u8> {
             let mut writer = vec!();
             writer.write_be_u64(self.delivery_tag).unwrap();
-            let mut bits = Bitv::with_capacity(8, false);
+            let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.redelivered);
             writer.write(bits.to_bytes().as_slice()).unwrap();
             writer.write_u8(self.exchange.len() as u8).unwrap();
@@ -3089,7 +3089,7 @@ pub mod basic {
             let reader = &mut method_frame.arguments.as_slice();
             let cluster_id = {
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             Ok(GetEmpty { cluster_id: cluster_id })
           }
@@ -3138,15 +3138,15 @@ pub mod basic {
             let reader = &mut method_frame.arguments.as_slice();
             let delivery_tag = try!(reader.read_be_u64());
             let byte = try!(reader.read_byte());
-            let bits = bitv::from_bytes(&[byte]);
-            let multiple = bits.get(7);
+            let bits = Bitv::from_bytes(&[byte]);
+            let multiple = bits.get(7).unwrap();
             Ok(Ack { delivery_tag: delivery_tag, multiple: multiple })
           }
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = vec!();
             writer.write_be_u64(self.delivery_tag).unwrap();
-            let mut bits = Bitv::with_capacity(8, false);
+            let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.multiple);
             writer.write(bits.to_bytes().as_slice()).unwrap();
             writer
@@ -3190,15 +3190,15 @@ pub mod basic {
             let reader = &mut method_frame.arguments.as_slice();
             let delivery_tag = try!(reader.read_be_u64());
             let byte = try!(reader.read_byte());
-            let bits = bitv::from_bytes(&[byte]);
-            let requeue = bits.get(7);
+            let bits = Bitv::from_bytes(&[byte]);
+            let requeue = bits.get(7).unwrap();
             Ok(Reject { delivery_tag: delivery_tag, requeue: requeue })
           }
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = vec!();
             writer.write_be_u64(self.delivery_tag).unwrap();
-            let mut bits = Bitv::with_capacity(8, false);
+            let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.requeue);
             writer.write(bits.to_bytes().as_slice()).unwrap();
             writer
@@ -3240,14 +3240,14 @@ pub mod basic {
             };
             let reader = &mut method_frame.arguments.as_slice();
             let byte = try!(reader.read_byte());
-            let bits = bitv::from_bytes(&[byte]);
-            let requeue = bits.get(7);
+            let bits = Bitv::from_bytes(&[byte]);
+            let requeue = bits.get(7).unwrap();
             Ok(RecoverAsync { requeue: requeue })
           }
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = vec!();
-            let mut bits = Bitv::with_capacity(8, false);
+            let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.requeue);
             writer.write(bits.to_bytes().as_slice()).unwrap();
             writer
@@ -3281,14 +3281,14 @@ pub mod basic {
             };
             let reader = &mut method_frame.arguments.as_slice();
             let byte = try!(reader.read_byte());
-            let bits = bitv::from_bytes(&[byte]);
-            let requeue = bits.get(7);
+            let bits = Bitv::from_bytes(&[byte]);
+            let requeue = bits.get(7).unwrap();
             Ok(Recover { requeue: requeue })
           }
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = vec!();
-            let mut bits = Bitv::with_capacity(8, false);
+            let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.requeue);
             writer.write(bits.to_bytes().as_slice()).unwrap();
             writer
@@ -3356,16 +3356,16 @@ pub mod basic {
             let reader = &mut method_frame.arguments.as_slice();
             let delivery_tag = try!(reader.read_be_u64());
             let byte = try!(reader.read_byte());
-            let bits = bitv::from_bytes(&[byte]);
-            let multiple = bits.get(7);
-            let requeue = bits.get(6);
+            let bits = Bitv::from_bytes(&[byte]);
+            let multiple = bits.get(7).unwrap();
+            let requeue = bits.get(6).unwrap();
             Ok(Nack { delivery_tag: delivery_tag, multiple: multiple, requeue: requeue })
           }
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = vec!();
             writer.write_be_u64(self.delivery_tag).unwrap();
-            let mut bits = Bitv::with_capacity(8, false);
+            let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.multiple);
             bits.set(6, self.requeue);
             writer.write(bits.to_bytes().as_slice()).unwrap();
@@ -3625,14 +3625,14 @@ pub mod confirm {
             };
             let reader = &mut method_frame.arguments.as_slice();
             let byte = try!(reader.read_byte());
-            let bits = bitv::from_bytes(&[byte]);
-            let nowait = bits.get(7);
+            let bits = Bitv::from_bytes(&[byte]);
+            let nowait = bits.get(7).unwrap();
             Ok(Select { nowait: nowait })
           }
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = vec!();
-            let mut bits = Bitv::with_capacity(8, false);
+            let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.nowait);
             writer.write(bits.to_bytes().as_slice()).unwrap();
             writer

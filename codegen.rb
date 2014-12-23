@@ -21,12 +21,12 @@ def read_type(type)
   when "shortstr"
     "{
           let size = try!(reader.read_byte()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      }"
   when "longstr"
     "{
           let size = try!(reader.read_be_u32()) as uint;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).into_string()
+          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
       }"
   when "table"
     "try!(decode_table(reader))"
@@ -73,9 +73,9 @@ def generate_reader_body(arguments)
       if type == "bit"
         if n_bits == 0
           body << "let byte = try!(reader.read_byte());"
-          body << "let bits = bitv::from_bytes(&[byte]);"
+          body << "let bits = Bitv::from_bytes(&[byte]);"
         end
-        body << "let #{snake_name(argument["name"])} = bits.get(#{7-n_bits});"
+        body << "let #{snake_name(argument["name"])} = bits.get(#{7-n_bits}).unwrap();"
         n_bits += 1
         if n_bits == 8
           n_bits = 0
@@ -96,7 +96,7 @@ def generate_writer_body(arguments)
       type = argument["domain"] ? map_domain(argument["domain"]) : argument["type"]
       if type == "bit"
         if n_bits == 0
-          body << "let mut bits = Bitv::with_capacity(8, false);"
+          body << "let mut bits = Bitv::from_elem(8, false);"
         end
         body << "bits.set(#{7-n_bits}, self.#{snake_name(argument["name"])});"
         n_bits += 1

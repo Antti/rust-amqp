@@ -6,7 +6,8 @@ pub enum AMQPError {
     AMQPIoError(IoError),
     DecodeError(&'static str),
     EncodeError,
-    QueueEmpty
+    QueueEmpty,
+    SyncError
 }
 
 pub type AMQPResult<T> =  Result<T, AMQPError>;

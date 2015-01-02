@@ -5,7 +5,7 @@ use protocol::MethodFrame;
 use table;
 use table::TableEntry::{FieldTable, Bool, LongString};
 use framing::{Frame, FrameType};
-use amqp_error::AMQPResult;
+use amqp_error::{AMQPResult, AMQPError};
 
 use std::sync::{Arc, Mutex};
 use std::cmp;
@@ -96,7 +96,7 @@ impl Session {
         let (session_sender, session_receiver) = sync_channel(CHANNEL_BUFFER_SIZE); //session sender & receiver
         let channels = Arc::new(Mutex::new(HashMap::new()));
         let channel_zero = channel::Channel::new(0, (session_sender.clone(), channel_receiver));
-        channels.lock().insert(0, channel_sender);
+        try!(channels.lock().map_err(|_| AMQPError::SyncError)).insert(0, channel_sender);
         let con1 = connection.clone();
         let con2 = connection.clone();
         let channels_clone = channels.clone();
@@ -183,7 +183,7 @@ impl Session {
         debug!("Openning channel: {}", channel_id);
         let (sender, receiver) = sync_channel(CHANNEL_BUFFER_SIZE);
         let channel = channel::Channel::new(channel_id, (self.sender.clone(), receiver));
-        self.channels.lock().insert(channel_id, sender);
+        try!(self.channels.lock().map_err(|_| AMQPError::SyncError)).insert(channel_id, sender);
         try!(channel.open());
         Ok(channel)
     }
@@ -202,7 +202,7 @@ impl Session {
                 Ok(frame) => frame,
                 Err(some_err) => {debug!("Error in reading loop: {}", some_err); break} //Notify session somehow. It should stop now.
             };
-            let chans = channels.lock();
+            let chans = channels.lock().unwrap();
             let ref target_channel = (*chans)[frame.channel];
             target_channel.send(frame);
             // match frame.frame_type {

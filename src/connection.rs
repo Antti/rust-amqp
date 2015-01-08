@@ -3,7 +3,7 @@ use std::io::net::tcp::TcpStream;
 use framing::Frame;
 use std::error::FromError;
 
-#[deriving(Clone)]
+#[derive(Clone)]
 pub struct Connection {
     socket: TcpStream,
     pub frame_max_limit: u32

@@ -14,7 +14,7 @@ pub trait Method {
 }
 
 
-#[deriving(Show, Clone)]
+#[derive(Show, Clone)]
 pub struct MethodFrame {
     pub class_id: u16,
     pub method_id: u16,
@@ -133,7 +133,7 @@ pub mod connection {
 
 
     // Method 10:start
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct Start {
         pub version_major: u8,
         pub version_minor: u8,
@@ -201,7 +201,7 @@ pub mod connection {
     }
 
     // Method 11:start-ok
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct StartOk {
         pub client_properties: Table,
         pub mechanism: String,
@@ -269,7 +269,7 @@ pub mod connection {
     }
 
     // Method 20:secure
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct Secure {
         pub challenge: String
     }
@@ -310,7 +310,7 @@ pub mod connection {
 
 
     // Method 21:secure-ok
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct SecureOk {
         pub response: String
     }
@@ -351,7 +351,7 @@ pub mod connection {
 
 
     // Method 30:tune
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct Tune {
         pub channel_max: u16,
         pub frame_max: u32,
@@ -403,7 +403,7 @@ pub mod connection {
     }
 
     // Method 31:tune-ok
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct TuneOk {
         pub channel_max: u16,
         pub frame_max: u32,
@@ -455,7 +455,7 @@ pub mod connection {
     }
 
     // Method 40:open
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct Open {
         pub virtual_host: String,
         pub capabilities: String,
@@ -519,7 +519,7 @@ pub mod connection {
     }
 
     // Method 41:open-ok
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct OpenOk {
         pub known_hosts: String
     }
@@ -567,7 +567,7 @@ pub mod connection {
     }
 
     // Method 50:close
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct Close {
         pub reply_code: u16,
         pub reply_text: String,
@@ -627,7 +627,7 @@ pub mod connection {
     }
 
     // Method 51:close-ok
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct CloseOk;
 
     impl Method for CloseOk {
@@ -658,7 +658,7 @@ pub mod connection {
 
 
     // Method 60:blocked
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct Blocked {
         pub reason: String
     }
@@ -706,7 +706,7 @@ pub mod connection {
     }
 
     // Method 61:unblocked
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct Unblocked;
 
     impl Method for Unblocked {
@@ -752,7 +752,7 @@ pub mod channel {
 
 
     // Method 10:open
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct Open {
         pub out_of_band: String
     }
@@ -800,7 +800,7 @@ pub mod channel {
     }
 
     // Method 11:open-ok
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct OpenOk {
         pub channel_id: String
     }
@@ -848,7 +848,7 @@ pub mod channel {
     }
 
     // Method 20:flow
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct Flow {
         pub active: bool
     }
@@ -889,7 +889,7 @@ pub mod channel {
 
 
     // Method 21:flow-ok
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct FlowOk {
         pub active: bool
     }
@@ -930,7 +930,7 @@ pub mod channel {
 
 
     // Method 40:close
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct Close {
         pub reply_code: u16,
         pub reply_text: String,
@@ -990,7 +990,7 @@ pub mod channel {
     }
 
     // Method 41:close-ok
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct CloseOk;
 
     impl Method for CloseOk {
@@ -1036,7 +1036,7 @@ pub mod access {
 
 
     // Method 10:request
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct Request {
         pub realm: String,
         pub exclusive: bool,
@@ -1108,7 +1108,7 @@ pub mod access {
     }
 
     // Method 11:request-ok
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct RequestOk {
         pub ticket: u16
     }
@@ -1167,7 +1167,7 @@ pub mod exchange {
 
 
     // Method 10:declare
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct Declare {
         pub ticket: u16,
         pub exchange: String,
@@ -1255,7 +1255,7 @@ pub mod exchange {
     }
 
     // Method 11:declare-ok
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct DeclareOk;
 
     impl Method for DeclareOk {
@@ -1286,7 +1286,7 @@ pub mod exchange {
 
 
     // Method 20:delete
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct Delete {
         pub ticket: u16,
         pub exchange: String,
@@ -1350,7 +1350,7 @@ pub mod exchange {
     }
 
     // Method 21:delete-ok
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct DeleteOk;
 
     impl Method for DeleteOk {
@@ -1381,7 +1381,7 @@ pub mod exchange {
 
 
     // Method 30:bind
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct Bind {
         pub ticket: u16,
         pub destination: String,
@@ -1461,7 +1461,7 @@ pub mod exchange {
     }
 
     // Method 31:bind-ok
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct BindOk;
 
     impl Method for BindOk {
@@ -1492,7 +1492,7 @@ pub mod exchange {
 
 
     // Method 40:unbind
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct Unbind {
         pub ticket: u16,
         pub destination: String,
@@ -1572,7 +1572,7 @@ pub mod exchange {
     }
 
     // Method 51:unbind-ok
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct UnbindOk;
 
     impl Method for UnbindOk {
@@ -1618,7 +1618,7 @@ pub mod queue {
 
 
     // Method 10:declare
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct Declare {
         pub ticket: u16,
         pub queue: String,
@@ -1698,7 +1698,7 @@ pub mod queue {
     }
 
     // Method 11:declare-ok
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct DeclareOk {
         pub queue: String,
         pub message_count: u32,
@@ -1745,7 +1745,7 @@ pub mod queue {
 
 
     // Method 20:bind
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct Bind {
         pub ticket: u16,
         pub queue: String,
@@ -1825,7 +1825,7 @@ pub mod queue {
     }
 
     // Method 21:bind-ok
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct BindOk;
 
     impl Method for BindOk {
@@ -1856,7 +1856,7 @@ pub mod queue {
 
 
     // Method 30:purge
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct Purge {
         pub ticket: u16,
         pub queue: String,
@@ -1916,7 +1916,7 @@ pub mod queue {
     }
 
     // Method 31:purge-ok
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct PurgeOk {
         pub message_count: u32
     }
@@ -1953,7 +1953,7 @@ pub mod queue {
 
 
     // Method 40:delete
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct Delete {
         pub ticket: u16,
         pub queue: String,
@@ -2021,7 +2021,7 @@ pub mod queue {
     }
 
     // Method 41:delete-ok
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct DeleteOk {
         pub message_count: u32
     }
@@ -2058,7 +2058,7 @@ pub mod queue {
 
 
     // Method 50:unbind
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct Unbind {
         pub ticket: u16,
         pub queue: String,
@@ -2130,7 +2130,7 @@ pub mod queue {
     }
 
     // Method 51:unbind-ok
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct UnbindOk;
 
     impl Method for UnbindOk {
@@ -2175,7 +2175,7 @@ pub mod basic {
 
 
     //properties struct for basic
-    #[deriving(Show, Default, Clone)]
+    #[derive(Show, Default, Clone)]
     pub struct BasicProperties {
        pub content_type: Option<String>,
        pub content_encoding: Option<String>,
@@ -2436,7 +2436,7 @@ pub mod basic {
     }
 
     // Method 10:qos
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct Qos {
         pub prefetch_size: u32,
         pub prefetch_count: u16,
@@ -2492,7 +2492,7 @@ pub mod basic {
     }
 
     // Method 11:qos-ok
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct QosOk;
 
     impl Method for QosOk {
@@ -2523,7 +2523,7 @@ pub mod basic {
 
 
     // Method 20:consume
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct Consume {
         pub ticket: u16,
         pub queue: String,
@@ -2607,7 +2607,7 @@ pub mod basic {
     }
 
     // Method 21:consume-ok
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct ConsumeOk {
         pub consumer_tag: String
     }
@@ -2648,7 +2648,7 @@ pub mod basic {
 
 
     // Method 30:cancel
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct Cancel {
         pub consumer_tag: String,
         pub nowait: bool
@@ -2696,7 +2696,7 @@ pub mod basic {
 
 
     // Method 31:cancel-ok
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct CancelOk {
         pub consumer_tag: String
     }
@@ -2737,7 +2737,7 @@ pub mod basic {
 
 
     // Method 40:publish
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct Publish {
         pub ticket: u16,
         pub exchange: String,
@@ -2809,7 +2809,7 @@ pub mod basic {
     }
 
     // Method 50:return
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct Return {
         pub reply_code: u16,
         pub reply_text: String,
@@ -2877,7 +2877,7 @@ pub mod basic {
     }
 
     // Method 60:deliver
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct Deliver {
         pub consumer_tag: String,
         pub delivery_tag: u64,
@@ -2942,7 +2942,7 @@ pub mod basic {
 
 
     // Method 70:get
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct Get {
         pub ticket: u16,
         pub queue: String,
@@ -3002,7 +3002,7 @@ pub mod basic {
     }
 
     // Method 71:get-ok
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct GetOk {
         pub delivery_tag: u64,
         pub redelivered: bool,
@@ -3063,7 +3063,7 @@ pub mod basic {
 
 
     // Method 72:get-empty
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct GetEmpty {
         pub cluster_id: String
     }
@@ -3111,7 +3111,7 @@ pub mod basic {
     }
 
     // Method 80:ack
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct Ack {
         pub delivery_tag: u64,
         pub multiple: bool
@@ -3163,7 +3163,7 @@ pub mod basic {
     }
 
     // Method 90:reject
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct Reject {
         pub delivery_tag: u64,
         pub requeue: bool
@@ -3215,7 +3215,7 @@ pub mod basic {
     }
 
     // Method 100:recover-async
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct RecoverAsync {
         pub requeue: bool
     }
@@ -3256,7 +3256,7 @@ pub mod basic {
 
 
     // Method 110:recover
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct Recover {
         pub requeue: bool
     }
@@ -3297,7 +3297,7 @@ pub mod basic {
 
 
     // Method 111:recover-ok
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct RecoverOk;
 
     impl Method for RecoverOk {
@@ -3328,7 +3328,7 @@ pub mod basic {
 
 
     // Method 120:nack
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct Nack {
         pub delivery_tag: u64,
         pub multiple: bool,
@@ -3399,7 +3399,7 @@ pub mod tx {
 
 
     // Method 10:select
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct Select;
 
     impl Method for Select {
@@ -3430,7 +3430,7 @@ pub mod tx {
 
 
     // Method 11:select-ok
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct SelectOk;
 
     impl Method for SelectOk {
@@ -3461,7 +3461,7 @@ pub mod tx {
 
 
     // Method 20:commit
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct Commit;
 
     impl Method for Commit {
@@ -3492,7 +3492,7 @@ pub mod tx {
 
 
     // Method 21:commit-ok
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct CommitOk;
 
     impl Method for CommitOk {
@@ -3523,7 +3523,7 @@ pub mod tx {
 
 
     // Method 30:rollback
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct Rollback;
 
     impl Method for Rollback {
@@ -3554,7 +3554,7 @@ pub mod tx {
 
 
     // Method 31:rollback-ok
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct RollbackOk;
 
     impl Method for RollbackOk {
@@ -3600,7 +3600,7 @@ pub mod confirm {
 
 
     // Method 10:select
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct Select {
         pub nowait: bool
     }
@@ -3641,7 +3641,7 @@ pub mod confirm {
 
 
     // Method 11:select-ok
-    #[deriving(Show)]
+    #[derive(Show)]
     pub struct SelectOk;
 
     impl Method for SelectOk {

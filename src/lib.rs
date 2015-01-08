@@ -70,10 +70,10 @@ cargo test
 ```
 */
 
-#![feature(phase)]
 extern crate collect;
 extern crate url;
-#[phase(plugin, link)] extern crate log;
+#[macro_use]
+extern crate log;
 
 pub mod connection;
 pub mod channel;

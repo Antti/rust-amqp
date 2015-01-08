@@ -1,7 +1,8 @@
 use std::io::MemReader;
 use amqp_error::{AMQPResult, AMQPError};
+use std::num::FromPrimitive;
 
-#[deriving(Show, Clone, Eq, PartialEq, FromPrimitive)]
+#[derive(Show, Clone, Eq, PartialEq, FromPrimitive)]
 pub enum FrameType {
     METHOD = 1,
     HEADERS = 2,
@@ -11,7 +12,7 @@ pub enum FrameType {
 
 impl Copy for FrameType {}
 
-#[deriving(Show, Clone, Eq, PartialEq)]
+#[derive(Show, Clone, Eq, PartialEq)]
 pub struct Frame {
     pub frame_type: FrameType,
     pub channel: u16,
@@ -52,7 +53,7 @@ impl Frame {
     }
 }
 
-#[deriving(Show, Clone)]
+#[derive(Show, Clone)]
 pub struct ContentHeaderFrame {
     pub content_class: u16,
     pub weight: u16,

@@ -25,14 +25,15 @@ pub trait Basic <'a> {
     fn basic_reject(&self, delivery_tag: u64, requeue: bool);
 }
 
-#[deriving(Show)]
+#[derive(Show)]
 pub struct GetResult {
     pub reply: GetOk,
     pub headers: BasicProperties,
     pub body: Vec<u8>
 }
 
-impl <'a> Iterator<GetResult> for GetIterator<'a > {
+impl <'a> Iterator for GetIterator<'a > {
+    type Item = GetResult;
     fn next(&mut self) -> Option<GetResult> {
         let get = &basic::Get{ ticket: 0, queue: self.queue.to_string(), no_ack: self.no_ack };
         let method_frame = self.channel.raw_rpc(get);

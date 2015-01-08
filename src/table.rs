@@ -1,7 +1,7 @@
 use collect::tree_map::TreeMap;
 use amqp_error::AMQPResult;
 
-#[deriving(Show, Clone)]
+#[derive(Show, Clone)]
 pub enum TableEntry {
     Bool(bool),
     ShortShortInt(i8),

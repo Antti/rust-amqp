@@ -1,5 +1,5 @@
 use amqp_error::AMQPResult;
-use std::comm::{SyncSender, Receiver};
+use std::sync::mpsc::{SyncSender, Receiver};
 
 use framing::{ContentHeaderFrame, Frame, FrameType};
 use table::Table;
@@ -31,11 +31,11 @@ impl Channel {
     }
 
     pub fn read(&self) -> Frame {
-        self.chan.1.recv()
+        self.chan.1.recv().ok().expect("Error reading packet from channel")
     }
 
     pub fn write(&self, frame: Frame) {
-        self.chan.0.send(frame)
+        self.chan.0.send(frame).ok().expect("Error sending packet to channel");
     }
 
     pub fn send_method_frame<T>(&self, method: &T)  where T: protocol::Method {

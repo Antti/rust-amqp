@@ -1,7 +1,7 @@
 use std::error::FromError;
 use std::io::IoError;
 
-#[deriving(Show)]
+#[derive(Show)]
 pub enum AMQPError {
     AMQPIoError(IoError),
     DecodeError(&'static str),

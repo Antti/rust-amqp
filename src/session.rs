@@ -1,7 +1,6 @@
 use channel;
 use connection::Connection;
-use protocol;
-use protocol::MethodFrame;
+use protocol::{self, MethodFrame};
 use table;
 use table::TableEntry::{FieldTable, Bool, LongString};
 use framing::{Frame, FrameType};
@@ -11,7 +10,7 @@ use std::sync::{Arc, Mutex};
 use std::cmp;
 use std::default::Default;
 use std::collections::HashMap;
-use std::comm::Receiver;
+use std::sync::mpsc::{Receiver, SyncSender, sync_channel};
 use std::thread::{JoinGuard, Thread};
 
 use url::{UrlParser, SchemeType};
@@ -19,7 +18,7 @@ use url::{UrlParser, SchemeType};
 const CHANNEL_BUFFER_SIZE :uint = 100;
 
 
-#[deriving(Show)]
+#[derive(Show)]
 pub struct Options <'a>  {
     pub host: &'a str,
     pub port: u16,
@@ -204,7 +203,7 @@ impl Session {
             };
             let chans = channels.lock().unwrap();
             let ref target_channel = (*chans)[frame.channel];
-            target_channel.send(frame);
+            target_channel.send(frame).ok().expect("Error sending packet");
             // match frame.frame_type {
             //     framing::METHOD => {},
             //     framing::HEADERS => {},
@@ -219,8 +218,7 @@ impl Session {
     pub fn writing_loop(mut connection: Connection, receiver: Receiver<Frame>) {
         debug!("Starting writing loop");
         loop {
-            let res = receiver.recv_opt();
-            match res {
+            match receiver.recv() {
                 Ok(frame) => {
                     match frame.frame_type {
                         FrameType::BODY => {

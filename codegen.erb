@@ -14,7 +14,7 @@ pub trait Method {
 }
 
 
-#[deriving(Show, Clone)]
+#[derive(Show, Clone)]
 pub struct MethodFrame {
     pub class_id: u16,
     pub method_id: u16,
@@ -72,7 +72,7 @@ pub mod <%= klass["name"] %> {
 
 <% if klass["properties"] && klass["properties"].any? -%>
     //properties struct for <%= klass["name"] %>
-    #[deriving(Show, Default, Clone)]
+    #[derive(Show, Default, Clone)]
     pub struct <%= klass["properties_struct_name"] %> {
 <% klass["properties_fields"].join(",\n").split("\n").each do |f| -%>
        <%= f %>
@@ -121,7 +121,7 @@ pub mod <%= klass["name"] %> {
 
 <% klass["methods"].each do |method| -%>
     // Method <%= method["id"] %>:<%=method["name"] %>
-    #[deriving(Show)]
+    #[derive(Show)]
 <% if method["fields"].any? -%>
     pub struct <%= method["method_name"] %> {
 <% method["fields"].join(",\n").split("\n").each do |f| -%>

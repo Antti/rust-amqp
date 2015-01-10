@@ -15,7 +15,7 @@ use std::thread::{JoinGuard, Thread};
 
 use url::{UrlParser, SchemeType};
 
-const CHANNEL_BUFFER_SIZE :uint = 100;
+const CHANNEL_BUFFER_SIZE :usize = 100;
 
 
 #[derive(Show)]
@@ -41,19 +41,19 @@ impl <'a>  Default for Options <'a>  {
     }
 }
 
-pub struct Session {
+pub struct Session<'a>  {
 	connection: Connection,
 	channels: Arc<Mutex<HashMap<u16, SyncSender<Frame>> >>,
 	channel_max_limit: u16,
 	channel_zero: channel::Channel,
     sender: SyncSender<Frame>,
     #[allow(dead_code)]
-    reading_loop: JoinGuard<()>,
+    reading_loop: JoinGuard<'a ()>,
     #[allow(dead_code)]
-    writing_loop: JoinGuard<()>
+    writing_loop: JoinGuard<'a ()>
 }
 
-impl Session {
+impl <'a> Session <'a> {
     /// Use `open_url` to create new amqp session from a "amqp url"
     ///
     /// # Arguments
@@ -86,7 +86,7 @@ impl Session {
     /// use amqp::session::{Options, Session};
     /// let session = match Session::new(Options { .. Default::default() }){
     ///     Ok(session) => session,
-    ///     Err(error) => panic!("Failed openning an amqp session: {}", error)
+    ///     Err(error) => panic!("Failed openning an amqp session: {:?}", error)
     /// };
     /// ```
     pub fn new(options: Options) -> AMQPResult<Session> {
@@ -99,8 +99,8 @@ impl Session {
         let con1 = connection.clone();
         let con2 = connection.clone();
         let channels_clone = channels.clone();
-        let reading_loop = Thread::spawn( move || Session::reading_loop(con1, channels_clone ) );
-        let writing_loop = Thread::spawn( move || Session::writing_loop(con2, session_receiver ) );
+        let reading_loop = Thread::scoped( move || Session::reading_loop(con1, channels_clone ) );
+        let writing_loop = Thread::scoped( move || Session::writing_loop(con2, session_receiver ) );
         let mut session = Session {
             connection: connection,
             channels: channels,
@@ -120,9 +120,9 @@ impl Session {
         let method_frame = MethodFrame::decode(frame);
         let start : protocol::connection::Start = match method_frame.method_name(){
             "connection.start" => protocol::Method::decode(method_frame).unwrap(),
-            meth => panic!("Unexpected method frame: {}", meth) //In reality you would probably skip the frame and try to read another?
+            meth => panic!("Unexpected method frame: {:?}", meth) //In reality you would probably skip the frame and try to read another?
         };
-        debug!("Received connection.start: {}", start);
+        debug!("Received connection.start: {:?}", start);
         //  The client selects a security mechanism (Start-Ok).
         //  The server starts the authentication process, which uses the SASL challenge-response model. It sends
         // the client a challenge (Secure).
@@ -175,7 +175,7 @@ impl Session {
     /// let mut session =  Session::new(Options { .. Default::default() }).unwrap();
     /// let channel = match session.open_channel(1){
     ///     Ok(channel) => channel,
-    ///     Err(error) => panic!("Failed openning channel: {}", error)
+    ///     Err(error) => panic!("Failed openning channel: {:?}", error)
     /// };
     /// ```
 	pub fn open_channel(&mut self, channel_id: u16) -> AMQPResult<channel::Channel> {
@@ -199,7 +199,7 @@ impl Session {
         loop {
             let frame = match connection.read() {
                 Ok(frame) => frame,
-                Err(some_err) => {debug!("Error in reading loop: {}", some_err); break} //Notify session somehow. It should stop now.
+                Err(some_err) => {debug!("Error in reading loop: {:?}", some_err); break} //Notify session somehow. It should stop now.
             };
             let chans = channels.lock().unwrap();
             let ref target_channel = (*chans)[frame.channel];
@@ -241,7 +241,7 @@ fn negotiate<T : cmp::Ord>(their_value: T, our_value: T) -> T {
     cmp::min(their_value, our_value)
 }
 
-fn split_content_into_frames(content: Vec<u8>, frame_limit: uint) -> Vec<Vec<u8>> {
+fn split_content_into_frames(content: Vec<u8>, frame_limit: usize) -> Vec<Vec<u8>> {
     assert!(frame_limit > 0, "Can't have frame_max_limit == 0");
     let mut content_frames = vec!();
     let mut current_pos = 0;

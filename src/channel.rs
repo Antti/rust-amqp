@@ -61,8 +61,8 @@ impl Channel {
     }
 
     pub fn read_body(&self, size: u64) -> AMQPResult<Vec<u8>> {
-        let mut body = Vec::with_capacity(size as uint);
-        while body.len() < size as uint {
+        let mut body = Vec::with_capacity(size as usize);
+        while body.len() < size as usize {
             body.extend(self.read().payload.into_iter())
         }
         Ok(body)

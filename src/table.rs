@@ -44,12 +44,12 @@ fn read_table_entry(reader: &mut &[u8]) -> AMQPResult<TableEntry> {
         b'd' => TableEntry::Double(try!(reader.read_be_f64())),
         b'D' => TableEntry::DecimalValue(try!(reader.read_u8()), try!(reader.read_be_u32())),
         // b's' => {
-        //  let size = try!(reader.read_u8()) as uint;
+        //  let size = try!(reader.read_u8()) as usize;
         //  let str = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string();
         //  ShortString(str)
         // },
         b'S' => {
-            let size = try!(reader.read_be_u32()) as uint;
+            let size = try!(reader.read_be_u32()) as usize;
             let str = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string();
             TableEntry::LongString(str)
         },
@@ -114,14 +114,14 @@ fn write_table_entry(writer: &mut Vec<u8>, table_entry: &TableEntry) -> AMQPResu
 pub fn decode_table(reader: &mut &[u8]) -> AMQPResult<Table> {
     debug!("decoding table");
     let mut table = new();
-    let size = try!(reader.read_be_u32()) as uint;
+    let size = try!(reader.read_be_u32()) as usize;
     let total_len = reader.len();
 
     while reader.len() > total_len - size {
-        let field_name_size = try!(reader.read_u8()) as uint;
+        let field_name_size = try!(reader.read_u8()) as usize;
         let field_name = try!(reader.read_exact(field_name_size));
         let table_entry = try!(read_table_entry(reader));
-        debug!("Read table entry: {} = {}", field_name, table_entry);
+        debug!("Read table entry: {:?} = {:?}", field_name, table_entry);
         table.insert(String::from_utf8_lossy(field_name.as_slice()).to_string(), table_entry);
     }
     Ok(table)

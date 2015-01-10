@@ -25,7 +25,7 @@ impl Frame {
         let frame_type_id = try!(header.read_byte());
         let channel = try!(header.read_be_u16());
         let size = try!(header.read_be_u32());
-        let payload = try!(reader.read_exact(size as uint));
+        let payload = try!(reader.read_exact(size as usize));
         let frame_end = try!(reader.read_u8());
         if payload.len() as u32 != size {
             return Err(AMQPError::DecodeError("Payload didn't read the full size"));

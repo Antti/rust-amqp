@@ -165,11 +165,11 @@ pub mod connection {
             let version_minor = try!(reader.read_byte());
             let server_properties = try!(decode_table(reader));
             let mechanisms = {
-          let size = try!(reader.read_be_u32()) as uint;
+          let size = try!(reader.read_be_u32()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
       };
             let locales = {
-          let size = try!(reader.read_be_u32()) as uint;
+          let size = try!(reader.read_be_u32()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
       };
             Ok(Start { version_major: version_major, version_minor: version_minor, server_properties: server_properties, mechanisms: mechanisms, locales: locales })
@@ -230,15 +230,15 @@ pub mod connection {
             let reader = &mut method_frame.arguments.as_slice();
             let client_properties = try!(decode_table(reader));
             let mechanism = {
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let response = {
-          let size = try!(reader.read_be_u32()) as uint;
+          let size = try!(reader.read_be_u32()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
       };
             let locale = {
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             Ok(StartOk { client_properties: client_properties, mechanism: mechanism, response: response, locale: locale })
@@ -294,7 +294,7 @@ pub mod connection {
             };
             let reader = &mut method_frame.arguments.as_slice();
             let challenge = {
-          let size = try!(reader.read_be_u32()) as uint;
+          let size = try!(reader.read_be_u32()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
       };
             Ok(Secure { challenge: challenge })
@@ -335,7 +335,7 @@ pub mod connection {
             };
             let reader = &mut method_frame.arguments.as_slice();
             let response = {
-          let size = try!(reader.read_be_u32()) as uint;
+          let size = try!(reader.read_be_u32()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
       };
             Ok(SecureOk { response: response })
@@ -482,11 +482,11 @@ pub mod connection {
             };
             let reader = &mut method_frame.arguments.as_slice();
             let virtual_host = {
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let capabilities = {
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let byte = try!(reader.read_byte());
@@ -544,7 +544,7 @@ pub mod connection {
             };
             let reader = &mut method_frame.arguments.as_slice();
             let known_hosts = {
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             Ok(OpenOk { known_hosts: known_hosts })
@@ -596,7 +596,7 @@ pub mod connection {
             let reader = &mut method_frame.arguments.as_slice();
             let reply_code = try!(reader.read_be_u16());
             let reply_text = {
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let class_id = try!(reader.read_be_u16());
@@ -683,7 +683,7 @@ pub mod connection {
             };
             let reader = &mut method_frame.arguments.as_slice();
             let reason = {
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             Ok(Blocked { reason: reason })
@@ -777,7 +777,7 @@ pub mod channel {
             };
             let reader = &mut method_frame.arguments.as_slice();
             let out_of_band = {
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             Ok(Open { out_of_band: out_of_band })
@@ -825,7 +825,7 @@ pub mod channel {
             };
             let reader = &mut method_frame.arguments.as_slice();
             let channel_id = {
-          let size = try!(reader.read_be_u32()) as uint;
+          let size = try!(reader.read_be_u32()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
       };
             Ok(OpenOk { channel_id: channel_id })
@@ -959,7 +959,7 @@ pub mod channel {
             let reader = &mut method_frame.arguments.as_slice();
             let reply_code = try!(reader.read_be_u16());
             let reply_text = {
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let class_id = try!(reader.read_be_u16());
@@ -1066,7 +1066,7 @@ pub mod access {
             };
             let reader = &mut method_frame.arguments.as_slice();
             let realm = {
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let byte = try!(reader.read_byte());
@@ -1201,11 +1201,11 @@ pub mod exchange {
             let reader = &mut method_frame.arguments.as_slice();
             let ticket = try!(reader.read_be_u16());
             let exchange = {
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let _type = {
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let byte = try!(reader.read_byte());
@@ -1315,7 +1315,7 @@ pub mod exchange {
             let reader = &mut method_frame.arguments.as_slice();
             let ticket = try!(reader.read_be_u16());
             let exchange = {
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let byte = try!(reader.read_byte());
@@ -1412,15 +1412,15 @@ pub mod exchange {
             let reader = &mut method_frame.arguments.as_slice();
             let ticket = try!(reader.read_be_u16());
             let destination = {
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let source = {
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let routing_key = {
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let byte = try!(reader.read_byte());
@@ -1523,15 +1523,15 @@ pub mod exchange {
             let reader = &mut method_frame.arguments.as_slice();
             let ticket = try!(reader.read_be_u16());
             let destination = {
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let source = {
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let routing_key = {
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let byte = try!(reader.read_byte());
@@ -1651,7 +1651,7 @@ pub mod queue {
             let reader = &mut method_frame.arguments.as_slice();
             let ticket = try!(reader.read_be_u16());
             let queue = {
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let byte = try!(reader.read_byte());
@@ -1725,7 +1725,7 @@ pub mod queue {
             };
             let reader = &mut method_frame.arguments.as_slice();
             let queue = {
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let message_count = try!(reader.read_be_u32());
@@ -1776,15 +1776,15 @@ pub mod queue {
             let reader = &mut method_frame.arguments.as_slice();
             let ticket = try!(reader.read_be_u16());
             let queue = {
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let exchange = {
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let routing_key = {
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let byte = try!(reader.read_byte());
@@ -1884,7 +1884,7 @@ pub mod queue {
             let reader = &mut method_frame.arguments.as_slice();
             let ticket = try!(reader.read_be_u16());
             let queue = {
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let byte = try!(reader.read_byte());
@@ -1983,7 +1983,7 @@ pub mod queue {
             let reader = &mut method_frame.arguments.as_slice();
             let ticket = try!(reader.read_be_u16());
             let queue = {
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let byte = try!(reader.read_byte());
@@ -2088,15 +2088,15 @@ pub mod queue {
             let reader = &mut method_frame.arguments.as_slice();
             let ticket = try!(reader.read_be_u16());
             let queue = {
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let exchange = {
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let routing_key = {
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let arguments = try!(decode_table(reader));
@@ -2200,7 +2200,7 @@ pub mod basic {
                 (content_header_frame.properties_flags & 0xff) as u8]);
             let content_type = if properties_flags.get(0).unwrap() {
                 Some({
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      })
             } else {
@@ -2208,7 +2208,7 @@ pub mod basic {
             };
             let content_encoding = if properties_flags.get(1).unwrap() {
                 Some({
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      })
             } else {
@@ -2231,7 +2231,7 @@ pub mod basic {
             };
             let correlation_id = if properties_flags.get(5).unwrap() {
                 Some({
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      })
             } else {
@@ -2239,7 +2239,7 @@ pub mod basic {
             };
             let reply_to = if properties_flags.get(6).unwrap() {
                 Some({
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      })
             } else {
@@ -2247,7 +2247,7 @@ pub mod basic {
             };
             let expiration = if properties_flags.get(7).unwrap() {
                 Some({
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      })
             } else {
@@ -2255,7 +2255,7 @@ pub mod basic {
             };
             let message_id = if properties_flags.get(8).unwrap() {
                 Some({
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      })
             } else {
@@ -2268,7 +2268,7 @@ pub mod basic {
             };
             let _type = if properties_flags.get(10).unwrap() {
                 Some({
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      })
             } else {
@@ -2276,7 +2276,7 @@ pub mod basic {
             };
             let user_id = if properties_flags.get(11).unwrap() {
                 Some({
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      })
             } else {
@@ -2284,7 +2284,7 @@ pub mod basic {
             };
             let app_id = if properties_flags.get(12).unwrap() {
                 Some({
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      })
             } else {
@@ -2292,7 +2292,7 @@ pub mod basic {
             };
             let cluster_id = if properties_flags.get(13).unwrap() {
                 Some({
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      })
             } else {
@@ -2556,11 +2556,11 @@ pub mod basic {
             let reader = &mut method_frame.arguments.as_slice();
             let ticket = try!(reader.read_be_u16());
             let queue = {
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let consumer_tag = {
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let byte = try!(reader.read_byte());
@@ -2632,7 +2632,7 @@ pub mod basic {
             };
             let reader = &mut method_frame.arguments.as_slice();
             let consumer_tag = {
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             Ok(ConsumeOk { consumer_tag: consumer_tag })
@@ -2674,7 +2674,7 @@ pub mod basic {
             };
             let reader = &mut method_frame.arguments.as_slice();
             let consumer_tag = {
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let byte = try!(reader.read_byte());
@@ -2721,7 +2721,7 @@ pub mod basic {
             };
             let reader = &mut method_frame.arguments.as_slice();
             let consumer_tag = {
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             Ok(CancelOk { consumer_tag: consumer_tag })
@@ -2767,11 +2767,11 @@ pub mod basic {
             let reader = &mut method_frame.arguments.as_slice();
             let ticket = try!(reader.read_be_u16());
             let exchange = {
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let routing_key = {
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let byte = try!(reader.read_byte());
@@ -2838,15 +2838,15 @@ pub mod basic {
             let reader = &mut method_frame.arguments.as_slice();
             let reply_code = try!(reader.read_be_u16());
             let reply_text = {
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let exchange = {
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let routing_key = {
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             Ok(Return { reply_code: reply_code, reply_text: reply_text, exchange: exchange, routing_key: routing_key })
@@ -2906,7 +2906,7 @@ pub mod basic {
             };
             let reader = &mut method_frame.arguments.as_slice();
             let consumer_tag = {
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let delivery_tag = try!(reader.read_be_u64());
@@ -2914,11 +2914,11 @@ pub mod basic {
             let bits = Bitv::from_bytes(&[byte]);
             let redelivered = bits.get(7).unwrap();
             let exchange = {
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let routing_key = {
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             Ok(Deliver { consumer_tag: consumer_tag, delivery_tag: delivery_tag, redelivered: redelivered, exchange: exchange, routing_key: routing_key })
@@ -2970,7 +2970,7 @@ pub mod basic {
             let reader = &mut method_frame.arguments.as_slice();
             let ticket = try!(reader.read_be_u16());
             let queue = {
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let byte = try!(reader.read_byte());
@@ -3035,11 +3035,11 @@ pub mod basic {
             let bits = Bitv::from_bytes(&[byte]);
             let redelivered = bits.get(7).unwrap();
             let exchange = {
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let routing_key = {
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             let message_count = try!(reader.read_be_u32());
@@ -3088,7 +3088,7 @@ pub mod basic {
             };
             let reader = &mut method_frame.arguments.as_slice();
             let cluster_id = {
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      };
             Ok(GetEmpty { cluster_id: cluster_id })

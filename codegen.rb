@@ -20,12 +20,12 @@ def read_type(type)
     raise "Cant read bit here..."
   when "shortstr"
     "{
-          let size = try!(reader.read_byte()) as uint;
+          let size = try!(reader.read_byte()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
      }"
   when "longstr"
     "{
-          let size = try!(reader.read_be_u32()) as uint;
+          let size = try!(reader.read_be_u32()) as usize;
           String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
       }"
   when "table"

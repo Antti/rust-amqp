@@ -11,9 +11,9 @@ use std::default::Default;
 
 fn consumer_function(channel: &Channel, deliver: protocol::basic::Deliver, headers: protocol::basic::BasicProperties, body: Vec<u8>){
     println!("Got a delivery:");
-    println!("Deliver info: {}", deliver);
-    println!("Content headers: {}", headers);
-    println!("Content body: {}", body);
+    println!("Deliver info: {:?}", deliver);
+    println!("Content headers: {:?}", headers);
+    println!("Content body: {:?}", body);
     channel.basic_ack(deliver.delivery_tag, false);
 }
 
@@ -25,18 +25,18 @@ fn main() {
     let queue_name = "test_queue";
     //queue: &str, passive: bool, durable: bool, exclusive: bool, auto_delete: bool, nowait: bool, arguments: Table
     let queue_declare = channel.queue_declare(queue_name, false, true, false, false, false, table::new());
-    println!("Queue declare: {}", queue_declare);
+    println!("Queue declare: {:?}", queue_declare);
     for get_result in channel.basic_get(queue_name, false) {
-        println!("Headers: {}", get_result.headers);
-        println!("Reply: {}", get_result.reply);
-        println!("Body: {}", String::from_utf8_lossy(get_result.body.as_slice()));
+        println!("Headers: {:?}", get_result.headers);
+        println!("Reply: {:?}", get_result.reply);
+        println!("Body: {:?}", String::from_utf8_lossy(get_result.body.as_slice()));
         channel.basic_ack(get_result.reply.delivery_tag, false);
     }
 
     //queue: &str, consumer_tag: &str, no_local: bool, no_ack: bool, exclusive: bool, nowait: bool, arguments: Table
     println!("Declaring consumer...");
     let consumer_name = channel.basic_consume(consumer_function, queue_name, "", false, false, false, false, table::new());
-    println!("Starting consumer {}", consumer_name);
+    println!("Starting consumer {:?}", consumer_name);
     channel.start_consuming();
 
     channel.basic_publish("", queue_name, true, false,

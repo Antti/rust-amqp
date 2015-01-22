@@ -21,12 +21,12 @@ def read_type(type)
   when "shortstr"
     "{
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      }"
   when "longstr"
     "{
           let size = try!(reader.read_be_u32()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
       }"
   when "table"
     "try!(decode_table(reader))"
@@ -66,7 +66,7 @@ end
 
 def generate_reader_body(arguments)
     body = []
-    body << "let reader = &mut method_frame.arguments.as_slice();"
+    body << "let reader = &mut &method_frame.arguments[];"
     n_bits = 0
     arguments.each do |argument|
       type = argument["domain"] ? map_domain(argument["domain"]) : argument["type"]
@@ -101,18 +101,18 @@ def generate_writer_body(arguments)
         body << "bits.set(#{7-n_bits}, self.#{snake_name(argument["name"])});"
         n_bits += 1
         if n_bits == 8
-          body << "writer.write(bits.to_bytes().as_slice()).unwrap();"
+          body << "writer.write(&bits.to_bytes()[]).unwrap();"
           n_bits = 0
         end
       else
         if n_bits > 0
-          body << "writer.write(bits.to_bytes().as_slice()).unwrap();"
+          body << "writer.write(&bits.to_bytes()[]).unwrap();"
           n_bits = 0
         end
         body << write_type("self."+snake_name(argument["name"]), type)
       end
     end
-    body << "writer.write(bits.to_bytes().as_slice()).unwrap();" if n_bits > 0 #if bits were the last element
+    body << "writer.write(&bits.to_bytes()[]).unwrap();" if n_bits > 0 #if bits were the last element
     body << "writer"
     body
 end

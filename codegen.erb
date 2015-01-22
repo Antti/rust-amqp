@@ -30,7 +30,7 @@ impl MethodFrame {
         let mut writer = vec!();
         writer.write_be_u16(self.class_id).unwrap();
         writer.write_be_u16(self.method_id).unwrap();
-        writer.write(self.arguments.as_slice()).unwrap();
+        writer.write(&self.arguments[]).unwrap();
         writer
     }
 
@@ -39,7 +39,7 @@ impl MethodFrame {
         if frame.frame_type != FrameType::METHOD {
             panic!("Not a method frame");
         }
-        let reader = &mut frame.payload.as_slice();
+        let reader = &mut &frame.payload[];
         let class_id = reader.read_be_u16().unwrap();
         let method_id = reader.read_be_u16().unwrap();
         let arguments = reader.read_to_end().unwrap();
@@ -81,7 +81,7 @@ pub mod <%= klass["name"] %> {
 
     impl <%= klass["properties_struct_name"] %> {
         pub fn decode(content_header_frame: ContentHeaderFrame) -> AMQPResult<<%=klass["properties_struct_name"]%>> {
-            let reader = &mut content_header_frame.properties.as_slice();
+            let reader = &mut &content_header_frame.properties[];
             let properties_flags = Bitv::from_bytes(&[((content_header_frame.properties_flags >> 8) & 0xff) as u8,
                 (content_header_frame.properties_flags & 0xff) as u8]);
 <% klass["properties"].each.with_index do |prop, idx| -%>

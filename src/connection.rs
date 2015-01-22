@@ -23,7 +23,7 @@ impl Connection {
     }
 
     pub fn write(&mut self, frame: Frame) -> AMQPResult<()>{
-        self.socket.write(frame.encode().as_slice()).map_err(|err| FromError::from_error(err))
+        self.socket.write(&frame.encode()[]).map_err(|err| FromError::from_error(err))
     }
 
     pub fn read(&mut self) -> AMQPResult<Frame> {

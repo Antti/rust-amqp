@@ -70,11 +70,11 @@ impl <'a> Session <'a> {
         let vhost = url.serialize_path().unwrap_or(default.vhost.to_string());
         let host  = url.domain().unwrap_or(default.host);
         let port = url.port().unwrap_or(default.port);
-        let login = url.username().and_then(|username| match username.as_slice(){ "" => None, _ => Some(username)} ).unwrap_or(default.login);
+        let login = url.username().and_then(|username| match &username[] { "" => None, _ => Some(username)} ).unwrap_or(default.login);
         let password = url.password().unwrap_or(default.password);
         let opts = Options { host: host, port: port,
          login: login, password: password,
-         vhost: vhost.as_slice(), ..Default::default()};
+         vhost: &vhost[], ..Default::default()};
         Session::new(opts)
     }
 
@@ -247,7 +247,7 @@ fn split_content_into_frames(content: Vec<u8>, frame_limit: usize) -> Vec<Vec<u8
     let mut current_pos = 0;
     while current_pos < content.len() {
         let new_pos = current_pos + cmp::min(content.len() - current_pos, frame_limit);
-        content_frames.push(content.slice(current_pos, new_pos).to_vec());
+        content_frames.push(content[current_pos .. new_pos].to_vec());
         current_pos = new_pos;
     }
     content_frames

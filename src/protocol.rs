@@ -30,7 +30,7 @@ impl MethodFrame {
         let mut writer = vec!();
         writer.write_be_u16(self.class_id).unwrap();
         writer.write_be_u16(self.method_id).unwrap();
-        writer.write(self.arguments.as_slice()).unwrap();
+        writer.write(&self.arguments[]).unwrap();
         writer
     }
 
@@ -39,7 +39,7 @@ impl MethodFrame {
         if frame.frame_type != FrameType::METHOD {
             panic!("Not a method frame");
         }
-        let reader = &mut frame.payload.as_slice();
+        let reader = &mut &frame.payload[];
         let class_id = reader.read_be_u16().unwrap();
         let method_id = reader.read_be_u16().unwrap();
         let arguments = reader.read_to_end().unwrap();
@@ -160,17 +160,17 @@ pub mod connection {
                 (10, 10) => {},
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
-            let reader = &mut method_frame.arguments.as_slice();
+            let reader = &mut &method_frame.arguments[];
             let version_major = try!(reader.read_byte());
             let version_minor = try!(reader.read_byte());
             let server_properties = try!(decode_table(reader));
             let mechanisms = {
           let size = try!(reader.read_be_u32()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
       };
             let locales = {
           let size = try!(reader.read_be_u32()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
       };
             Ok(Start { version_major: version_major, version_minor: version_minor, server_properties: server_properties, mechanisms: mechanisms, locales: locales })
           }
@@ -227,19 +227,19 @@ pub mod connection {
                 (10, 11) => {},
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
-            let reader = &mut method_frame.arguments.as_slice();
+            let reader = &mut &method_frame.arguments[];
             let client_properties = try!(decode_table(reader));
             let mechanism = {
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      };
             let response = {
           let size = try!(reader.read_be_u32()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
       };
             let locale = {
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      };
             Ok(StartOk { client_properties: client_properties, mechanism: mechanism, response: response, locale: locale })
           }
@@ -292,10 +292,10 @@ pub mod connection {
                 (10, 20) => {},
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
-            let reader = &mut method_frame.arguments.as_slice();
+            let reader = &mut &method_frame.arguments[];
             let challenge = {
           let size = try!(reader.read_be_u32()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
       };
             Ok(Secure { challenge: challenge })
           }
@@ -333,10 +333,10 @@ pub mod connection {
                 (10, 21) => {},
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
-            let reader = &mut method_frame.arguments.as_slice();
+            let reader = &mut &method_frame.arguments[];
             let response = {
           let size = try!(reader.read_be_u32()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
       };
             Ok(SecureOk { response: response })
           }
@@ -376,7 +376,7 @@ pub mod connection {
                 (10, 30) => {},
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
-            let reader = &mut method_frame.arguments.as_slice();
+            let reader = &mut &method_frame.arguments[];
             let channel_max = try!(reader.read_be_u16());
             let frame_max = try!(reader.read_be_u32());
             let heartbeat = try!(reader.read_be_u16());
@@ -428,7 +428,7 @@ pub mod connection {
                 (10, 31) => {},
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
-            let reader = &mut method_frame.arguments.as_slice();
+            let reader = &mut &method_frame.arguments[];
             let channel_max = try!(reader.read_be_u16());
             let frame_max = try!(reader.read_be_u32());
             let heartbeat = try!(reader.read_be_u16());
@@ -480,14 +480,14 @@ pub mod connection {
                 (10, 40) => {},
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
-            let reader = &mut method_frame.arguments.as_slice();
+            let reader = &mut &method_frame.arguments[];
             let virtual_host = {
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      };
             let capabilities = {
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      };
             let byte = try!(reader.read_byte());
             let bits = Bitv::from_bytes(&[byte]);
@@ -503,7 +503,7 @@ pub mod connection {
     writer.write(self.capabilities.as_bytes()).unwrap();
             let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.insist);
-            writer.write(bits.to_bytes().as_slice()).unwrap();
+            writer.write(&bits.to_bytes()[]).unwrap();
             writer
         }
     }
@@ -542,10 +542,10 @@ pub mod connection {
                 (10, 41) => {},
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
-            let reader = &mut method_frame.arguments.as_slice();
+            let reader = &mut &method_frame.arguments[];
             let known_hosts = {
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      };
             Ok(OpenOk { known_hosts: known_hosts })
           }
@@ -593,11 +593,11 @@ pub mod connection {
                 (10, 50) => {},
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
-            let reader = &mut method_frame.arguments.as_slice();
+            let reader = &mut &method_frame.arguments[];
             let reply_code = try!(reader.read_be_u16());
             let reply_text = {
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      };
             let class_id = try!(reader.read_be_u16());
             let method_id = try!(reader.read_be_u16());
@@ -681,10 +681,10 @@ pub mod connection {
                 (10, 60) => {},
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
-            let reader = &mut method_frame.arguments.as_slice();
+            let reader = &mut &method_frame.arguments[];
             let reason = {
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      };
             Ok(Blocked { reason: reason })
           }
@@ -775,10 +775,10 @@ pub mod channel {
                 (20, 10) => {},
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
-            let reader = &mut method_frame.arguments.as_slice();
+            let reader = &mut &method_frame.arguments[];
             let out_of_band = {
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      };
             Ok(Open { out_of_band: out_of_band })
           }
@@ -823,10 +823,10 @@ pub mod channel {
                 (20, 11) => {},
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
-            let reader = &mut method_frame.arguments.as_slice();
+            let reader = &mut &method_frame.arguments[];
             let channel_id = {
           let size = try!(reader.read_be_u32()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
       };
             Ok(OpenOk { channel_id: channel_id })
           }
@@ -871,7 +871,7 @@ pub mod channel {
                 (20, 20) => {},
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
-            let reader = &mut method_frame.arguments.as_slice();
+            let reader = &mut &method_frame.arguments[];
             let byte = try!(reader.read_byte());
             let bits = Bitv::from_bytes(&[byte]);
             let active = bits.get(7).unwrap();
@@ -882,7 +882,7 @@ pub mod channel {
             let mut writer = vec!();
             let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.active);
-            writer.write(bits.to_bytes().as_slice()).unwrap();
+            writer.write(&bits.to_bytes()[]).unwrap();
             writer
         }
     }
@@ -912,7 +912,7 @@ pub mod channel {
                 (20, 21) => {},
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
-            let reader = &mut method_frame.arguments.as_slice();
+            let reader = &mut &method_frame.arguments[];
             let byte = try!(reader.read_byte());
             let bits = Bitv::from_bytes(&[byte]);
             let active = bits.get(7).unwrap();
@@ -923,7 +923,7 @@ pub mod channel {
             let mut writer = vec!();
             let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.active);
-            writer.write(bits.to_bytes().as_slice()).unwrap();
+            writer.write(&bits.to_bytes()[]).unwrap();
             writer
         }
     }
@@ -956,11 +956,11 @@ pub mod channel {
                 (20, 40) => {},
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
-            let reader = &mut method_frame.arguments.as_slice();
+            let reader = &mut &method_frame.arguments[];
             let reply_code = try!(reader.read_be_u16());
             let reply_text = {
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      };
             let class_id = try!(reader.read_be_u16());
             let method_id = try!(reader.read_be_u16());
@@ -1064,10 +1064,10 @@ pub mod access {
                 (30, 10) => {},
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
-            let reader = &mut method_frame.arguments.as_slice();
+            let reader = &mut &method_frame.arguments[];
             let realm = {
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      };
             let byte = try!(reader.read_byte());
             let bits = Bitv::from_bytes(&[byte]);
@@ -1089,7 +1089,7 @@ pub mod access {
             bits.set(5, self.active);
             bits.set(4, self.write);
             bits.set(3, self.read);
-            writer.write(bits.to_bytes().as_slice()).unwrap();
+            writer.write(&bits.to_bytes()[]).unwrap();
             writer
         }
     }
@@ -1131,7 +1131,7 @@ pub mod access {
                 (30, 11) => {},
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
-            let reader = &mut method_frame.arguments.as_slice();
+            let reader = &mut &method_frame.arguments[];
             let ticket = try!(reader.read_be_u16());
             Ok(RequestOk { ticket: ticket })
           }
@@ -1198,15 +1198,15 @@ pub mod exchange {
                 (40, 10) => {},
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
-            let reader = &mut method_frame.arguments.as_slice();
+            let reader = &mut &method_frame.arguments[];
             let ticket = try!(reader.read_be_u16());
             let exchange = {
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      };
             let _type = {
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      };
             let byte = try!(reader.read_byte());
             let bits = Bitv::from_bytes(&[byte]);
@@ -1232,7 +1232,7 @@ pub mod exchange {
             bits.set(5, self.auto_delete);
             bits.set(4, self.internal);
             bits.set(3, self.nowait);
-            writer.write(bits.to_bytes().as_slice()).unwrap();
+            writer.write(&bits.to_bytes()[]).unwrap();
             encode_table(&mut writer, &self.arguments).unwrap();
             writer
         }
@@ -1312,11 +1312,11 @@ pub mod exchange {
                 (40, 20) => {},
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
-            let reader = &mut method_frame.arguments.as_slice();
+            let reader = &mut &method_frame.arguments[];
             let ticket = try!(reader.read_be_u16());
             let exchange = {
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      };
             let byte = try!(reader.read_byte());
             let bits = Bitv::from_bytes(&[byte]);
@@ -1333,7 +1333,7 @@ pub mod exchange {
             let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.if_unused);
             bits.set(6, self.nowait);
-            writer.write(bits.to_bytes().as_slice()).unwrap();
+            writer.write(&bits.to_bytes()[]).unwrap();
             writer
         }
     }
@@ -1409,19 +1409,19 @@ pub mod exchange {
                 (40, 30) => {},
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
-            let reader = &mut method_frame.arguments.as_slice();
+            let reader = &mut &method_frame.arguments[];
             let ticket = try!(reader.read_be_u16());
             let destination = {
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      };
             let source = {
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      };
             let routing_key = {
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      };
             let byte = try!(reader.read_byte());
             let bits = Bitv::from_bytes(&[byte]);
@@ -1441,7 +1441,7 @@ pub mod exchange {
     writer.write(self.routing_key.as_bytes()).unwrap();
             let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.nowait);
-            writer.write(bits.to_bytes().as_slice()).unwrap();
+            writer.write(&bits.to_bytes()[]).unwrap();
             encode_table(&mut writer, &self.arguments).unwrap();
             writer
         }
@@ -1520,19 +1520,19 @@ pub mod exchange {
                 (40, 40) => {},
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
-            let reader = &mut method_frame.arguments.as_slice();
+            let reader = &mut &method_frame.arguments[];
             let ticket = try!(reader.read_be_u16());
             let destination = {
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      };
             let source = {
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      };
             let routing_key = {
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      };
             let byte = try!(reader.read_byte());
             let bits = Bitv::from_bytes(&[byte]);
@@ -1552,7 +1552,7 @@ pub mod exchange {
     writer.write(self.routing_key.as_bytes()).unwrap();
             let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.nowait);
-            writer.write(bits.to_bytes().as_slice()).unwrap();
+            writer.write(&bits.to_bytes()[]).unwrap();
             encode_table(&mut writer, &self.arguments).unwrap();
             writer
         }
@@ -1648,11 +1648,11 @@ pub mod queue {
                 (50, 10) => {},
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
-            let reader = &mut method_frame.arguments.as_slice();
+            let reader = &mut &method_frame.arguments[];
             let ticket = try!(reader.read_be_u16());
             let queue = {
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      };
             let byte = try!(reader.read_byte());
             let bits = Bitv::from_bytes(&[byte]);
@@ -1676,7 +1676,7 @@ pub mod queue {
             bits.set(5, self.exclusive);
             bits.set(4, self.auto_delete);
             bits.set(3, self.nowait);
-            writer.write(bits.to_bytes().as_slice()).unwrap();
+            writer.write(&bits.to_bytes()[]).unwrap();
             encode_table(&mut writer, &self.arguments).unwrap();
             writer
         }
@@ -1723,10 +1723,10 @@ pub mod queue {
                 (50, 11) => {},
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
-            let reader = &mut method_frame.arguments.as_slice();
+            let reader = &mut &method_frame.arguments[];
             let queue = {
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      };
             let message_count = try!(reader.read_be_u32());
             let consumer_count = try!(reader.read_be_u32());
@@ -1773,19 +1773,19 @@ pub mod queue {
                 (50, 20) => {},
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
-            let reader = &mut method_frame.arguments.as_slice();
+            let reader = &mut &method_frame.arguments[];
             let ticket = try!(reader.read_be_u16());
             let queue = {
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      };
             let exchange = {
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      };
             let routing_key = {
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      };
             let byte = try!(reader.read_byte());
             let bits = Bitv::from_bytes(&[byte]);
@@ -1805,7 +1805,7 @@ pub mod queue {
     writer.write(self.routing_key.as_bytes()).unwrap();
             let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.nowait);
-            writer.write(bits.to_bytes().as_slice()).unwrap();
+            writer.write(&bits.to_bytes()[]).unwrap();
             encode_table(&mut writer, &self.arguments).unwrap();
             writer
         }
@@ -1881,11 +1881,11 @@ pub mod queue {
                 (50, 30) => {},
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
-            let reader = &mut method_frame.arguments.as_slice();
+            let reader = &mut &method_frame.arguments[];
             let ticket = try!(reader.read_be_u16());
             let queue = {
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      };
             let byte = try!(reader.read_byte());
             let bits = Bitv::from_bytes(&[byte]);
@@ -1900,7 +1900,7 @@ pub mod queue {
     writer.write(self.queue.as_bytes()).unwrap();
             let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.nowait);
-            writer.write(bits.to_bytes().as_slice()).unwrap();
+            writer.write(&bits.to_bytes()[]).unwrap();
             writer
         }
     }
@@ -1939,7 +1939,7 @@ pub mod queue {
                 (50, 31) => {},
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
-            let reader = &mut method_frame.arguments.as_slice();
+            let reader = &mut &method_frame.arguments[];
             let message_count = try!(reader.read_be_u32());
             Ok(PurgeOk { message_count: message_count })
           }
@@ -1980,11 +1980,11 @@ pub mod queue {
                 (50, 40) => {},
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
-            let reader = &mut method_frame.arguments.as_slice();
+            let reader = &mut &method_frame.arguments[];
             let ticket = try!(reader.read_be_u16());
             let queue = {
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      };
             let byte = try!(reader.read_byte());
             let bits = Bitv::from_bytes(&[byte]);
@@ -2003,7 +2003,7 @@ pub mod queue {
             bits.set(7, self.if_unused);
             bits.set(6, self.if_empty);
             bits.set(5, self.nowait);
-            writer.write(bits.to_bytes().as_slice()).unwrap();
+            writer.write(&bits.to_bytes()[]).unwrap();
             writer
         }
     }
@@ -2044,7 +2044,7 @@ pub mod queue {
                 (50, 41) => {},
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
-            let reader = &mut method_frame.arguments.as_slice();
+            let reader = &mut &method_frame.arguments[];
             let message_count = try!(reader.read_be_u32());
             Ok(DeleteOk { message_count: message_count })
           }
@@ -2085,19 +2085,19 @@ pub mod queue {
                 (50, 50) => {},
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
-            let reader = &mut method_frame.arguments.as_slice();
+            let reader = &mut &method_frame.arguments[];
             let ticket = try!(reader.read_be_u16());
             let queue = {
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      };
             let exchange = {
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      };
             let routing_key = {
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      };
             let arguments = try!(decode_table(reader));
             Ok(Unbind { ticket: ticket, queue: queue, exchange: exchange, routing_key: routing_key, arguments: arguments })
@@ -2195,13 +2195,13 @@ pub mod basic {
 
     impl BasicProperties {
         pub fn decode(content_header_frame: ContentHeaderFrame) -> AMQPResult<BasicProperties> {
-            let reader = &mut content_header_frame.properties.as_slice();
+            let reader = &mut &content_header_frame.properties[];
             let properties_flags = Bitv::from_bytes(&[((content_header_frame.properties_flags >> 8) & 0xff) as u8,
                 (content_header_frame.properties_flags & 0xff) as u8]);
             let content_type = if properties_flags.get(0).unwrap() {
                 Some({
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      })
             } else {
                 None
@@ -2209,7 +2209,7 @@ pub mod basic {
             let content_encoding = if properties_flags.get(1).unwrap() {
                 Some({
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      })
             } else {
                 None
@@ -2232,7 +2232,7 @@ pub mod basic {
             let correlation_id = if properties_flags.get(5).unwrap() {
                 Some({
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      })
             } else {
                 None
@@ -2240,7 +2240,7 @@ pub mod basic {
             let reply_to = if properties_flags.get(6).unwrap() {
                 Some({
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      })
             } else {
                 None
@@ -2248,7 +2248,7 @@ pub mod basic {
             let expiration = if properties_flags.get(7).unwrap() {
                 Some({
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      })
             } else {
                 None
@@ -2256,7 +2256,7 @@ pub mod basic {
             let message_id = if properties_flags.get(8).unwrap() {
                 Some({
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      })
             } else {
                 None
@@ -2269,7 +2269,7 @@ pub mod basic {
             let _type = if properties_flags.get(10).unwrap() {
                 Some({
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      })
             } else {
                 None
@@ -2277,7 +2277,7 @@ pub mod basic {
             let user_id = if properties_flags.get(11).unwrap() {
                 Some({
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      })
             } else {
                 None
@@ -2285,7 +2285,7 @@ pub mod basic {
             let app_id = if properties_flags.get(12).unwrap() {
                 Some({
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      })
             } else {
                 None
@@ -2293,7 +2293,7 @@ pub mod basic {
             let cluster_id = if properties_flags.get(13).unwrap() {
                 Some({
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      })
             } else {
                 None
@@ -2461,7 +2461,7 @@ pub mod basic {
                 (60, 10) => {},
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
-            let reader = &mut method_frame.arguments.as_slice();
+            let reader = &mut &method_frame.arguments[];
             let prefetch_size = try!(reader.read_be_u32());
             let prefetch_count = try!(reader.read_be_u16());
             let byte = try!(reader.read_byte());
@@ -2476,7 +2476,7 @@ pub mod basic {
             writer.write_be_u16(self.prefetch_count).unwrap();
             let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.global);
-            writer.write(bits.to_bytes().as_slice()).unwrap();
+            writer.write(&bits.to_bytes()[]).unwrap();
             writer
         }
     }
@@ -2553,15 +2553,15 @@ pub mod basic {
                 (60, 20) => {},
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
-            let reader = &mut method_frame.arguments.as_slice();
+            let reader = &mut &method_frame.arguments[];
             let ticket = try!(reader.read_be_u16());
             let queue = {
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      };
             let consumer_tag = {
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      };
             let byte = try!(reader.read_byte());
             let bits = Bitv::from_bytes(&[byte]);
@@ -2585,7 +2585,7 @@ pub mod basic {
             bits.set(6, self.no_ack);
             bits.set(5, self.exclusive);
             bits.set(4, self.nowait);
-            writer.write(bits.to_bytes().as_slice()).unwrap();
+            writer.write(&bits.to_bytes()[]).unwrap();
             encode_table(&mut writer, &self.arguments).unwrap();
             writer
         }
@@ -2630,10 +2630,10 @@ pub mod basic {
                 (60, 21) => {},
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
-            let reader = &mut method_frame.arguments.as_slice();
+            let reader = &mut &method_frame.arguments[];
             let consumer_tag = {
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      };
             Ok(ConsumeOk { consumer_tag: consumer_tag })
           }
@@ -2672,10 +2672,10 @@ pub mod basic {
                 (60, 30) => {},
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
-            let reader = &mut method_frame.arguments.as_slice();
+            let reader = &mut &method_frame.arguments[];
             let consumer_tag = {
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      };
             let byte = try!(reader.read_byte());
             let bits = Bitv::from_bytes(&[byte]);
@@ -2689,7 +2689,7 @@ pub mod basic {
     writer.write(self.consumer_tag.as_bytes()).unwrap();
             let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.nowait);
-            writer.write(bits.to_bytes().as_slice()).unwrap();
+            writer.write(&bits.to_bytes()[]).unwrap();
             writer
         }
     }
@@ -2719,10 +2719,10 @@ pub mod basic {
                 (60, 31) => {},
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
-            let reader = &mut method_frame.arguments.as_slice();
+            let reader = &mut &method_frame.arguments[];
             let consumer_tag = {
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      };
             Ok(CancelOk { consumer_tag: consumer_tag })
           }
@@ -2764,15 +2764,15 @@ pub mod basic {
                 (60, 40) => {},
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
-            let reader = &mut method_frame.arguments.as_slice();
+            let reader = &mut &method_frame.arguments[];
             let ticket = try!(reader.read_be_u16());
             let exchange = {
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      };
             let routing_key = {
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      };
             let byte = try!(reader.read_byte());
             let bits = Bitv::from_bytes(&[byte]);
@@ -2791,7 +2791,7 @@ pub mod basic {
             let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.mandatory);
             bits.set(6, self.immediate);
-            writer.write(bits.to_bytes().as_slice()).unwrap();
+            writer.write(&bits.to_bytes()[]).unwrap();
             writer
         }
     }
@@ -2835,19 +2835,19 @@ pub mod basic {
                 (60, 50) => {},
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
-            let reader = &mut method_frame.arguments.as_slice();
+            let reader = &mut &method_frame.arguments[];
             let reply_code = try!(reader.read_be_u16());
             let reply_text = {
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      };
             let exchange = {
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      };
             let routing_key = {
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      };
             Ok(Return { reply_code: reply_code, reply_text: reply_text, exchange: exchange, routing_key: routing_key })
           }
@@ -2904,10 +2904,10 @@ pub mod basic {
                 (60, 60) => {},
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
-            let reader = &mut method_frame.arguments.as_slice();
+            let reader = &mut &method_frame.arguments[];
             let consumer_tag = {
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      };
             let delivery_tag = try!(reader.read_be_u64());
             let byte = try!(reader.read_byte());
@@ -2915,11 +2915,11 @@ pub mod basic {
             let redelivered = bits.get(7).unwrap();
             let exchange = {
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      };
             let routing_key = {
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      };
             Ok(Deliver { consumer_tag: consumer_tag, delivery_tag: delivery_tag, redelivered: redelivered, exchange: exchange, routing_key: routing_key })
           }
@@ -2931,7 +2931,7 @@ pub mod basic {
             writer.write_be_u64(self.delivery_tag).unwrap();
             let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.redelivered);
-            writer.write(bits.to_bytes().as_slice()).unwrap();
+            writer.write(&bits.to_bytes()[]).unwrap();
             writer.write_u8(self.exchange.len() as u8).unwrap();
     writer.write(self.exchange.as_bytes()).unwrap();
             writer.write_u8(self.routing_key.len() as u8).unwrap();
@@ -2967,11 +2967,11 @@ pub mod basic {
                 (60, 70) => {},
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
-            let reader = &mut method_frame.arguments.as_slice();
+            let reader = &mut &method_frame.arguments[];
             let ticket = try!(reader.read_be_u16());
             let queue = {
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      };
             let byte = try!(reader.read_byte());
             let bits = Bitv::from_bytes(&[byte]);
@@ -2986,7 +2986,7 @@ pub mod basic {
     writer.write(self.queue.as_bytes()).unwrap();
             let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.no_ack);
-            writer.write(bits.to_bytes().as_slice()).unwrap();
+            writer.write(&bits.to_bytes()[]).unwrap();
             writer
         }
     }
@@ -3029,18 +3029,18 @@ pub mod basic {
                 (60, 71) => {},
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
-            let reader = &mut method_frame.arguments.as_slice();
+            let reader = &mut &method_frame.arguments[];
             let delivery_tag = try!(reader.read_be_u64());
             let byte = try!(reader.read_byte());
             let bits = Bitv::from_bytes(&[byte]);
             let redelivered = bits.get(7).unwrap();
             let exchange = {
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      };
             let routing_key = {
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      };
             let message_count = try!(reader.read_be_u32());
             Ok(GetOk { delivery_tag: delivery_tag, redelivered: redelivered, exchange: exchange, routing_key: routing_key, message_count: message_count })
@@ -3051,7 +3051,7 @@ pub mod basic {
             writer.write_be_u64(self.delivery_tag).unwrap();
             let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.redelivered);
-            writer.write(bits.to_bytes().as_slice()).unwrap();
+            writer.write(&bits.to_bytes()[]).unwrap();
             writer.write_u8(self.exchange.len() as u8).unwrap();
     writer.write(self.exchange.as_bytes()).unwrap();
             writer.write_u8(self.routing_key.len() as u8).unwrap();
@@ -3086,10 +3086,10 @@ pub mod basic {
                 (60, 72) => {},
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
-            let reader = &mut method_frame.arguments.as_slice();
+            let reader = &mut &method_frame.arguments[];
             let cluster_id = {
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
      };
             Ok(GetEmpty { cluster_id: cluster_id })
           }
@@ -3135,7 +3135,7 @@ pub mod basic {
                 (60, 80) => {},
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
-            let reader = &mut method_frame.arguments.as_slice();
+            let reader = &mut &method_frame.arguments[];
             let delivery_tag = try!(reader.read_be_u64());
             let byte = try!(reader.read_byte());
             let bits = Bitv::from_bytes(&[byte]);
@@ -3148,7 +3148,7 @@ pub mod basic {
             writer.write_be_u64(self.delivery_tag).unwrap();
             let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.multiple);
-            writer.write(bits.to_bytes().as_slice()).unwrap();
+            writer.write(&bits.to_bytes()[]).unwrap();
             writer
         }
     }
@@ -3187,7 +3187,7 @@ pub mod basic {
                 (60, 90) => {},
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
-            let reader = &mut method_frame.arguments.as_slice();
+            let reader = &mut &method_frame.arguments[];
             let delivery_tag = try!(reader.read_be_u64());
             let byte = try!(reader.read_byte());
             let bits = Bitv::from_bytes(&[byte]);
@@ -3200,7 +3200,7 @@ pub mod basic {
             writer.write_be_u64(self.delivery_tag).unwrap();
             let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.requeue);
-            writer.write(bits.to_bytes().as_slice()).unwrap();
+            writer.write(&bits.to_bytes()[]).unwrap();
             writer
         }
     }
@@ -3238,7 +3238,7 @@ pub mod basic {
                 (60, 100) => {},
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
-            let reader = &mut method_frame.arguments.as_slice();
+            let reader = &mut &method_frame.arguments[];
             let byte = try!(reader.read_byte());
             let bits = Bitv::from_bytes(&[byte]);
             let requeue = bits.get(7).unwrap();
@@ -3249,7 +3249,7 @@ pub mod basic {
             let mut writer = vec!();
             let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.requeue);
-            writer.write(bits.to_bytes().as_slice()).unwrap();
+            writer.write(&bits.to_bytes()[]).unwrap();
             writer
         }
     }
@@ -3279,7 +3279,7 @@ pub mod basic {
                 (60, 110) => {},
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
-            let reader = &mut method_frame.arguments.as_slice();
+            let reader = &mut &method_frame.arguments[];
             let byte = try!(reader.read_byte());
             let bits = Bitv::from_bytes(&[byte]);
             let requeue = bits.get(7).unwrap();
@@ -3290,7 +3290,7 @@ pub mod basic {
             let mut writer = vec!();
             let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.requeue);
-            writer.write(bits.to_bytes().as_slice()).unwrap();
+            writer.write(&bits.to_bytes()[]).unwrap();
             writer
         }
     }
@@ -3353,7 +3353,7 @@ pub mod basic {
                 (60, 120) => {},
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
-            let reader = &mut method_frame.arguments.as_slice();
+            let reader = &mut &method_frame.arguments[];
             let delivery_tag = try!(reader.read_be_u64());
             let byte = try!(reader.read_byte());
             let bits = Bitv::from_bytes(&[byte]);
@@ -3368,7 +3368,7 @@ pub mod basic {
             let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.multiple);
             bits.set(6, self.requeue);
-            writer.write(bits.to_bytes().as_slice()).unwrap();
+            writer.write(&bits.to_bytes()[]).unwrap();
             writer
         }
     }
@@ -3623,7 +3623,7 @@ pub mod confirm {
                 (85, 10) => {},
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
-            let reader = &mut method_frame.arguments.as_slice();
+            let reader = &mut &method_frame.arguments[];
             let byte = try!(reader.read_byte());
             let bits = Bitv::from_bytes(&[byte]);
             let nowait = bits.get(7).unwrap();
@@ -3634,7 +3634,7 @@ pub mod confirm {
             let mut writer = vec!();
             let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.nowait);
-            writer.write(bits.to_bytes().as_slice()).unwrap();
+            writer.write(&bits.to_bytes()[]).unwrap();
             writer
         }
     }

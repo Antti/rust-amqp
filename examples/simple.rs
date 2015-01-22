@@ -29,7 +29,7 @@ fn main() {
     for get_result in channel.basic_get(queue_name, false) {
         println!("Headers: {:?}", get_result.headers);
         println!("Reply: {:?}", get_result.reply);
-        println!("Body: {:?}", String::from_utf8_lossy(get_result.body.as_slice()));
+        println!("Body: {:?}", String::from_utf8_lossy(&get_result.body[]));
         channel.basic_ack(get_result.reply.delivery_tag, false);
     }
 

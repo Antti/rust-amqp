@@ -2,7 +2,7 @@ use std::io::MemReader;
 use amqp_error::{AMQPResult, AMQPError};
 use std::num::FromPrimitive;
 
-#[derive(Show, Clone, Eq, PartialEq, FromPrimitive)]
+#[derive(Debug, Clone, Eq, PartialEq, FromPrimitive)]
 pub enum FrameType {
     METHOD = 1,
     HEADERS = 2,
@@ -12,7 +12,7 @@ pub enum FrameType {
 
 impl Copy for FrameType {}
 
-#[derive(Show, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Frame {
     pub frame_type: FrameType,
     pub channel: u16,
@@ -53,7 +53,7 @@ impl Frame {
     }
 }
 
-#[derive(Show, Clone)]
+#[derive(Debug, Clone)]
 pub struct ContentHeaderFrame {
     pub content_class: u16,
     pub weight: u16,
@@ -90,5 +90,5 @@ impl ContentHeaderFrame {
 #[test]
 fn test_encode_decode(){
     let frame = Frame{ frame_type: FrameType::METHOD, channel: 5, payload: vec!(1,2,3,4,5) };
-    assert_eq!(frame, Frame::decode(&mut MemReader::new(frame.encode())).unwrap());
+    assert_eq!(frame, Frame::decode(&mut frame.encode().as_slice()).ok().unwrap());
 }

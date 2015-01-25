@@ -119,7 +119,7 @@ impl <'a> Session <'a> {
 	    let frame = self.channel_zero.read(); //Start
         let method_frame = MethodFrame::decode(frame);
         let start : protocol::connection::Start = match method_frame.method_name(){
-            "connection.start" => protocol::Method::decode(method_frame).unwrap(),
+            "connection.start" => protocol::Method::decode(method_frame).ok().unwrap(),
             meth => panic!("Unexpected method frame: {:?}", meth) //In reality you would probably skip the frame and try to read another?
         };
         debug!("Received connection.start: {:?}", start);
@@ -172,7 +172,7 @@ impl <'a> Session <'a> {
     /// ```no_run
     /// use std::default::Default;
     /// use amqp::session::{Options, Session};
-    /// let mut session =  Session::new(Options { .. Default::default() }).unwrap();
+    /// let mut session =  Session::new(Options { .. Default::default() }).ok().unwrap();
     /// let channel = match session.open_channel(1){
     ///     Ok(channel) => channel,
     ///     Err(error) => panic!("Failed openning channel: {:?}", error)
@@ -190,7 +190,7 @@ impl <'a> Session <'a> {
     pub fn close(&mut self, reply_code: u16, reply_text: String) {
         debug!("Closing session: reply_code: {}, reply_text: {}", reply_code, reply_text);
         let close = protocol::connection::Close {reply_code: reply_code, reply_text: reply_text, class_id: 0, method_id: 0};
-        let _ : protocol::connection::CloseOk = self.channel_zero.rpc(&close, "connection.close-ok").unwrap();
+        let _ : protocol::connection::CloseOk = self.channel_zero.rpc(&close, "connection.close-ok").ok().unwrap();
         self.connection.close();
     }
 
@@ -224,10 +224,10 @@ impl <'a> Session <'a> {
                         FrameType::BODY => {
                             //TODO: Check if need to include frame header + end octet into calculation. (9 bytes extra)
                             for content_frame in split_content_into_frames(frame.payload, 13107).into_iter() {
-                                connection.write(Frame { frame_type: frame.frame_type, channel: frame.channel, payload: content_frame}).unwrap();
+                                connection.write(Frame { frame_type: frame.frame_type, channel: frame.channel, payload: content_frame}).ok().unwrap();
                             }
                         },
-                        _ => {connection.write(frame).unwrap();}
+                        _ => {connection.write(frame).ok().unwrap();}
                     }
                 },
                 Err(_) => break //Notify session somehow... (but it's probably dead already)

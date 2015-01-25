@@ -25,7 +25,7 @@ pub trait Basic <'a> {
     fn basic_reject(&self, delivery_tag: u64, requeue: bool);
 }
 
-#[derive(Show)]
+#[derive(Debug)]
 pub struct GetResult {
     pub reply: GetOk,
     pub headers: BasicProperties,
@@ -39,10 +39,10 @@ impl <'a> Iterator for GetIterator<'a > {
         let method_frame = self.channel.raw_rpc(get);
         let res = match method_frame.method_name() {
             "basic.get-ok" => {
-                let reply: basic::GetOk = Method::decode(method_frame).unwrap();
-                let headers = self.channel.read_headers().unwrap();
-                let body = self.channel.read_body(headers.body_size).unwrap();
-                let properties = BasicProperties::decode(headers).unwrap();
+                let reply: basic::GetOk = Method::decode(method_frame).ok().unwrap();
+                let headers = self.channel.read_headers().ok().unwrap();
+                let body = self.channel.read_body(headers.body_size).ok().unwrap();
+                let properties = BasicProperties::decode(headers).ok().unwrap();
                 Ok((reply, properties, body))
             }
             "basic.get-empty" => Err(AMQPError::QueueEmpty),
@@ -67,7 +67,7 @@ impl <'a> Basic<'a> for Channel {
             ticket: 0, queue: queue.to_string(), consumer_tag: consumer_tag.to_string(),
             no_local: no_local, no_ack: no_ack, exclusive: exclusive, nowait: nowait, arguments: arguments
         };
-        let reply: ConsumeOk = self.rpc(consume, "basic.consume-ok").unwrap();
+        let reply: ConsumeOk = self.rpc(consume, "basic.consume-ok").ok().unwrap();
         self.consumers.insert(reply.consumer_tag.clone(), callback);
         reply.consumer_tag
     }
@@ -81,10 +81,10 @@ impl <'a> Basic<'a> for Channel {
                         let method_frame = MethodFrame::decode(frame);
                         match method_frame.method_name() {
                             "basic.deliver" => {
-                                let deliver_method : Deliver = Method::decode(method_frame).unwrap();
-                                let headers = self.read_headers().unwrap();
-                                let body = self.read_body(headers.body_size).unwrap();
-                                let properties = BasicProperties::decode(headers).unwrap();
+                                let deliver_method : Deliver = Method::decode(method_frame).ok().unwrap();
+                                let headers = self.read_headers().ok().unwrap();
+                                let body = self.read_body(headers.body_size).ok().unwrap();
+                                let properties = BasicProperties::decode(headers).ok().unwrap();
                                 match self.consumers.get(&deliver_method.consumer_tag) {
                                     Some(callback) => (*callback)(self, deliver_method, properties, body),
                                     None => {error!("Received deliver frame for the unknown consumer: {}", deliver_method.consumer_tag)}

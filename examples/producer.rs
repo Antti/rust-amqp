@@ -9,8 +9,8 @@ use std::default::Default;
 
 
 fn main() {
-    let mut session = Session::new(Options{.. Default::default()}).unwrap();
-    let channel = session.open_channel(1).unwrap();
+    let mut session = Session::new(Options{.. Default::default()}).ok().unwrap();
+    let channel = session.open_channel(1).ok().unwrap();
     println!("Openned channel: {:?}", channel.id);
 
     let queue_name = "test_queue";

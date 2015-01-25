@@ -55,7 +55,7 @@ fn read_table_entry(reader: &mut &[u8]) -> AMQPResult<TableEntry> {
         },
         b'A' => {
             let number = try!(reader.read_be_u32());
-            let arr = range(0,number).map(|_| read_table_entry(reader).unwrap()).collect(); //can't use try because of the closure
+            let arr = range(0,number).map(|_| read_table_entry(reader).ok().unwrap()).collect(); //can't use try because of the closure
             TableEntry::FieldArray(arr)
         },
         b'T' => TableEntry::Timestamp(try!(reader.read_be_u64())),

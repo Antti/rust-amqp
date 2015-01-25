@@ -14,7 +14,7 @@ pub trait Method {
 }
 
 
-#[derive(Show, Clone)]
+#[derive(Debug, Clone)]
 pub struct MethodFrame {
     pub class_id: u16,
     pub method_id: u16,
@@ -133,7 +133,7 @@ pub mod connection {
 
 
     // Method 10:start
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct Start {
         pub version_major: u8,
         pub version_minor: u8,
@@ -179,7 +179,7 @@ pub mod connection {
             let mut writer = vec!();
             writer.write_u8(self.version_major).unwrap();
             writer.write_u8(self.version_minor).unwrap();
-            encode_table(&mut writer, &self.server_properties).unwrap();
+            encode_table(&mut writer, &self.server_properties).ok().unwrap();
             writer.write_be_u32(self.mechanisms.len() as u32).unwrap();
     writer.write(self.mechanisms.as_bytes()).unwrap();
             writer.write_be_u32(self.locales.len() as u32).unwrap();
@@ -201,7 +201,7 @@ pub mod connection {
     }
 
     // Method 11:start-ok
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct StartOk {
         pub client_properties: Table,
         pub mechanism: String,
@@ -246,7 +246,7 @@ pub mod connection {
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = vec!();
-            encode_table(&mut writer, &self.client_properties).unwrap();
+            encode_table(&mut writer, &self.client_properties).ok().unwrap();
             writer.write_u8(self.mechanism.len() as u8).unwrap();
     writer.write(self.mechanism.as_bytes()).unwrap();
             writer.write_be_u32(self.response.len() as u32).unwrap();
@@ -269,7 +269,7 @@ pub mod connection {
     }
 
     // Method 20:secure
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct Secure {
         pub challenge: String
     }
@@ -310,7 +310,7 @@ pub mod connection {
 
 
     // Method 21:secure-ok
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct SecureOk {
         pub response: String
     }
@@ -351,7 +351,7 @@ pub mod connection {
 
 
     // Method 30:tune
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct Tune {
         pub channel_max: u16,
         pub frame_max: u32,
@@ -403,7 +403,7 @@ pub mod connection {
     }
 
     // Method 31:tune-ok
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct TuneOk {
         pub channel_max: u16,
         pub frame_max: u32,
@@ -455,7 +455,7 @@ pub mod connection {
     }
 
     // Method 40:open
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct Open {
         pub virtual_host: String,
         pub capabilities: String,
@@ -519,7 +519,7 @@ pub mod connection {
     }
 
     // Method 41:open-ok
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct OpenOk {
         pub known_hosts: String
     }
@@ -567,7 +567,7 @@ pub mod connection {
     }
 
     // Method 50:close
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct Close {
         pub reply_code: u16,
         pub reply_text: String,
@@ -627,7 +627,7 @@ pub mod connection {
     }
 
     // Method 51:close-ok
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct CloseOk;
 
     impl Method for CloseOk {
@@ -658,7 +658,7 @@ pub mod connection {
 
 
     // Method 60:blocked
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct Blocked {
         pub reason: String
     }
@@ -706,7 +706,7 @@ pub mod connection {
     }
 
     // Method 61:unblocked
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct Unblocked;
 
     impl Method for Unblocked {
@@ -752,7 +752,7 @@ pub mod channel {
 
 
     // Method 10:open
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct Open {
         pub out_of_band: String
     }
@@ -800,7 +800,7 @@ pub mod channel {
     }
 
     // Method 11:open-ok
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct OpenOk {
         pub channel_id: String
     }
@@ -848,7 +848,7 @@ pub mod channel {
     }
 
     // Method 20:flow
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct Flow {
         pub active: bool
     }
@@ -889,7 +889,7 @@ pub mod channel {
 
 
     // Method 21:flow-ok
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct FlowOk {
         pub active: bool
     }
@@ -930,7 +930,7 @@ pub mod channel {
 
 
     // Method 40:close
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct Close {
         pub reply_code: u16,
         pub reply_text: String,
@@ -990,7 +990,7 @@ pub mod channel {
     }
 
     // Method 41:close-ok
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct CloseOk;
 
     impl Method for CloseOk {
@@ -1036,7 +1036,7 @@ pub mod access {
 
 
     // Method 10:request
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct Request {
         pub realm: String,
         pub exclusive: bool,
@@ -1108,7 +1108,7 @@ pub mod access {
     }
 
     // Method 11:request-ok
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct RequestOk {
         pub ticket: u16
     }
@@ -1167,7 +1167,7 @@ pub mod exchange {
 
 
     // Method 10:declare
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct Declare {
         pub ticket: u16,
         pub exchange: String,
@@ -1233,7 +1233,7 @@ pub mod exchange {
             bits.set(4, self.internal);
             bits.set(3, self.nowait);
             writer.write(&bits.to_bytes()[]).unwrap();
-            encode_table(&mut writer, &self.arguments).unwrap();
+            encode_table(&mut writer, &self.arguments).ok().unwrap();
             writer
         }
     }
@@ -1255,7 +1255,7 @@ pub mod exchange {
     }
 
     // Method 11:declare-ok
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct DeclareOk;
 
     impl Method for DeclareOk {
@@ -1286,7 +1286,7 @@ pub mod exchange {
 
 
     // Method 20:delete
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct Delete {
         pub ticket: u16,
         pub exchange: String,
@@ -1350,7 +1350,7 @@ pub mod exchange {
     }
 
     // Method 21:delete-ok
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct DeleteOk;
 
     impl Method for DeleteOk {
@@ -1381,7 +1381,7 @@ pub mod exchange {
 
 
     // Method 30:bind
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct Bind {
         pub ticket: u16,
         pub destination: String,
@@ -1442,7 +1442,7 @@ pub mod exchange {
             let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.nowait);
             writer.write(&bits.to_bytes()[]).unwrap();
-            encode_table(&mut writer, &self.arguments).unwrap();
+            encode_table(&mut writer, &self.arguments).ok().unwrap();
             writer
         }
     }
@@ -1461,7 +1461,7 @@ pub mod exchange {
     }
 
     // Method 31:bind-ok
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct BindOk;
 
     impl Method for BindOk {
@@ -1492,7 +1492,7 @@ pub mod exchange {
 
 
     // Method 40:unbind
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct Unbind {
         pub ticket: u16,
         pub destination: String,
@@ -1553,7 +1553,7 @@ pub mod exchange {
             let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.nowait);
             writer.write(&bits.to_bytes()[]).unwrap();
-            encode_table(&mut writer, &self.arguments).unwrap();
+            encode_table(&mut writer, &self.arguments).ok().unwrap();
             writer
         }
     }
@@ -1572,7 +1572,7 @@ pub mod exchange {
     }
 
     // Method 51:unbind-ok
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct UnbindOk;
 
     impl Method for UnbindOk {
@@ -1618,7 +1618,7 @@ pub mod queue {
 
 
     // Method 10:declare
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct Declare {
         pub ticket: u16,
         pub queue: String,
@@ -1677,7 +1677,7 @@ pub mod queue {
             bits.set(4, self.auto_delete);
             bits.set(3, self.nowait);
             writer.write(&bits.to_bytes()[]).unwrap();
-            encode_table(&mut writer, &self.arguments).unwrap();
+            encode_table(&mut writer, &self.arguments).ok().unwrap();
             writer
         }
     }
@@ -1698,7 +1698,7 @@ pub mod queue {
     }
 
     // Method 11:declare-ok
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct DeclareOk {
         pub queue: String,
         pub message_count: u32,
@@ -1745,7 +1745,7 @@ pub mod queue {
 
 
     // Method 20:bind
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct Bind {
         pub ticket: u16,
         pub queue: String,
@@ -1806,7 +1806,7 @@ pub mod queue {
             let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.nowait);
             writer.write(&bits.to_bytes()[]).unwrap();
-            encode_table(&mut writer, &self.arguments).unwrap();
+            encode_table(&mut writer, &self.arguments).ok().unwrap();
             writer
         }
     }
@@ -1825,7 +1825,7 @@ pub mod queue {
     }
 
     // Method 21:bind-ok
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct BindOk;
 
     impl Method for BindOk {
@@ -1856,7 +1856,7 @@ pub mod queue {
 
 
     // Method 30:purge
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct Purge {
         pub ticket: u16,
         pub queue: String,
@@ -1916,7 +1916,7 @@ pub mod queue {
     }
 
     // Method 31:purge-ok
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct PurgeOk {
         pub message_count: u32
     }
@@ -1953,7 +1953,7 @@ pub mod queue {
 
 
     // Method 40:delete
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct Delete {
         pub ticket: u16,
         pub queue: String,
@@ -2021,7 +2021,7 @@ pub mod queue {
     }
 
     // Method 41:delete-ok
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct DeleteOk {
         pub message_count: u32
     }
@@ -2058,7 +2058,7 @@ pub mod queue {
 
 
     // Method 50:unbind
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct Unbind {
         pub ticket: u16,
         pub queue: String,
@@ -2112,7 +2112,7 @@ pub mod queue {
     writer.write(self.exchange.as_bytes()).unwrap();
             writer.write_u8(self.routing_key.len() as u8).unwrap();
     writer.write(self.routing_key.as_bytes()).unwrap();
-            encode_table(&mut writer, &self.arguments).unwrap();
+            encode_table(&mut writer, &self.arguments).ok().unwrap();
             writer
         }
     }
@@ -2130,7 +2130,7 @@ pub mod queue {
     }
 
     // Method 51:unbind-ok
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct UnbindOk;
 
     impl Method for UnbindOk {
@@ -2175,7 +2175,7 @@ pub mod basic {
 
 
     //properties struct for basic
-    #[derive(Show, Default, Clone)]
+    #[derive(Debug, Default, Clone)]
     pub struct BasicProperties {
        pub content_type: Option<String>,
        pub content_encoding: Option<String>,
@@ -2322,7 +2322,7 @@ pub mod basic {
               match self.headers {
                   Some(prop) => {
                       let headers =  prop;
-                      encode_table(&mut writer, &headers).unwrap();
+                      encode_table(&mut writer, &headers).ok().unwrap();
                   }
                   None => {}
               };
@@ -2436,7 +2436,7 @@ pub mod basic {
     }
 
     // Method 10:qos
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct Qos {
         pub prefetch_size: u32,
         pub prefetch_count: u16,
@@ -2492,7 +2492,7 @@ pub mod basic {
     }
 
     // Method 11:qos-ok
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct QosOk;
 
     impl Method for QosOk {
@@ -2523,7 +2523,7 @@ pub mod basic {
 
 
     // Method 20:consume
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct Consume {
         pub ticket: u16,
         pub queue: String,
@@ -2586,7 +2586,7 @@ pub mod basic {
             bits.set(5, self.exclusive);
             bits.set(4, self.nowait);
             writer.write(&bits.to_bytes()[]).unwrap();
-            encode_table(&mut writer, &self.arguments).unwrap();
+            encode_table(&mut writer, &self.arguments).ok().unwrap();
             writer
         }
     }
@@ -2607,7 +2607,7 @@ pub mod basic {
     }
 
     // Method 21:consume-ok
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct ConsumeOk {
         pub consumer_tag: String
     }
@@ -2648,7 +2648,7 @@ pub mod basic {
 
 
     // Method 30:cancel
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct Cancel {
         pub consumer_tag: String,
         pub nowait: bool
@@ -2696,7 +2696,7 @@ pub mod basic {
 
 
     // Method 31:cancel-ok
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct CancelOk {
         pub consumer_tag: String
     }
@@ -2737,7 +2737,7 @@ pub mod basic {
 
 
     // Method 40:publish
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct Publish {
         pub ticket: u16,
         pub exchange: String,
@@ -2809,7 +2809,7 @@ pub mod basic {
     }
 
     // Method 50:return
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct Return {
         pub reply_code: u16,
         pub reply_text: String,
@@ -2877,7 +2877,7 @@ pub mod basic {
     }
 
     // Method 60:deliver
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct Deliver {
         pub consumer_tag: String,
         pub delivery_tag: u64,
@@ -2942,7 +2942,7 @@ pub mod basic {
 
 
     // Method 70:get
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct Get {
         pub ticket: u16,
         pub queue: String,
@@ -3002,7 +3002,7 @@ pub mod basic {
     }
 
     // Method 71:get-ok
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct GetOk {
         pub delivery_tag: u64,
         pub redelivered: bool,
@@ -3063,7 +3063,7 @@ pub mod basic {
 
 
     // Method 72:get-empty
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct GetEmpty {
         pub cluster_id: String
     }
@@ -3111,7 +3111,7 @@ pub mod basic {
     }
 
     // Method 80:ack
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct Ack {
         pub delivery_tag: u64,
         pub multiple: bool
@@ -3163,7 +3163,7 @@ pub mod basic {
     }
 
     // Method 90:reject
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct Reject {
         pub delivery_tag: u64,
         pub requeue: bool
@@ -3215,7 +3215,7 @@ pub mod basic {
     }
 
     // Method 100:recover-async
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct RecoverAsync {
         pub requeue: bool
     }
@@ -3256,7 +3256,7 @@ pub mod basic {
 
 
     // Method 110:recover
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct Recover {
         pub requeue: bool
     }
@@ -3297,7 +3297,7 @@ pub mod basic {
 
 
     // Method 111:recover-ok
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct RecoverOk;
 
     impl Method for RecoverOk {
@@ -3328,7 +3328,7 @@ pub mod basic {
 
 
     // Method 120:nack
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct Nack {
         pub delivery_tag: u64,
         pub multiple: bool,
@@ -3399,7 +3399,7 @@ pub mod tx {
 
 
     // Method 10:select
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct Select;
 
     impl Method for Select {
@@ -3430,7 +3430,7 @@ pub mod tx {
 
 
     // Method 11:select-ok
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct SelectOk;
 
     impl Method for SelectOk {
@@ -3461,7 +3461,7 @@ pub mod tx {
 
 
     // Method 20:commit
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct Commit;
 
     impl Method for Commit {
@@ -3492,7 +3492,7 @@ pub mod tx {
 
 
     // Method 21:commit-ok
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct CommitOk;
 
     impl Method for CommitOk {
@@ -3523,7 +3523,7 @@ pub mod tx {
 
 
     // Method 30:rollback
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct Rollback;
 
     impl Method for Rollback {
@@ -3554,7 +3554,7 @@ pub mod tx {
 
 
     // Method 31:rollback-ok
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct RollbackOk;
 
     impl Method for RollbackOk {
@@ -3600,7 +3600,7 @@ pub mod confirm {
 
 
     // Method 10:select
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct Select {
         pub nowait: bool
     }
@@ -3641,7 +3641,7 @@ pub mod confirm {
 
 
     // Method 11:select-ok
-    #[derive(Show)]
+    #[derive(Debug)]
     pub struct SelectOk;
 
     impl Method for SelectOk {

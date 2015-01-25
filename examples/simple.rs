@@ -18,8 +18,8 @@ fn consumer_function(channel: &Channel, deliver: protocol::basic::Deliver, heade
 }
 
 fn main() {
-    let mut session = Session::open_url("amqp://localhost/").unwrap();
-    let mut channel = session.open_channel(1).unwrap();
+    let mut session = Session::open_url("amqp://localhost/").ok().unwrap();
+    let mut channel = session.open_channel(1).ok().unwrap();
     println!("Openned channel: {}", channel.id);
 
     let queue_name = "test_queue";

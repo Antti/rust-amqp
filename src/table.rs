@@ -87,12 +87,12 @@ fn write_table_entry(writer: &mut Vec<u8>, table_entry: &TableEntry) -> AMQPResu
         // ShortString(str) => {
         //  try!(writer.write_u8(b's'));
         //  try!(writer.write_u8(str.len() as u8));
-        //  try!(writer.write(str.as_bytes()));
+        //  try!(writer.write_all(str.as_bytes()));
         // },
         &TableEntry::LongString(ref str) => {
             try!(writer.write_u8(b'S'));
             try!(writer.write_be_u32(str.len() as u32));
-            try!(writer.write(str.as_bytes()));
+            try!(writer.write_all(str.as_bytes()));
         },
         &TableEntry::FieldArray(ref arr) => {
             try!(writer.write_u8(b'A'));
@@ -131,10 +131,10 @@ pub fn encode_table(writer: &mut Writer, table: &Table) -> AMQPResult<()> {
     let mut tmp_buffer = vec!();
     for (field_name, table_entry) in table.iter() {
         try!(tmp_buffer.write_u8(field_name.len() as u8));
-        try!(tmp_buffer.write(field_name.as_bytes()));
+        try!(tmp_buffer.write_all(field_name.as_bytes()));
         try!(write_table_entry(&mut tmp_buffer, table_entry));
     }
     try!(writer.write_be_u32(tmp_buffer.len() as u32));
-    try!(writer.write(&tmp_buffer[]));
+    try!(writer.write_all(&tmp_buffer[]));
     Ok(())
 }

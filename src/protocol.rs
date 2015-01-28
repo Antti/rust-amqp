@@ -30,7 +30,7 @@ impl MethodFrame {
         let mut writer = vec!();
         writer.write_be_u16(self.class_id).unwrap();
         writer.write_be_u16(self.method_id).unwrap();
-        writer.write(&self.arguments[]).unwrap();
+        writer.write_all(&self.arguments[]).unwrap();
         writer
     }
 
@@ -181,9 +181,9 @@ pub mod connection {
             writer.write_u8(self.version_minor).unwrap();
             encode_table(&mut writer, &self.server_properties).ok().unwrap();
             writer.write_be_u32(self.mechanisms.len() as u32).unwrap();
-    writer.write(self.mechanisms.as_bytes()).unwrap();
+    writer.write_all(self.mechanisms.as_bytes()).unwrap();
             writer.write_be_u32(self.locales.len() as u32).unwrap();
-    writer.write(self.locales.as_bytes()).unwrap();
+    writer.write_all(self.locales.as_bytes()).unwrap();
             writer
         }
     }
@@ -248,11 +248,11 @@ pub mod connection {
             let mut writer = vec!();
             encode_table(&mut writer, &self.client_properties).ok().unwrap();
             writer.write_u8(self.mechanism.len() as u8).unwrap();
-    writer.write(self.mechanism.as_bytes()).unwrap();
+    writer.write_all(self.mechanism.as_bytes()).unwrap();
             writer.write_be_u32(self.response.len() as u32).unwrap();
-    writer.write(self.response.as_bytes()).unwrap();
+    writer.write_all(self.response.as_bytes()).unwrap();
             writer.write_u8(self.locale.len() as u8).unwrap();
-    writer.write(self.locale.as_bytes()).unwrap();
+    writer.write_all(self.locale.as_bytes()).unwrap();
             writer
         }
     }
@@ -303,7 +303,7 @@ pub mod connection {
         fn encode(&self) -> Vec<u8> {
             let mut writer = vec!();
             writer.write_be_u32(self.challenge.len() as u32).unwrap();
-    writer.write(self.challenge.as_bytes()).unwrap();
+    writer.write_all(self.challenge.as_bytes()).unwrap();
             writer
         }
     }
@@ -344,7 +344,7 @@ pub mod connection {
         fn encode(&self) -> Vec<u8> {
             let mut writer = vec!();
             writer.write_be_u32(self.response.len() as u32).unwrap();
-    writer.write(self.response.as_bytes()).unwrap();
+    writer.write_all(self.response.as_bytes()).unwrap();
             writer
         }
     }
@@ -498,12 +498,12 @@ pub mod connection {
         fn encode(&self) -> Vec<u8> {
             let mut writer = vec!();
             writer.write_u8(self.virtual_host.len() as u8).unwrap();
-    writer.write(self.virtual_host.as_bytes()).unwrap();
+    writer.write_all(self.virtual_host.as_bytes()).unwrap();
             writer.write_u8(self.capabilities.len() as u8).unwrap();
-    writer.write(self.capabilities.as_bytes()).unwrap();
+    writer.write_all(self.capabilities.as_bytes()).unwrap();
             let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.insist);
-            writer.write(&bits.to_bytes()[]).unwrap();
+            writer.write_all(&bits.to_bytes()[]).unwrap();
             writer
         }
     }
@@ -553,7 +553,7 @@ pub mod connection {
         fn encode(&self) -> Vec<u8> {
             let mut writer = vec!();
             writer.write_u8(self.known_hosts.len() as u8).unwrap();
-    writer.write(self.known_hosts.as_bytes()).unwrap();
+    writer.write_all(self.known_hosts.as_bytes()).unwrap();
             writer
         }
     }
@@ -608,7 +608,7 @@ pub mod connection {
             let mut writer = vec!();
             writer.write_be_u16(self.reply_code).unwrap();
             writer.write_u8(self.reply_text.len() as u8).unwrap();
-    writer.write(self.reply_text.as_bytes()).unwrap();
+    writer.write_all(self.reply_text.as_bytes()).unwrap();
             writer.write_be_u16(self.class_id).unwrap();
             writer.write_be_u16(self.method_id).unwrap();
             writer
@@ -692,7 +692,7 @@ pub mod connection {
         fn encode(&self) -> Vec<u8> {
             let mut writer = vec!();
             writer.write_u8(self.reason.len() as u8).unwrap();
-    writer.write(self.reason.as_bytes()).unwrap();
+    writer.write_all(self.reason.as_bytes()).unwrap();
             writer
         }
     }
@@ -786,7 +786,7 @@ pub mod channel {
         fn encode(&self) -> Vec<u8> {
             let mut writer = vec!();
             writer.write_u8(self.out_of_band.len() as u8).unwrap();
-    writer.write(self.out_of_band.as_bytes()).unwrap();
+    writer.write_all(self.out_of_band.as_bytes()).unwrap();
             writer
         }
     }
@@ -834,7 +834,7 @@ pub mod channel {
         fn encode(&self) -> Vec<u8> {
             let mut writer = vec!();
             writer.write_be_u32(self.channel_id.len() as u32).unwrap();
-    writer.write(self.channel_id.as_bytes()).unwrap();
+    writer.write_all(self.channel_id.as_bytes()).unwrap();
             writer
         }
     }
@@ -882,7 +882,7 @@ pub mod channel {
             let mut writer = vec!();
             let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.active);
-            writer.write(&bits.to_bytes()[]).unwrap();
+            writer.write_all(&bits.to_bytes()[]).unwrap();
             writer
         }
     }
@@ -923,7 +923,7 @@ pub mod channel {
             let mut writer = vec!();
             let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.active);
-            writer.write(&bits.to_bytes()[]).unwrap();
+            writer.write_all(&bits.to_bytes()[]).unwrap();
             writer
         }
     }
@@ -971,7 +971,7 @@ pub mod channel {
             let mut writer = vec!();
             writer.write_be_u16(self.reply_code).unwrap();
             writer.write_u8(self.reply_text.len() as u8).unwrap();
-    writer.write(self.reply_text.as_bytes()).unwrap();
+    writer.write_all(self.reply_text.as_bytes()).unwrap();
             writer.write_be_u16(self.class_id).unwrap();
             writer.write_be_u16(self.method_id).unwrap();
             writer
@@ -1082,14 +1082,14 @@ pub mod access {
         fn encode(&self) -> Vec<u8> {
             let mut writer = vec!();
             writer.write_u8(self.realm.len() as u8).unwrap();
-    writer.write(self.realm.as_bytes()).unwrap();
+    writer.write_all(self.realm.as_bytes()).unwrap();
             let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.exclusive);
             bits.set(6, self.passive);
             bits.set(5, self.active);
             bits.set(4, self.write);
             bits.set(3, self.read);
-            writer.write(&bits.to_bytes()[]).unwrap();
+            writer.write_all(&bits.to_bytes()[]).unwrap();
             writer
         }
     }
@@ -1223,16 +1223,16 @@ pub mod exchange {
             let mut writer = vec!();
             writer.write_be_u16(self.ticket).unwrap();
             writer.write_u8(self.exchange.len() as u8).unwrap();
-    writer.write(self.exchange.as_bytes()).unwrap();
+    writer.write_all(self.exchange.as_bytes()).unwrap();
             writer.write_u8(self._type.len() as u8).unwrap();
-    writer.write(self._type.as_bytes()).unwrap();
+    writer.write_all(self._type.as_bytes()).unwrap();
             let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.passive);
             bits.set(6, self.durable);
             bits.set(5, self.auto_delete);
             bits.set(4, self.internal);
             bits.set(3, self.nowait);
-            writer.write(&bits.to_bytes()[]).unwrap();
+            writer.write_all(&bits.to_bytes()[]).unwrap();
             encode_table(&mut writer, &self.arguments).ok().unwrap();
             writer
         }
@@ -1329,11 +1329,11 @@ pub mod exchange {
             let mut writer = vec!();
             writer.write_be_u16(self.ticket).unwrap();
             writer.write_u8(self.exchange.len() as u8).unwrap();
-    writer.write(self.exchange.as_bytes()).unwrap();
+    writer.write_all(self.exchange.as_bytes()).unwrap();
             let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.if_unused);
             bits.set(6, self.nowait);
-            writer.write(&bits.to_bytes()[]).unwrap();
+            writer.write_all(&bits.to_bytes()[]).unwrap();
             writer
         }
     }
@@ -1434,14 +1434,14 @@ pub mod exchange {
             let mut writer = vec!();
             writer.write_be_u16(self.ticket).unwrap();
             writer.write_u8(self.destination.len() as u8).unwrap();
-    writer.write(self.destination.as_bytes()).unwrap();
+    writer.write_all(self.destination.as_bytes()).unwrap();
             writer.write_u8(self.source.len() as u8).unwrap();
-    writer.write(self.source.as_bytes()).unwrap();
+    writer.write_all(self.source.as_bytes()).unwrap();
             writer.write_u8(self.routing_key.len() as u8).unwrap();
-    writer.write(self.routing_key.as_bytes()).unwrap();
+    writer.write_all(self.routing_key.as_bytes()).unwrap();
             let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.nowait);
-            writer.write(&bits.to_bytes()[]).unwrap();
+            writer.write_all(&bits.to_bytes()[]).unwrap();
             encode_table(&mut writer, &self.arguments).ok().unwrap();
             writer
         }
@@ -1545,14 +1545,14 @@ pub mod exchange {
             let mut writer = vec!();
             writer.write_be_u16(self.ticket).unwrap();
             writer.write_u8(self.destination.len() as u8).unwrap();
-    writer.write(self.destination.as_bytes()).unwrap();
+    writer.write_all(self.destination.as_bytes()).unwrap();
             writer.write_u8(self.source.len() as u8).unwrap();
-    writer.write(self.source.as_bytes()).unwrap();
+    writer.write_all(self.source.as_bytes()).unwrap();
             writer.write_u8(self.routing_key.len() as u8).unwrap();
-    writer.write(self.routing_key.as_bytes()).unwrap();
+    writer.write_all(self.routing_key.as_bytes()).unwrap();
             let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.nowait);
-            writer.write(&bits.to_bytes()[]).unwrap();
+            writer.write_all(&bits.to_bytes()[]).unwrap();
             encode_table(&mut writer, &self.arguments).ok().unwrap();
             writer
         }
@@ -1669,14 +1669,14 @@ pub mod queue {
             let mut writer = vec!();
             writer.write_be_u16(self.ticket).unwrap();
             writer.write_u8(self.queue.len() as u8).unwrap();
-    writer.write(self.queue.as_bytes()).unwrap();
+    writer.write_all(self.queue.as_bytes()).unwrap();
             let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.passive);
             bits.set(6, self.durable);
             bits.set(5, self.exclusive);
             bits.set(4, self.auto_delete);
             bits.set(3, self.nowait);
-            writer.write(&bits.to_bytes()[]).unwrap();
+            writer.write_all(&bits.to_bytes()[]).unwrap();
             encode_table(&mut writer, &self.arguments).ok().unwrap();
             writer
         }
@@ -1736,7 +1736,7 @@ pub mod queue {
         fn encode(&self) -> Vec<u8> {
             let mut writer = vec!();
             writer.write_u8(self.queue.len() as u8).unwrap();
-    writer.write(self.queue.as_bytes()).unwrap();
+    writer.write_all(self.queue.as_bytes()).unwrap();
             writer.write_be_u32(self.message_count).unwrap();
             writer.write_be_u32(self.consumer_count).unwrap();
             writer
@@ -1798,14 +1798,14 @@ pub mod queue {
             let mut writer = vec!();
             writer.write_be_u16(self.ticket).unwrap();
             writer.write_u8(self.queue.len() as u8).unwrap();
-    writer.write(self.queue.as_bytes()).unwrap();
+    writer.write_all(self.queue.as_bytes()).unwrap();
             writer.write_u8(self.exchange.len() as u8).unwrap();
-    writer.write(self.exchange.as_bytes()).unwrap();
+    writer.write_all(self.exchange.as_bytes()).unwrap();
             writer.write_u8(self.routing_key.len() as u8).unwrap();
-    writer.write(self.routing_key.as_bytes()).unwrap();
+    writer.write_all(self.routing_key.as_bytes()).unwrap();
             let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.nowait);
-            writer.write(&bits.to_bytes()[]).unwrap();
+            writer.write_all(&bits.to_bytes()[]).unwrap();
             encode_table(&mut writer, &self.arguments).ok().unwrap();
             writer
         }
@@ -1897,10 +1897,10 @@ pub mod queue {
             let mut writer = vec!();
             writer.write_be_u16(self.ticket).unwrap();
             writer.write_u8(self.queue.len() as u8).unwrap();
-    writer.write(self.queue.as_bytes()).unwrap();
+    writer.write_all(self.queue.as_bytes()).unwrap();
             let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.nowait);
-            writer.write(&bits.to_bytes()[]).unwrap();
+            writer.write_all(&bits.to_bytes()[]).unwrap();
             writer
         }
     }
@@ -1998,12 +1998,12 @@ pub mod queue {
             let mut writer = vec!();
             writer.write_be_u16(self.ticket).unwrap();
             writer.write_u8(self.queue.len() as u8).unwrap();
-    writer.write(self.queue.as_bytes()).unwrap();
+    writer.write_all(self.queue.as_bytes()).unwrap();
             let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.if_unused);
             bits.set(6, self.if_empty);
             bits.set(5, self.nowait);
-            writer.write(&bits.to_bytes()[]).unwrap();
+            writer.write_all(&bits.to_bytes()[]).unwrap();
             writer
         }
     }
@@ -2107,11 +2107,11 @@ pub mod queue {
             let mut writer = vec!();
             writer.write_be_u16(self.ticket).unwrap();
             writer.write_u8(self.queue.len() as u8).unwrap();
-    writer.write(self.queue.as_bytes()).unwrap();
+    writer.write_all(self.queue.as_bytes()).unwrap();
             writer.write_u8(self.exchange.len() as u8).unwrap();
-    writer.write(self.exchange.as_bytes()).unwrap();
+    writer.write_all(self.exchange.as_bytes()).unwrap();
             writer.write_u8(self.routing_key.len() as u8).unwrap();
-    writer.write(self.routing_key.as_bytes()).unwrap();
+    writer.write_all(self.routing_key.as_bytes()).unwrap();
             encode_table(&mut writer, &self.arguments).ok().unwrap();
             writer
         }
@@ -2307,7 +2307,7 @@ pub mod basic {
                   Some(prop) => {
                       let content_type =  prop;
                       writer.write_u8(content_type.len() as u8).unwrap();
-    writer.write(content_type.as_bytes()).unwrap();
+    writer.write_all(content_type.as_bytes()).unwrap();
                   }
                   None => {}
               };
@@ -2315,7 +2315,7 @@ pub mod basic {
                   Some(prop) => {
                       let content_encoding =  prop;
                       writer.write_u8(content_encoding.len() as u8).unwrap();
-    writer.write(content_encoding.as_bytes()).unwrap();
+    writer.write_all(content_encoding.as_bytes()).unwrap();
                   }
                   None => {}
               };
@@ -2344,7 +2344,7 @@ pub mod basic {
                   Some(prop) => {
                       let correlation_id =  prop;
                       writer.write_u8(correlation_id.len() as u8).unwrap();
-    writer.write(correlation_id.as_bytes()).unwrap();
+    writer.write_all(correlation_id.as_bytes()).unwrap();
                   }
                   None => {}
               };
@@ -2352,7 +2352,7 @@ pub mod basic {
                   Some(prop) => {
                       let reply_to =  prop;
                       writer.write_u8(reply_to.len() as u8).unwrap();
-    writer.write(reply_to.as_bytes()).unwrap();
+    writer.write_all(reply_to.as_bytes()).unwrap();
                   }
                   None => {}
               };
@@ -2360,7 +2360,7 @@ pub mod basic {
                   Some(prop) => {
                       let expiration =  prop;
                       writer.write_u8(expiration.len() as u8).unwrap();
-    writer.write(expiration.as_bytes()).unwrap();
+    writer.write_all(expiration.as_bytes()).unwrap();
                   }
                   None => {}
               };
@@ -2368,7 +2368,7 @@ pub mod basic {
                   Some(prop) => {
                       let message_id =  prop;
                       writer.write_u8(message_id.len() as u8).unwrap();
-    writer.write(message_id.as_bytes()).unwrap();
+    writer.write_all(message_id.as_bytes()).unwrap();
                   }
                   None => {}
               };
@@ -2383,7 +2383,7 @@ pub mod basic {
                   Some(prop) => {
                       let _type =  prop;
                       writer.write_u8(_type.len() as u8).unwrap();
-    writer.write(_type.as_bytes()).unwrap();
+    writer.write_all(_type.as_bytes()).unwrap();
                   }
                   None => {}
               };
@@ -2391,7 +2391,7 @@ pub mod basic {
                   Some(prop) => {
                       let user_id =  prop;
                       writer.write_u8(user_id.len() as u8).unwrap();
-    writer.write(user_id.as_bytes()).unwrap();
+    writer.write_all(user_id.as_bytes()).unwrap();
                   }
                   None => {}
               };
@@ -2399,7 +2399,7 @@ pub mod basic {
                   Some(prop) => {
                       let app_id =  prop;
                       writer.write_u8(app_id.len() as u8).unwrap();
-    writer.write(app_id.as_bytes()).unwrap();
+    writer.write_all(app_id.as_bytes()).unwrap();
                   }
                   None => {}
               };
@@ -2407,7 +2407,7 @@ pub mod basic {
                   Some(prop) => {
                       let cluster_id =  prop;
                       writer.write_u8(cluster_id.len() as u8).unwrap();
-    writer.write(cluster_id.as_bytes()).unwrap();
+    writer.write_all(cluster_id.as_bytes()).unwrap();
                   }
                   None => {}
               };
@@ -2476,7 +2476,7 @@ pub mod basic {
             writer.write_be_u16(self.prefetch_count).unwrap();
             let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.global);
-            writer.write(&bits.to_bytes()[]).unwrap();
+            writer.write_all(&bits.to_bytes()[]).unwrap();
             writer
         }
     }
@@ -2577,15 +2577,15 @@ pub mod basic {
             let mut writer = vec!();
             writer.write_be_u16(self.ticket).unwrap();
             writer.write_u8(self.queue.len() as u8).unwrap();
-    writer.write(self.queue.as_bytes()).unwrap();
+    writer.write_all(self.queue.as_bytes()).unwrap();
             writer.write_u8(self.consumer_tag.len() as u8).unwrap();
-    writer.write(self.consumer_tag.as_bytes()).unwrap();
+    writer.write_all(self.consumer_tag.as_bytes()).unwrap();
             let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.no_local);
             bits.set(6, self.no_ack);
             bits.set(5, self.exclusive);
             bits.set(4, self.nowait);
-            writer.write(&bits.to_bytes()[]).unwrap();
+            writer.write_all(&bits.to_bytes()[]).unwrap();
             encode_table(&mut writer, &self.arguments).ok().unwrap();
             writer
         }
@@ -2641,7 +2641,7 @@ pub mod basic {
         fn encode(&self) -> Vec<u8> {
             let mut writer = vec!();
             writer.write_u8(self.consumer_tag.len() as u8).unwrap();
-    writer.write(self.consumer_tag.as_bytes()).unwrap();
+    writer.write_all(self.consumer_tag.as_bytes()).unwrap();
             writer
         }
     }
@@ -2686,10 +2686,10 @@ pub mod basic {
         fn encode(&self) -> Vec<u8> {
             let mut writer = vec!();
             writer.write_u8(self.consumer_tag.len() as u8).unwrap();
-    writer.write(self.consumer_tag.as_bytes()).unwrap();
+    writer.write_all(self.consumer_tag.as_bytes()).unwrap();
             let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.nowait);
-            writer.write(&bits.to_bytes()[]).unwrap();
+            writer.write_all(&bits.to_bytes()[]).unwrap();
             writer
         }
     }
@@ -2730,7 +2730,7 @@ pub mod basic {
         fn encode(&self) -> Vec<u8> {
             let mut writer = vec!();
             writer.write_u8(self.consumer_tag.len() as u8).unwrap();
-    writer.write(self.consumer_tag.as_bytes()).unwrap();
+    writer.write_all(self.consumer_tag.as_bytes()).unwrap();
             writer
         }
     }
@@ -2785,13 +2785,13 @@ pub mod basic {
             let mut writer = vec!();
             writer.write_be_u16(self.ticket).unwrap();
             writer.write_u8(self.exchange.len() as u8).unwrap();
-    writer.write(self.exchange.as_bytes()).unwrap();
+    writer.write_all(self.exchange.as_bytes()).unwrap();
             writer.write_u8(self.routing_key.len() as u8).unwrap();
-    writer.write(self.routing_key.as_bytes()).unwrap();
+    writer.write_all(self.routing_key.as_bytes()).unwrap();
             let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.mandatory);
             bits.set(6, self.immediate);
-            writer.write(&bits.to_bytes()[]).unwrap();
+            writer.write_all(&bits.to_bytes()[]).unwrap();
             writer
         }
     }
@@ -2856,11 +2856,11 @@ pub mod basic {
             let mut writer = vec!();
             writer.write_be_u16(self.reply_code).unwrap();
             writer.write_u8(self.reply_text.len() as u8).unwrap();
-    writer.write(self.reply_text.as_bytes()).unwrap();
+    writer.write_all(self.reply_text.as_bytes()).unwrap();
             writer.write_u8(self.exchange.len() as u8).unwrap();
-    writer.write(self.exchange.as_bytes()).unwrap();
+    writer.write_all(self.exchange.as_bytes()).unwrap();
             writer.write_u8(self.routing_key.len() as u8).unwrap();
-    writer.write(self.routing_key.as_bytes()).unwrap();
+    writer.write_all(self.routing_key.as_bytes()).unwrap();
             writer
         }
     }
@@ -2927,15 +2927,15 @@ pub mod basic {
         fn encode(&self) -> Vec<u8> {
             let mut writer = vec!();
             writer.write_u8(self.consumer_tag.len() as u8).unwrap();
-    writer.write(self.consumer_tag.as_bytes()).unwrap();
+    writer.write_all(self.consumer_tag.as_bytes()).unwrap();
             writer.write_be_u64(self.delivery_tag).unwrap();
             let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.redelivered);
-            writer.write(&bits.to_bytes()[]).unwrap();
+            writer.write_all(&bits.to_bytes()[]).unwrap();
             writer.write_u8(self.exchange.len() as u8).unwrap();
-    writer.write(self.exchange.as_bytes()).unwrap();
+    writer.write_all(self.exchange.as_bytes()).unwrap();
             writer.write_u8(self.routing_key.len() as u8).unwrap();
-    writer.write(self.routing_key.as_bytes()).unwrap();
+    writer.write_all(self.routing_key.as_bytes()).unwrap();
             writer
         }
     }
@@ -2983,10 +2983,10 @@ pub mod basic {
             let mut writer = vec!();
             writer.write_be_u16(self.ticket).unwrap();
             writer.write_u8(self.queue.len() as u8).unwrap();
-    writer.write(self.queue.as_bytes()).unwrap();
+    writer.write_all(self.queue.as_bytes()).unwrap();
             let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.no_ack);
-            writer.write(&bits.to_bytes()[]).unwrap();
+            writer.write_all(&bits.to_bytes()[]).unwrap();
             writer
         }
     }
@@ -3051,11 +3051,11 @@ pub mod basic {
             writer.write_be_u64(self.delivery_tag).unwrap();
             let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.redelivered);
-            writer.write(&bits.to_bytes()[]).unwrap();
+            writer.write_all(&bits.to_bytes()[]).unwrap();
             writer.write_u8(self.exchange.len() as u8).unwrap();
-    writer.write(self.exchange.as_bytes()).unwrap();
+    writer.write_all(self.exchange.as_bytes()).unwrap();
             writer.write_u8(self.routing_key.len() as u8).unwrap();
-    writer.write(self.routing_key.as_bytes()).unwrap();
+    writer.write_all(self.routing_key.as_bytes()).unwrap();
             writer.write_be_u32(self.message_count).unwrap();
             writer
         }
@@ -3097,7 +3097,7 @@ pub mod basic {
         fn encode(&self) -> Vec<u8> {
             let mut writer = vec!();
             writer.write_u8(self.cluster_id.len() as u8).unwrap();
-    writer.write(self.cluster_id.as_bytes()).unwrap();
+    writer.write_all(self.cluster_id.as_bytes()).unwrap();
             writer
         }
     }
@@ -3148,7 +3148,7 @@ pub mod basic {
             writer.write_be_u64(self.delivery_tag).unwrap();
             let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.multiple);
-            writer.write(&bits.to_bytes()[]).unwrap();
+            writer.write_all(&bits.to_bytes()[]).unwrap();
             writer
         }
     }
@@ -3200,7 +3200,7 @@ pub mod basic {
             writer.write_be_u64(self.delivery_tag).unwrap();
             let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.requeue);
-            writer.write(&bits.to_bytes()[]).unwrap();
+            writer.write_all(&bits.to_bytes()[]).unwrap();
             writer
         }
     }
@@ -3249,7 +3249,7 @@ pub mod basic {
             let mut writer = vec!();
             let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.requeue);
-            writer.write(&bits.to_bytes()[]).unwrap();
+            writer.write_all(&bits.to_bytes()[]).unwrap();
             writer
         }
     }
@@ -3290,7 +3290,7 @@ pub mod basic {
             let mut writer = vec!();
             let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.requeue);
-            writer.write(&bits.to_bytes()[]).unwrap();
+            writer.write_all(&bits.to_bytes()[]).unwrap();
             writer
         }
     }
@@ -3368,7 +3368,7 @@ pub mod basic {
             let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.multiple);
             bits.set(6, self.requeue);
-            writer.write(&bits.to_bytes()[]).unwrap();
+            writer.write_all(&bits.to_bytes()[]).unwrap();
             writer
         }
     }
@@ -3634,7 +3634,7 @@ pub mod confirm {
             let mut writer = vec!();
             let mut bits = Bitv::from_elem(8, false);
             bits.set(7, self.nowait);
-            writer.write(&bits.to_bytes()[]).unwrap();
+            writer.write_all(&bits.to_bytes()[]).unwrap();
             writer
         }
     }

@@ -51,10 +51,10 @@ def write_type(name, type)
     raise "Cant write bit here..."
   when "shortstr"
     "writer.write_u8(#{name}.len() as u8).unwrap();
-    writer.write(#{name}.as_bytes()).unwrap();"
+    writer.write_all(#{name}.as_bytes()).unwrap();"
   when "longstr"
     "writer.write_be_u32(#{name}.len() as u32).unwrap();
-    writer.write(#{name}.as_bytes()).unwrap();"
+    writer.write_all(#{name}.as_bytes()).unwrap();"
   when "table"
     "encode_table(&mut writer, &#{name}).ok().unwrap();"
   when "timestamp"
@@ -101,18 +101,18 @@ def generate_writer_body(arguments)
         body << "bits.set(#{7-n_bits}, self.#{snake_name(argument["name"])});"
         n_bits += 1
         if n_bits == 8
-          body << "writer.write(&bits.to_bytes()[]).unwrap();"
+          body << "writer.write_all(&bits.to_bytes()[]).unwrap();"
           n_bits = 0
         end
       else
         if n_bits > 0
-          body << "writer.write(&bits.to_bytes()[]).unwrap();"
+          body << "writer.write_all(&bits.to_bytes()[]).unwrap();"
           n_bits = 0
         end
         body << write_type("self."+snake_name(argument["name"]), type)
       end
     end
-    body << "writer.write(&bits.to_bytes()[]).unwrap();" if n_bits > 0 #if bits were the last element
+    body << "writer.write_all(&bits.to_bytes()[]).unwrap();" if n_bits > 0 #if bits were the last element
     body << "writer"
     body
 end

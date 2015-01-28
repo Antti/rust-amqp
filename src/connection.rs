@@ -1,5 +1,5 @@
 use amqp_error::AMQPResult;
-use std::io::net::tcp::TcpStream;
+use std::old_io::net::tcp::TcpStream;
 use framing::Frame;
 use std::error::FromError;
 
@@ -12,7 +12,7 @@ pub struct Connection {
 impl Connection {
     pub fn open(host: &str, port: u16) -> AMQPResult<Connection> {
         let mut socket = try!(TcpStream::connect((host, port)));
-        try!(socket.write(&[b'A', b'M', b'Q', b'P', 0, 0, 9, 1]));
+        try!(socket.write_all(&[b'A', b'M', b'Q', b'P', 0, 0, 9, 1]));
         let connection = Connection { socket: socket, frame_max_limit: 131072 };
         Ok(connection)
     }
@@ -23,7 +23,7 @@ impl Connection {
     }
 
     pub fn write(&mut self, frame: Frame) -> AMQPResult<()>{
-        self.socket.write(&frame.encode()[]).map_err(|err| FromError::from_error(err))
+        self.socket.write_all(&frame.encode()[]).map_err(|err| FromError::from_error(err))
     }
 
     pub fn read(&mut self) -> AMQPResult<Frame> {

@@ -1,5 +1,5 @@
 use std::error::FromError;
-use std::io::IoError;
+use std::old_io::IoError;
 
 #[derive(Debug)]
 pub enum AMQPError {

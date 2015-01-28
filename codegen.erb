@@ -30,7 +30,7 @@ impl MethodFrame {
         let mut writer = vec!();
         writer.write_be_u16(self.class_id).unwrap();
         writer.write_be_u16(self.method_id).unwrap();
-        writer.write(&self.arguments[]).unwrap();
+        writer.write_all(&self.arguments[]).unwrap();
         writer
     }
 

@@ -1,4 +1,4 @@
-#![feature(collections)]
+#![feature(core)]
 extern crate amqp;
 
 use amqp::session::Session;

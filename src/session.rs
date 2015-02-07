@@ -18,7 +18,7 @@ use url::{UrlParser, SchemeType};
 const CHANNEL_BUFFER_SIZE :usize = 100;
 
 
-#[derive(Show)]
+#[derive(Debug)]
 pub struct Options <'a>  {
     pub host: &'a str,
     pub port: u16,

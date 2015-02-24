@@ -1,7 +1,7 @@
 use amqp_error::AMQPResult;
-use std::old_io::net::tcp::TcpStream;
+use std::old_io::TcpStream;
+use std::io::Write;
 use framing::Frame;
-use std::error::FromError;
 
 #[derive(Clone)]
 pub struct Connection {
@@ -17,13 +17,8 @@ impl Connection {
         Ok(connection)
     }
 
-    pub fn close(&mut self) {
-        self.socket.close_write().unwrap();
-        self.socket.close_read().unwrap();
-    }
-
     pub fn write(&mut self, frame: Frame) -> AMQPResult<()>{
-        self.socket.write_all(&frame.encode()[]).map_err(|err| FromError::from_error(err))
+        Ok(try!(self.socket.write_all(&frame.encode())))
     }
 
     pub fn read(&mut self) -> AMQPResult<Frame> {
@@ -31,4 +26,3 @@ impl Connection {
     }
 
 }
-

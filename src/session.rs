@@ -11,7 +11,7 @@ use std::cmp;
 use std::default::Default;
 use std::collections::HashMap;
 use std::sync::mpsc::{Receiver, SyncSender, sync_channel};
-use std::thread::{JoinGuard, Thread};
+use std::thread::{JoinGuard, self};
 
 use url::{UrlParser, SchemeType};
 
@@ -62,7 +62,7 @@ impl <'a> Session <'a> {
     /// Most of the params have their default, so you can just pass this:
     /// `"amqp://localhost/"` and it will connect to rabbitmq server, running on `localhost` on port `65535`,
     /// with login `"guest"`, password: `"guest"` to vhost `"/"`
-    pub fn open_url(url_string: &str) -> AMQPResult<Session> {
+    pub fn open_url<'x, 'y>(url_string: &'x str) -> AMQPResult<Session<'y>> {
         let default: Options = Default::default();
         let mut url_parser = UrlParser::new();
         url_parser.scheme_type_mapper(scheme_type_mapper);
@@ -70,11 +70,11 @@ impl <'a> Session <'a> {
         let vhost = url.serialize_path().unwrap_or(default.vhost.to_string());
         let host  = url.domain().unwrap_or(default.host);
         let port = url.port().unwrap_or(default.port);
-        let login = url.username().and_then(|username| match &username[] { "" => None, _ => Some(username)} ).unwrap_or(default.login);
+        let login = url.username().and_then(|username| match username { "" => None, _ => Some(username)} ).unwrap_or(default.login);
         let password = url.password().unwrap_or(default.password);
         let opts = Options { host: host, port: port,
          login: login, password: password,
-         vhost: &vhost[], ..Default::default()};
+         vhost: &vhost, ..Default::default()};
         Session::new(opts)
     }
 
@@ -89,7 +89,7 @@ impl <'a> Session <'a> {
     ///     Err(error) => panic!("Failed openning an amqp session: {:?}", error)
     /// };
     /// ```
-    pub fn new(options: Options) -> AMQPResult<Session> {
+    pub fn new<'y>(options: Options) -> AMQPResult<Session<'y>> {
     	let connection = try!(Connection::open(options.host, options.port));
         let (channel_sender, channel_receiver) = sync_channel(CHANNEL_BUFFER_SIZE); //channel0
         let (session_sender, session_receiver) = sync_channel(CHANNEL_BUFFER_SIZE); //session sender & receiver
@@ -99,8 +99,8 @@ impl <'a> Session <'a> {
         let con1 = connection.clone();
         let con2 = connection.clone();
         let channels_clone = channels.clone();
-        let reading_loop = Thread::scoped( move || Session::reading_loop(con1, channels_clone ) );
-        let writing_loop = Thread::scoped( move || Session::writing_loop(con2, session_receiver ) );
+        let reading_loop = thread::scoped( || Session::reading_loop(con1, channels_clone ) );
+        let writing_loop = thread::scoped( || Session::writing_loop(con2, session_receiver ) );
         let mut session = Session {
             connection: connection,
             channels: channels,
@@ -191,7 +191,6 @@ impl <'a> Session <'a> {
         debug!("Closing session: reply_code: {}, reply_text: {}", reply_code, reply_text);
         let close = protocol::connection::Close {reply_code: reply_code, reply_text: reply_text, class_id: 0, method_id: 0};
         let _ : protocol::connection::CloseOk = self.channel_zero.rpc(&close, "connection.close-ok").ok().unwrap();
-        self.connection.close();
     }
 
     pub fn reading_loop(mut connection: Connection, channels: Arc<Mutex<HashMap<u16, SyncSender<Frame>>>>) -> () {

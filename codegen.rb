@@ -21,12 +21,12 @@ def read_type(type)
   when "shortstr"
     "{
           let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
      }"
   when "longstr"
     "{
           let size = try!(reader.read_be_u32()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string()
+          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
       }"
   when "table"
     "try!(decode_table(reader))"
@@ -66,14 +66,14 @@ end
 
 def generate_reader_body(arguments)
     body = []
-    body << "let reader = &mut &method_frame.arguments[];"
+    body << "let reader = &mut &method_frame.arguments[..];"
     n_bits = 0
     arguments.each do |argument|
       type = argument["domain"] ? map_domain(argument["domain"]) : argument["type"]
       if type == "bit"
         if n_bits == 0
           body << "let byte = try!(reader.read_byte());"
-          body << "let bits = Bitv::from_bytes(&[byte]);"
+          body << "let bits = BitVec::from_bytes(&[byte]);"
         end
         body << "let #{snake_name(argument["name"])} = bits.get(#{7-n_bits}).unwrap();"
         n_bits += 1
@@ -96,23 +96,23 @@ def generate_writer_body(arguments)
       type = argument["domain"] ? map_domain(argument["domain"]) : argument["type"]
       if type == "bit"
         if n_bits == 0
-          body << "let mut bits = Bitv::from_elem(8, false);"
+          body << "let mut bits = BitVec::from_elem(8, false);"
         end
         body << "bits.set(#{7-n_bits}, self.#{snake_name(argument["name"])});"
         n_bits += 1
         if n_bits == 8
-          body << "writer.write_all(&bits.to_bytes()[]).unwrap();"
+          body << "writer.write_all(&bits.to_bytes()).unwrap();"
           n_bits = 0
         end
       else
         if n_bits > 0
-          body << "writer.write_all(&bits.to_bytes()[]).unwrap();"
+          body << "writer.write_all(&bits.to_bytes()).unwrap();"
           n_bits = 0
         end
         body << write_type("self."+snake_name(argument["name"]), type)
       end
     end
-    body << "writer.write_all(&bits.to_bytes()[]).unwrap();" if n_bits > 0 #if bits were the last element
+    body << "writer.write_all(&bits.to_bytes()).unwrap();" if n_bits > 0 #if bits were the last element
     body << "writer"
     body
 end

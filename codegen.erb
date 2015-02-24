@@ -30,7 +30,7 @@ impl MethodFrame {
         let mut writer = vec!();
         writer.write_be_u16(self.class_id).unwrap();
         writer.write_be_u16(self.method_id).unwrap();
-        writer.write_all(&self.arguments[]).unwrap();
+        writer.write_all(&self.arguments).unwrap();
         writer
     }
 
@@ -39,7 +39,7 @@ impl MethodFrame {
         if frame.frame_type != FrameType::METHOD {
             panic!("Not a method frame");
         }
-        let reader = &mut &frame.payload[];
+        let reader = &mut &frame.payload[..];
         let class_id = reader.read_be_u16().unwrap();
         let method_id = reader.read_be_u16().unwrap();
         let arguments = reader.read_to_end().unwrap();
@@ -61,8 +61,7 @@ impl MethodFrame {
 #[allow(unused_imports)]
 #[allow(missing_copy_implementations)]
 pub mod <%= klass["name"] %> {
-    use std::collections::bitv;
-    use std::collections::bitv::Bitv;
+    use std::collections::BitVec;
     use table;
     use table::{Table, decode_table, encode_table};
     use protocol::{Method, MethodFrame};
@@ -81,8 +80,8 @@ pub mod <%= klass["name"] %> {
 
     impl <%= klass["properties_struct_name"] %> {
         pub fn decode(content_header_frame: ContentHeaderFrame) -> AMQPResult<<%=klass["properties_struct_name"]%>> {
-            let reader = &mut &content_header_frame.properties[];
-            let properties_flags = Bitv::from_bytes(&[((content_header_frame.properties_flags >> 8) & 0xff) as u8,
+            let reader = &mut &content_header_frame.properties[..];
+            let properties_flags = BitVec::from_bytes(&[((content_header_frame.properties_flags >> 8) & 0xff) as u8,
                 (content_header_frame.properties_flags & 0xff) as u8]);
 <% klass["properties"].each.with_index do |prop, idx| -%>
             let <%= prop["prop_name"] %> = if properties_flags.get(<%= idx %>).unwrap() {
@@ -109,7 +108,7 @@ pub mod <%= klass["name"] %> {
         }
 
         pub fn flags(&self) -> u16 {
-            let mut bits = Bitv::from_elem(16, false);
+            let mut bits = BitVec::from_elem(16, false);
 <% klass["properties"].each.with_index do |prop, idx| -%>
             bits.set(<%= idx %>, self.<%= prop["prop_name"] %>.is_some());
 <% end -%>

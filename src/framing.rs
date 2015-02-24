@@ -47,7 +47,7 @@ impl Frame {
         writer.write_u8(self.frame_type as u8).unwrap();
         writer.write_be_u16(self.channel).unwrap();
         writer.write_be_u32(self.payload.len() as u32).unwrap();
-        writer.write_all(&self.payload[]).unwrap();
+        writer.write_all(&self.payload).unwrap();
         writer.write_u8(0xCE).unwrap();
         writer
     }
@@ -82,7 +82,7 @@ impl ContentHeaderFrame {
         writer.write_be_u16(self.weight).unwrap(); //0 all the time for now
         writer.write_be_u64(self.body_size).unwrap();
         writer.write_be_u16(self.properties_flags).unwrap();
-        writer.write_all(&self.properties[]).unwrap();
+        writer.write_all(&self.properties).unwrap();
         writer
     }
 }

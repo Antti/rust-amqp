@@ -74,7 +74,7 @@ cargo test
 #![feature(collections)]
 #![feature(rustc_private)]
 #![feature(core)]
-#![feature(std_misc)]
+#![feature(old_io)]
 
 extern crate collect;
 extern crate url;

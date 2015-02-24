@@ -50,7 +50,7 @@ fn read_table_entry(reader: &mut &[u8]) -> AMQPResult<TableEntry> {
         // },
         b'S' => {
             let size = try!(reader.read_be_u32()) as usize;
-            let str = String::from_utf8_lossy(&try!(reader.read_exact(size))[]).to_string();
+            let str = String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string();
             TableEntry::LongString(str)
         },
         b'A' => {
@@ -122,7 +122,7 @@ pub fn decode_table(reader: &mut &[u8]) -> AMQPResult<Table> {
         let field_name = try!(reader.read_exact(field_name_size));
         let table_entry = try!(read_table_entry(reader));
         debug!("Read table entry: {:?} = {:?}", field_name, table_entry);
-        table.insert(String::from_utf8_lossy(&field_name[]).to_string(), table_entry);
+        table.insert(String::from_utf8_lossy(&field_name).to_string(), table_entry);
     }
     Ok(table)
 }
@@ -135,6 +135,6 @@ pub fn encode_table(writer: &mut Writer, table: &Table) -> AMQPResult<()> {
         try!(write_table_entry(&mut tmp_buffer, table_entry));
     }
     try!(writer.write_be_u32(tmp_buffer.len() as u32));
-    try!(writer.write_all(&tmp_buffer[]));
+    try!(writer.write_all(&tmp_buffer));
     Ok(())
 }

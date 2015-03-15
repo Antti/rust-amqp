@@ -11,7 +11,7 @@ use std::cmp;
 use std::default::Default;
 use std::collections::HashMap;
 use std::sync::mpsc::{Receiver, SyncSender, sync_channel};
-use std::thread::{JoinGuard, self};
+use std::thread;
 
 use url::{UrlParser, SchemeType};
 
@@ -41,19 +41,15 @@ impl <'a>  Default for Options <'a>  {
     }
 }
 
-pub struct Session<'a>  {
+pub struct Session {
 	connection: Connection,
 	channels: Arc<Mutex<HashMap<u16, SyncSender<Frame>> >>,
 	channel_max_limit: u16,
 	channel_zero: channel::Channel,
-    sender: SyncSender<Frame>,
-    #[allow(dead_code)]
-    reading_loop: JoinGuard<'a ()>,
-    #[allow(dead_code)]
-    writing_loop: JoinGuard<'a ()>
+    sender: SyncSender<Frame>
 }
 
-impl <'a> Session <'a> {
+impl Session {
     /// Use `open_url` to create new amqp session from a "amqp url"
     ///
     /// # Arguments
@@ -62,7 +58,7 @@ impl <'a> Session <'a> {
     /// Most of the params have their default, so you can just pass this:
     /// `"amqp://localhost/"` and it will connect to rabbitmq server, running on `localhost` on port `65535`,
     /// with login `"guest"`, password: `"guest"` to vhost `"/"`
-    pub fn open_url<'x, 'y>(url_string: &'x str) -> AMQPResult<Session<'y>> {
+    pub fn open_url(url_string: &str) -> AMQPResult<Session> {
         let default: Options = Default::default();
         let mut url_parser = UrlParser::new();
         url_parser.scheme_type_mapper(scheme_type_mapper);
@@ -89,7 +85,7 @@ impl <'a> Session <'a> {
     ///     Err(error) => panic!("Failed openning an amqp session: {:?}", error)
     /// };
     /// ```
-    pub fn new<'y>(options: Options) -> AMQPResult<Session<'y>> {
+    pub fn new(options: Options) -> AMQPResult<Session> {
     	let connection = try!(Connection::open(options.host, options.port));
         let (channel_sender, channel_receiver) = sync_channel(CHANNEL_BUFFER_SIZE); //channel0
         let (session_sender, session_receiver) = sync_channel(CHANNEL_BUFFER_SIZE); //session sender & receiver
@@ -99,16 +95,14 @@ impl <'a> Session <'a> {
         let con1 = connection.clone();
         let con2 = connection.clone();
         let channels_clone = channels.clone();
-        let reading_loop = thread::scoped( || Session::reading_loop(con1, channels_clone ) );
-        let writing_loop = thread::scoped( || Session::writing_loop(con2, session_receiver ) );
+        thread::spawn( || Session::reading_loop(con1, channels_clone ) );
+        thread::spawn( || Session::writing_loop(con2, session_receiver ) );
         let mut session = Session {
             connection: connection,
             channels: channels,
             channel_max_limit: 0,
             channel_zero: channel_zero,
-            sender: session_sender,
-            reading_loop: reading_loop,
-            writing_loop: writing_loop
+            sender: session_sender
         };
         try!(session.init(options));
     	Ok(session)

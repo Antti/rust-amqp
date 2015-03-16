@@ -7,11 +7,11 @@ use framing::{Frame, FrameType};
 use amqp_error::{AMQPResult, AMQPError};
 
 use std::sync::{Arc, Mutex};
-use std::cmp;
 use std::default::Default;
 use std::collections::HashMap;
 use std::sync::mpsc::{Receiver, SyncSender, sync_channel};
 use std::thread;
+use std::cmp;
 
 use url::{UrlParser, SchemeType};
 
@@ -45,8 +45,7 @@ pub struct Session {
 	connection: Connection,
 	channels: Arc<Mutex<HashMap<u16, SyncSender<Frame>> >>,
 	channel_max_limit: u16,
-	channel_zero: channel::Channel,
-    sender: SyncSender<Frame>
+	channel_zero: channel::Channel
 }
 
 impl Session {
@@ -88,21 +87,18 @@ impl Session {
     pub fn new(options: Options) -> AMQPResult<Session> {
     	let connection = try!(Connection::open(options.host, options.port));
         let (channel_sender, channel_receiver) = sync_channel(CHANNEL_BUFFER_SIZE); //channel0
-        let (session_sender, session_receiver) = sync_channel(CHANNEL_BUFFER_SIZE); //session sender & receiver
         let channels = Arc::new(Mutex::new(HashMap::new()));
-        let channel_zero = channel::Channel::new(0, (session_sender.clone(), channel_receiver));
+        let channel_zero = channel::Channel::new(0, channel_receiver, connection.clone());
         try!(channels.lock().map_err(|_| AMQPError::SyncError)).insert(0, channel_sender);
         let con1 = connection.clone();
         let con2 = connection.clone();
         let channels_clone = channels.clone();
         thread::spawn( || Session::reading_loop(con1, channels_clone ) );
-        thread::spawn( || Session::writing_loop(con2, session_receiver ) );
         let mut session = Session {
             connection: connection,
             channels: channels,
             channel_max_limit: 0,
-            channel_zero: channel_zero,
-            sender: session_sender
+            channel_zero: channel_zero
         };
         try!(session.init(options));
     	Ok(session)
@@ -146,6 +142,7 @@ impl Session {
 
         self.channel_max_limit =  negotiate(tune.channel_max, self.channel_max_limit);
     	self.connection.frame_max_limit = negotiate(tune.frame_max, options.frame_max_limit);
+        self.channel_zero.connection.frame_max_limit = self.connection.frame_max_limit;
     	let frame_max_limit = self.connection.frame_max_limit;
         let tune_ok = protocol::connection::TuneOk {
             channel_max: self.channel_max_limit,
@@ -175,7 +172,7 @@ impl Session {
 	pub fn open_channel(&mut self, channel_id: u16) -> AMQPResult<channel::Channel> {
         debug!("Openning channel: {}", channel_id);
         let (sender, receiver) = sync_channel(CHANNEL_BUFFER_SIZE);
-        let channel = channel::Channel::new(channel_id, (self.sender.clone(), receiver));
+        let mut channel = channel::Channel::new(channel_id, receiver, self.connection.clone());
         try!(self.channels.lock().map_err(|_| AMQPError::SyncError)).insert(channel_id, sender);
         try!(channel.open());
         Ok(channel)
@@ -208,44 +205,11 @@ impl Session {
         debug!("Exiting reading loop");
     }
 
-    pub fn writing_loop(mut connection: Connection, receiver: Receiver<Frame>) {
-        debug!("Starting writing loop");
-        loop {
-            match receiver.recv() {
-                Ok(frame) => {
-                    match frame.frame_type {
-                        FrameType::BODY => {
-                            //TODO: Check if need to include frame header + end octet into calculation. (9 bytes extra)
-                            for content_frame in split_content_into_frames(frame.payload, 13107).into_iter() {
-                                connection.write(Frame { frame_type: frame.frame_type, channel: frame.channel, payload: content_frame}).ok().unwrap();
-                            }
-                        },
-                        _ => {connection.write(frame).ok().unwrap();}
-                    }
-                },
-                Err(_) => break //Notify session somehow... (but it's probably dead already)
-            }
-        }
-        debug!("Exiting writing loop");
-    }
 }
 
 fn negotiate<T : cmp::Ord>(their_value: T, our_value: T) -> T {
     cmp::min(their_value, our_value)
 }
-
-fn split_content_into_frames(content: Vec<u8>, frame_limit: usize) -> Vec<Vec<u8>> {
-    assert!(frame_limit > 0, "Can't have frame_max_limit == 0");
-    let mut content_frames = vec!();
-    let mut current_pos = 0;
-    while current_pos < content.len() {
-        let new_pos = current_pos + cmp::min(content.len() - current_pos, frame_limit);
-        content_frames.push(content[current_pos .. new_pos].to_vec());
-        current_pos = new_pos;
-    }
-    content_frames
-}
-
 fn scheme_type_mapper(scheme: &str) -> SchemeType {
     match scheme{
         "amqp" => SchemeType::Relative(5672),
@@ -253,9 +217,3 @@ fn scheme_type_mapper(scheme: &str) -> SchemeType {
     }
 }
 
-#[test]
-fn test_split_content_into_frames() {
-    let content = vec!(1,2,3,4,5,6,7,8,9,10);
-    let frames = split_content_into_frames(content, 3);
-    assert_eq!(frames, vec!(vec!(1, 2, 3), vec!(4, 5, 6), vec!(7, 8, 9), vec!(10)));
-}

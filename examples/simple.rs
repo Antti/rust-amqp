@@ -9,7 +9,7 @@ use std::default::Default;
 //table types:
 //use table::{FieldTable, Table, Bool, ShortShortInt, ShortShortUint, ShortInt, ShortUint, LongInt, LongUint, LongLongInt, LongLongUint, Float, Double, DecimalValue, LongString, FieldArray, Timestamp};
 
-fn consumer_function(channel: &Channel, deliver: protocol::basic::Deliver, headers: protocol::basic::BasicProperties, body: Vec<u8>){
+fn consumer_function(channel: &mut Channel, deliver: protocol::basic::Deliver, headers: protocol::basic::BasicProperties, body: Vec<u8>){
     println!("Got a delivery:");
     println!("Deliver info: {:?}", deliver);
     println!("Content headers: {:?}", headers);
@@ -30,7 +30,7 @@ fn main() {
         println!("Headers: {:?}", get_result.headers);
         println!("Reply: {:?}", get_result.reply);
         println!("Body: {:?}", String::from_utf8_lossy(&get_result.body));
-        channel.basic_ack(get_result.reply.delivery_tag, false);
+        // channel.basic_ack(get_result.reply.delivery_tag, false);// TODO: Fixme. Need to be able to borrow channel again.
     }
 
     //queue: &str, consumer_tag: &str, no_local: bool, no_ack: bool, exclusive: bool, nowait: bool, arguments: Table

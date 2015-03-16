@@ -10,7 +10,7 @@ use std::default::Default;
 
 
 
-fn consumer_function(channel: &Channel, deliver: protocol::basic::Deliver, headers: protocol::basic::BasicProperties, body: Vec<u8>){
+fn consumer_function(channel: &mut Channel, deliver: protocol::basic::Deliver, headers: protocol::basic::BasicProperties, body: Vec<u8>){
     println!("Got a delivery:");
     println!("Deliver info: {:?}", deliver);
     println!("Content headers: {:?}", headers);

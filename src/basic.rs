@@ -9,20 +9,20 @@ use amqp_error::AMQPError;
 pub struct GetIterator <'a> {
     queue: &'a str,
     no_ack: bool,
-    channel: &'a Channel
+    channel: &'a mut Channel
 }
 
 pub trait Basic <'a> {
-    fn basic_get(&'a self, queue: &'a str, no_ack: bool) -> GetIterator<'a>;
+    fn basic_get(&'a mut self, queue: &'a str, no_ack: bool) -> GetIterator<'a>;
     fn basic_consume(&mut self, callback: ConsumerCallback,
     queue: &str, consumer_tag: &str, no_local: bool, no_ack: bool,
     exclusive: bool, nowait: bool, arguments: Table) -> String;
-    fn start_consuming(&self);
-    fn basic_publish(&self, exchange: &str, routing_key: &str, mandatory: bool, immediate: bool,
+    fn start_consuming(&mut self);
+    fn basic_publish(&mut self, exchange: &str, routing_key: &str, mandatory: bool, immediate: bool,
                          properties: BasicProperties, content: Vec<u8>);
-    fn basic_ack(&self, delivery_tag: u64, multiple: bool);
-    fn basic_nack(&self, delivery_tag: u64, multiple: bool, requeue: bool);
-    fn basic_reject(&self, delivery_tag: u64, requeue: bool);
+    fn basic_ack(&mut self, delivery_tag: u64, multiple: bool);
+    fn basic_nack(&mut self, delivery_tag: u64, multiple: bool, requeue: bool);
+    fn basic_reject(&mut self, delivery_tag: u64, requeue: bool);
 }
 
 #[derive(Debug)]
@@ -34,14 +34,16 @@ pub struct GetResult {
 
 impl <'a> Iterator for GetIterator<'a > {
     type Item = GetResult;
+
     fn next(&mut self) -> Option<GetResult> {
         let get = &basic::Get{ ticket: 0, queue: self.queue.to_string(), no_ack: self.no_ack };
-        let method_frame = self.channel.raw_rpc(get);
+        let ref mut channel = self.channel;
+        let method_frame = channel.raw_rpc(get);
         let res = match method_frame.method_name() {
             "basic.get-ok" => {
                 let reply: basic::GetOk = Method::decode(method_frame).ok().unwrap();
-                let headers = self.channel.read_headers().ok().unwrap();
-                let body = self.channel.read_body(headers.body_size).ok().unwrap();
+                let headers = channel.read_headers().ok().unwrap();
+                let body = channel.read_body(headers.body_size).ok().unwrap();
                 let properties = BasicProperties::decode(headers).ok().unwrap();
                 Ok((reply, properties, body))
             }
@@ -56,7 +58,7 @@ impl <'a> Iterator for GetIterator<'a > {
 }
 
 impl <'a> Basic<'a> for Channel {
-    fn basic_get(&'a self, queue: &'a str, no_ack: bool) -> GetIterator<'a> {
+    fn basic_get(&'a mut self, queue: &'a str, no_ack: bool) -> GetIterator<'a> {
         GetIterator { channel: self, queue: queue, no_ack: no_ack }
     }
 
@@ -73,7 +75,7 @@ impl <'a> Basic<'a> for Channel {
     }
 
     // Will run the infinate loop, which will receive frames on the given channel & call consumers.
-    fn start_consuming(&self) {
+    fn start_consuming(&mut self) {
         loop {
           let frame = self.read();
                 match frame.frame_type {
@@ -85,12 +87,13 @@ impl <'a> Basic<'a> for Channel {
                                 let headers = self.read_headers().ok().unwrap();
                                 let body = self.read_body(headers.body_size).ok().unwrap();
                                 let properties = BasicProperties::decode(headers).ok().unwrap();
-                                match self.consumers.get(&deliver_method.consumer_tag) {
-                                    Some(callback) => (*callback)(self, deliver_method, properties, body),
+                                let consumer = self.consumers.get(&deliver_method.consumer_tag).map(|&x| x);
+                                match consumer {
+                                    Some(callback) => (callback)(self, deliver_method, properties, body),
                                     None => {error!("Received deliver frame for the unknown consumer: {}", deliver_method.consumer_tag)}
-                                }
+                                };
                             }
-                            _ => {}
+                            _ => {} //TODO: Handle other callbacks as well.
                         }
                     }
                     _ => {}
@@ -99,7 +102,7 @@ impl <'a> Basic<'a> for Channel {
     }
 
 
-    fn basic_publish(&self, exchange: &str, routing_key: &str, mandatory: bool, immediate: bool,
+    fn basic_publish(&mut self, exchange: &str, routing_key: &str, mandatory: bool, immediate: bool,
                          properties: BasicProperties, content: Vec<u8>) {
         let publish = &Publish {
             ticket: 0, exchange: exchange.to_string(),
@@ -116,16 +119,16 @@ impl <'a> Basic<'a> for Channel {
         self.write(content_frame);
     }
 
-    fn basic_ack(&self, delivery_tag: u64, multiple: bool) {
+    fn basic_ack(&mut self, delivery_tag: u64, multiple: bool) {
         self.send_method_frame(&Ack{delivery_tag: delivery_tag, multiple: multiple});
     }
 
     // Rabbitmq specific
-    fn basic_nack(&self, delivery_tag: u64, multiple: bool, requeue: bool) {
+    fn basic_nack(&mut self, delivery_tag: u64, multiple: bool, requeue: bool) {
         self.send_method_frame(&Nack{delivery_tag: delivery_tag, multiple: multiple, requeue: requeue});
     }
 
-    fn basic_reject(&self, delivery_tag: u64, requeue: bool) {
+    fn basic_reject(&mut self, delivery_tag: u64, requeue: bool) {
         self.send_method_frame(&Reject{delivery_tag: delivery_tag, requeue: requeue});
     }
 

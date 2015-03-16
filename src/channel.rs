@@ -1,4 +1,4 @@
-use amqp_error::AMQPResult;
+use amqp_error::{AMQPResult, AMQPError};
 use std::sync::mpsc::{SyncSender, Receiver};
 
 use framing::{ContentHeaderFrame, Frame, FrameType};
@@ -50,7 +50,7 @@ impl Channel {
         let method_frame = self.raw_rpc(method);
         match method_frame.method_name() {
             m_name if m_name == expected_reply => protocol::Method::decode(method_frame),
-            m_name => panic!("Unexpected method frame: {}, expected: {}", m_name, expected_reply)
+            m_name => Err(AMQPError::Protocol(format!("Unexpected method frame: {}, expected: {}", m_name, expected_reply)))
         }
     }
 

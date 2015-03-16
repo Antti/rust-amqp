@@ -39,20 +39,16 @@ impl <'a> Iterator for GetIterator<'a > {
         let get = &basic::Get{ ticket: 0, queue: self.queue.to_string(), no_ack: self.no_ack };
         let ref mut channel = self.channel;
         let method_frame = channel.raw_rpc(get);
-        let res = match method_frame.method_name() {
+        match method_frame.method_name() {
             "basic.get-ok" => {
                 let reply: basic::GetOk = Method::decode(method_frame).ok().unwrap();
                 let headers = channel.read_headers().ok().unwrap();
                 let body = channel.read_body(headers.body_size).ok().unwrap();
                 let properties = BasicProperties::decode(headers).ok().unwrap();
-                Ok((reply, properties, body))
+                Some(GetResult {headers: properties, reply: reply, body: body})
             }
-            "basic.get-empty" => Err(AMQPError::QueueEmpty),
+            "basic.get-empty" => None,
             method => panic!(format!("Not expected method: {}", method))
-        };
-        match res {
-            Ok((reply, basic_properties, body)) => Some(GetResult {headers: basic_properties, reply: reply, body: body}),
-            Err(_) => None
         }
     }
 }

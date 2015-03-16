@@ -12,6 +12,7 @@ pub enum AMQPError {
     DecodeError(&'static str),
     EncodeError,
     QueueEmpty,
+    Protocol(String),
     SyncError
 }
 

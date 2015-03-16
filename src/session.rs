@@ -42,10 +42,10 @@ impl <'a>  Default for Options <'a>  {
 }
 
 pub struct Session {
-	connection: Connection,
-	channels: Arc<Mutex<HashMap<u16, SyncSender<Frame>> >>,
-	channel_max_limit: u16,
-	channel_zero: channel::Channel
+    connection: Connection,
+    channels: Arc<Mutex<HashMap<u16, SyncSender<Frame>> >>,
+    channel_max_limit: u16,
+    channel_zero: channel::Channel
 }
 
 impl Session {
@@ -85,7 +85,7 @@ impl Session {
     /// };
     /// ```
     pub fn new(options: Options) -> AMQPResult<Session> {
-    	let connection = try!(Connection::open(options.host, options.port));
+        let connection = try!(Connection::open(options.host, options.port));
         let (channel_sender, channel_receiver) = sync_channel(CHANNEL_BUFFER_SIZE); //channel0
         let channels = Arc::new(Mutex::new(HashMap::new()));
         let channel_zero = channel::Channel::new(0, channel_receiver, connection.clone());
@@ -101,12 +101,12 @@ impl Session {
             channel_zero: channel_zero
         };
         try!(session.init(options));
-    	Ok(session)
+        Ok(session)
     }
 
     fn init(&mut self, options: Options) -> AMQPResult<()> {
         debug!("Starting init session");
-	    let frame = self.channel_zero.read(); //Start
+        let frame = self.channel_zero.read(); //Start
         let method_frame = MethodFrame::decode(frame);
         let start : protocol::connection::Start = match method_frame.method_name(){
             "connection.start" => protocol::Method::decode(method_frame).ok().unwrap(),
@@ -141,9 +141,9 @@ impl Session {
         let tune : protocol::connection::Tune = try!(self.channel_zero.rpc(&start_ok, "connection.tune"));
 
         self.channel_max_limit =  negotiate(tune.channel_max, self.channel_max_limit);
-    	self.connection.frame_max_limit = negotiate(tune.frame_max, options.frame_max_limit);
+        self.connection.frame_max_limit = negotiate(tune.frame_max, options.frame_max_limit);
         self.channel_zero.connection.frame_max_limit = self.connection.frame_max_limit;
-    	let frame_max_limit = self.connection.frame_max_limit;
+        let frame_max_limit = self.connection.frame_max_limit;
         let tune_ok = protocol::connection::TuneOk {
             channel_max: self.channel_max_limit,
             frame_max: frame_max_limit, heartbeat: 0};
@@ -169,7 +169,7 @@ impl Session {
     ///     Err(error) => panic!("Failed openning channel: {:?}", error)
     /// };
     /// ```
-	pub fn open_channel(&mut self, channel_id: u16) -> AMQPResult<channel::Channel> {
+    pub fn open_channel(&mut self, channel_id: u16) -> AMQPResult<channel::Channel> {
         debug!("Openning channel: {}", channel_id);
         let (sender, receiver) = sync_channel(CHANNEL_BUFFER_SIZE);
         let mut channel = channel::Channel::new(channel_id, receiver, self.connection.clone());

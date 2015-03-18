@@ -4,7 +4,6 @@ use table::Table;
 use framing::{ContentHeaderFrame, FrameType, Frame};
 use protocol::{MethodFrame, basic, Method};
 use protocol::basic::{BasicProperties, GetOk, Consume, ConsumeOk, Deliver, Publish, Ack, Nack, Reject};
-use amqp_error::AMQPError;
 
 pub struct GetIterator <'a> {
     queue: &'a str,
@@ -25,15 +24,16 @@ pub trait Basic <'a> {
     fn basic_reject(&mut self, delivery_tag: u64, requeue: bool);
 }
 
-#[derive(Debug)]
-pub struct GetResult {
+// #[derive(Debug)]
+pub struct GetResult<'c> {
     pub reply: GetOk,
     pub headers: BasicProperties,
-    pub body: Vec<u8>
+    pub body: Vec<u8>,
+    pub channel: &'c mut Channel
 }
 
-impl <'a> Iterator for GetIterator<'a > {
-    type Item = GetResult;
+impl <'a, 'c> Iterator for GetIterator<'a > {
+    type Item = GetResult<'c>;
 
     fn next(&mut self) -> Option<GetResult> {
         let get = &basic::Get{ ticket: 0, queue: self.queue.to_string(), no_ack: self.no_ack };
@@ -45,7 +45,7 @@ impl <'a> Iterator for GetIterator<'a > {
                 let headers = channel.read_headers().ok().unwrap();
                 let body = channel.read_body(headers.body_size).ok().unwrap();
                 let properties = BasicProperties::decode(headers).ok().unwrap();
-                Some(GetResult {headers: properties, reply: reply, body: body})
+                Some(GetResult {headers: properties, reply: reply, body: body, channel: channel})
             }
             "basic.get-empty" => None,
             method => panic!(format!("Not expected method: {}", method))
@@ -54,6 +54,26 @@ impl <'a> Iterator for GetIterator<'a > {
 }
 
 impl <'a> Basic<'a> for Channel {
+
+    /// Returns a basic iterator.
+    /// # Example
+    /// ```no_run
+    /// use std::default::Default;
+    /// use amqp::session::{Options, Session};
+    /// use amqp::basic::Basic;
+    /// let mut session = match Session::new(Options { .. Default::default() }){
+    ///     Ok(session) => session,
+    ///     Err(error) => panic!("Failed openning an amqp session: {:?}", error)
+    /// };
+    /// let mut channel = session.open_channel(1).ok().expect("Can not open a channel");
+    /// for get_result in channel.basic_get("my queue", false) {
+    ///     println!("Headers: {:?}", get_result.headers);
+    ///     println!("Reply: {:?}", get_result.reply);
+    ///     println!("Body: {:?}", String::from_utf8_lossy(&get_result.body));
+    ///     get_result.channel.basic_ack(get_result.reply.delivery_tag, false);
+    /// }
+    /// ```
+    ///
     fn basic_get(&'a mut self, queue: &'a str, no_ack: bool) -> GetIterator<'a> {
         GetIterator { channel: self, queue: queue, no_ack: no_ack }
     }

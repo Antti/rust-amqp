@@ -3,13 +3,13 @@ use connection::Connection;
 use protocol::{self, MethodFrame};
 use table;
 use table::TableEntry::{FieldTable, Bool, LongString};
-use framing::{Frame, FrameType};
+use framing::Frame;
 use amqp_error::{AMQPResult, AMQPError};
 
 use std::sync::{Arc, Mutex};
 use std::default::Default;
 use std::collections::HashMap;
-use std::sync::mpsc::{Receiver, SyncSender, sync_channel};
+use std::sync::mpsc::{SyncSender, sync_channel};
 use std::thread;
 use std::cmp;
 
@@ -91,7 +91,6 @@ impl Session {
         let channel_zero = channel::Channel::new(0, channel_receiver, connection.clone());
         try!(channels.lock().map_err(|_| AMQPError::SyncError)).insert(0, channel_sender);
         let con1 = connection.clone();
-        let con2 = connection.clone();
         let channels_clone = channels.clone();
         thread::spawn( || Session::reading_loop(con1, channels_clone ) );
         let mut session = Session {

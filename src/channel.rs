@@ -1,5 +1,5 @@
 use amqp_error::{AMQPResult, AMQPError};
-use std::sync::mpsc::{SyncSender, Receiver};
+use std::sync::mpsc::Receiver;
 
 use framing::{ContentHeaderFrame, Frame, FrameType};
 use table::Table;

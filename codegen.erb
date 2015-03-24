@@ -3,7 +3,8 @@
 
 use framing::{FrameType, Frame};
 use amqp_error::AMQPResult;
-
+use std::io::{Read, Write};
+use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 
 pub trait Method {
     fn decode(method_frame: MethodFrame) -> AMQPResult<Self>;
@@ -28,8 +29,8 @@ impl MethodFrame {
     }
     pub fn encode(&self) -> Vec<u8> {
         let mut writer = vec!();
-        writer.write_be_u16(self.class_id).unwrap();
-        writer.write_be_u16(self.method_id).unwrap();
+        writer.write_u16::<BigEndian>(self.class_id).unwrap();
+        writer.write_u16::<BigEndian>(self.method_id).unwrap();
         writer.write_all(&self.arguments).unwrap();
         writer
     }
@@ -40,9 +41,10 @@ impl MethodFrame {
             panic!("Not a method frame");
         }
         let reader = &mut &frame.payload[..];
-        let class_id = reader.read_be_u16().unwrap();
-        let method_id = reader.read_be_u16().unwrap();
-        let arguments = reader.read_to_end().unwrap();
+        let class_id = reader.read_u16::<BigEndian>().unwrap();
+        let method_id = reader.read_u16::<BigEndian>().unwrap();
+        let mut arguments = vec!();
+        reader.read_to_end(&mut arguments).unwrap();
         MethodFrame { class_id: class_id, method_id: method_id, arguments: arguments}
     }
 
@@ -67,6 +69,9 @@ pub mod <%= klass["name"] %> {
     use protocol::{Method, MethodFrame};
     use framing::ContentHeaderFrame;
     use amqp_error::{AMQPResult, AMQPError};
+    use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
+    use std::io::{Read, Write};
+    use std::iter;
 
 
 <% if klass["properties"] && klass["properties"].any? -%>

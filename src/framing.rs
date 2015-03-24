@@ -1,6 +1,8 @@
-use std::old_io::MemReader;
 use amqp_error::{AMQPResult, AMQPError};
 use std::num::FromPrimitive;
+use std::io::{Read, Write, Cursor};
+use std::iter;
+use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 
 #[derive(Debug, Clone, Eq, PartialEq, FromPrimitive)]
 pub enum FrameType {
@@ -20,14 +22,18 @@ pub struct Frame {
 }
 
 impl Frame {
-    pub fn decode(reader: &mut Reader) -> AMQPResult<Frame> {
-        let mut header = MemReader::new(try!(reader.read_exact(7)));
-        let frame_type_id = try!(header.read_byte());
-        let channel = try!(header.read_be_u16());
-        let size = try!(header.read_be_u32());
-        let payload = try!(reader.read_exact(size as usize));
+    pub fn decode<T: Read>(reader: &mut T) -> AMQPResult<Frame> {
+        let mut header : &mut [u8] = &mut [0u8; 7];
+        try!(reader.read(&mut header));
+        let mut header : &[u8] = header;
+        let header : &mut &[u8] = &mut header;
+        let frame_type_id = try!(header.read_u8());
+        let channel = try!(header.read_u16::<BigEndian>());
+        let size = try!(header.read_u32::<BigEndian>()) as usize;
+        let mut payload: Vec<u8> = iter::repeat(0u8).take(size).collect();
+        try!(reader.read(&mut payload));
         let frame_end = try!(reader.read_u8());
-        if payload.len() as u32 != size {
+        if payload.len() != size {
             return Err(AMQPError::DecodeError("Payload didn't read the full size"));
         }
         if frame_end != 0xCE {
@@ -45,8 +51,8 @@ impl Frame {
     pub fn encode(&self) -> Vec<u8> {
         let mut writer = vec!();
         writer.write_u8(self.frame_type as u8).unwrap();
-        writer.write_be_u16(self.channel).unwrap();
-        writer.write_be_u32(self.payload.len() as u32).unwrap();
+        writer.write_u16::<BigEndian>(self.channel).unwrap();
+        writer.write_u32::<BigEndian>(self.payload.len() as u32).unwrap();
         writer.write_all(&self.payload).unwrap();
         writer.write_u8(0xCE).unwrap();
         writer
@@ -64,12 +70,13 @@ pub struct ContentHeaderFrame {
 
 impl ContentHeaderFrame {
     pub fn decode(frame: Frame) -> AMQPResult<ContentHeaderFrame> {
-        let mut reader = MemReader::new(frame.payload);
-        let content_class = try!(reader.read_be_u16());
-        let weight = try!(reader.read_be_u16()); //0 all the time for now
-        let body_size = try!(reader.read_be_u64());
-        let properties_flags = try!(reader.read_be_u16());
-        let properties = try!(reader.read_to_end());
+        let mut reader = Cursor::new(frame.payload);
+        let content_class = try!(reader.read_u16::<BigEndian>());
+        let weight = try!(reader.read_u16::<BigEndian>()); //0 all the time for now
+        let body_size = try!(reader.read_u64::<BigEndian>());
+        let properties_flags = try!(reader.read_u16::<BigEndian>());
+        let mut properties = vec!();
+        try!(reader.read_to_end(&mut properties));
         Ok(ContentHeaderFrame {
             content_class: content_class, weight: weight, body_size: body_size,
             properties_flags: properties_flags, properties: properties
@@ -78,10 +85,10 @@ impl ContentHeaderFrame {
 
     pub fn encode(&self) -> Vec<u8> {
         let mut writer = vec!();
-        writer.write_be_u16(self.content_class).unwrap();
-        writer.write_be_u16(self.weight).unwrap(); //0 all the time for now
-        writer.write_be_u64(self.body_size).unwrap();
-        writer.write_be_u16(self.properties_flags).unwrap();
+        writer.write_u16::<BigEndian>(self.content_class).unwrap();
+        writer.write_u16::<BigEndian>(self.weight).unwrap(); //0 all the time for now
+        writer.write_u64::<BigEndian>(self.body_size).unwrap();
+        writer.write_u16::<BigEndian>(self.properties_flags).unwrap();
         writer.write_all(&self.properties).unwrap();
         writer
     }

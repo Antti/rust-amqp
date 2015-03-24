@@ -3,7 +3,8 @@
 
 use framing::{FrameType, Frame};
 use amqp_error::AMQPResult;
-
+use std::io::{Read, Write};
+use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 
 pub trait Method {
     fn decode(method_frame: MethodFrame) -> AMQPResult<Self>;
@@ -12,7 +13,6 @@ pub trait Method {
     fn id(&self) -> u16;
     fn class_id(&self) -> u16;
 }
-
 
 #[derive(Debug, Clone)]
 pub struct MethodFrame {
@@ -28,8 +28,8 @@ impl MethodFrame {
     }
     pub fn encode(&self) -> Vec<u8> {
         let mut writer = vec!();
-        writer.write_be_u16(self.class_id).unwrap();
-        writer.write_be_u16(self.method_id).unwrap();
+        writer.write_u16::<BigEndian>(self.class_id).unwrap();
+        writer.write_u16::<BigEndian>(self.method_id).unwrap();
         writer.write_all(&self.arguments).unwrap();
         writer
     }
@@ -40,9 +40,10 @@ impl MethodFrame {
             panic!("Not a method frame");
         }
         let reader = &mut &frame.payload[..];
-        let class_id = reader.read_be_u16().unwrap();
-        let method_id = reader.read_be_u16().unwrap();
-        let arguments = reader.read_to_end().unwrap();
+        let class_id = reader.read_u16::<BigEndian>().unwrap();
+        let method_id = reader.read_u16::<BigEndian>().unwrap();
+        let mut arguments = vec!();
+        reader.read_to_end(&mut arguments).unwrap();
         MethodFrame { class_id: class_id, method_id: method_id, arguments: arguments}
     }
 
@@ -128,6 +129,9 @@ pub mod connection {
     use protocol::{Method, MethodFrame};
     use framing::ContentHeaderFrame;
     use amqp_error::{AMQPResult, AMQPError};
+    use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
+    use std::io::{Read, Write};
+    use std::iter;
 
 
 
@@ -160,16 +164,20 @@ pub mod connection {
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let reader = &mut &method_frame.arguments[..];
-            let version_major = try!(reader.read_byte());
-            let version_minor = try!(reader.read_byte());
+            let version_major = try!(reader.read_u8());
+            let version_minor = try!(reader.read_u8());
             let server_properties = try!(decode_table(reader));
             let mechanisms = {
-          let size = try!(reader.read_be_u32()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u32::<BigEndian>()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
       };
             let locales = {
-          let size = try!(reader.read_be_u32()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u32::<BigEndian>()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
       };
             Ok(Start { version_major: version_major, version_minor: version_minor, server_properties: server_properties, mechanisms: mechanisms, locales: locales })
           }
@@ -179,9 +187,9 @@ pub mod connection {
             writer.write_u8(self.version_major).unwrap();
             writer.write_u8(self.version_minor).unwrap();
             encode_table(&mut writer, &self.server_properties).ok().unwrap();
-            writer.write_be_u32(self.mechanisms.len() as u32).unwrap();
+            writer.write_u32::<BigEndian>(self.mechanisms.len() as u32).unwrap();
     writer.write_all(self.mechanisms.as_bytes()).unwrap();
-            writer.write_be_u32(self.locales.len() as u32).unwrap();
+            writer.write_u32::<BigEndian>(self.locales.len() as u32).unwrap();
     writer.write_all(self.locales.as_bytes()).unwrap();
             writer
         }
@@ -229,16 +237,22 @@ pub mod connection {
             let reader = &mut &method_frame.arguments[..];
             let client_properties = try!(decode_table(reader));
             let mechanism = {
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let response = {
-          let size = try!(reader.read_be_u32()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u32::<BigEndian>()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
       };
             let locale = {
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      };
             Ok(StartOk { client_properties: client_properties, mechanism: mechanism, response: response, locale: locale })
           }
@@ -248,7 +262,7 @@ pub mod connection {
             encode_table(&mut writer, &self.client_properties).ok().unwrap();
             writer.write_u8(self.mechanism.len() as u8).unwrap();
     writer.write_all(self.mechanism.as_bytes()).unwrap();
-            writer.write_be_u32(self.response.len() as u32).unwrap();
+            writer.write_u32::<BigEndian>(self.response.len() as u32).unwrap();
     writer.write_all(self.response.as_bytes()).unwrap();
             writer.write_u8(self.locale.len() as u8).unwrap();
     writer.write_all(self.locale.as_bytes()).unwrap();
@@ -293,15 +307,17 @@ pub mod connection {
             };
             let reader = &mut &method_frame.arguments[..];
             let challenge = {
-          let size = try!(reader.read_be_u32()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u32::<BigEndian>()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
       };
             Ok(Secure { challenge: challenge })
           }
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = vec!();
-            writer.write_be_u32(self.challenge.len() as u32).unwrap();
+            writer.write_u32::<BigEndian>(self.challenge.len() as u32).unwrap();
     writer.write_all(self.challenge.as_bytes()).unwrap();
             writer
         }
@@ -334,15 +350,17 @@ pub mod connection {
             };
             let reader = &mut &method_frame.arguments[..];
             let response = {
-          let size = try!(reader.read_be_u32()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u32::<BigEndian>()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
       };
             Ok(SecureOk { response: response })
           }
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = vec!();
-            writer.write_be_u32(self.response.len() as u32).unwrap();
+            writer.write_u32::<BigEndian>(self.response.len() as u32).unwrap();
     writer.write_all(self.response.as_bytes()).unwrap();
             writer
         }
@@ -376,17 +394,17 @@ pub mod connection {
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let reader = &mut &method_frame.arguments[..];
-            let channel_max = try!(reader.read_be_u16());
-            let frame_max = try!(reader.read_be_u32());
-            let heartbeat = try!(reader.read_be_u16());
+            let channel_max = try!(reader.read_u16::<BigEndian>());
+            let frame_max = try!(reader.read_u32::<BigEndian>());
+            let heartbeat = try!(reader.read_u16::<BigEndian>());
             Ok(Tune { channel_max: channel_max, frame_max: frame_max, heartbeat: heartbeat })
           }
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = vec!();
-            writer.write_be_u16(self.channel_max).unwrap();
-            writer.write_be_u32(self.frame_max).unwrap();
-            writer.write_be_u16(self.heartbeat).unwrap();
+            writer.write_u16::<BigEndian>(self.channel_max).unwrap();
+            writer.write_u32::<BigEndian>(self.frame_max).unwrap();
+            writer.write_u16::<BigEndian>(self.heartbeat).unwrap();
             writer
         }
     }
@@ -428,17 +446,17 @@ pub mod connection {
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let reader = &mut &method_frame.arguments[..];
-            let channel_max = try!(reader.read_be_u16());
-            let frame_max = try!(reader.read_be_u32());
-            let heartbeat = try!(reader.read_be_u16());
+            let channel_max = try!(reader.read_u16::<BigEndian>());
+            let frame_max = try!(reader.read_u32::<BigEndian>());
+            let heartbeat = try!(reader.read_u16::<BigEndian>());
             Ok(TuneOk { channel_max: channel_max, frame_max: frame_max, heartbeat: heartbeat })
           }
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = vec!();
-            writer.write_be_u16(self.channel_max).unwrap();
-            writer.write_be_u32(self.frame_max).unwrap();
-            writer.write_be_u16(self.heartbeat).unwrap();
+            writer.write_u16::<BigEndian>(self.channel_max).unwrap();
+            writer.write_u32::<BigEndian>(self.frame_max).unwrap();
+            writer.write_u16::<BigEndian>(self.heartbeat).unwrap();
             writer
         }
     }
@@ -481,14 +499,18 @@ pub mod connection {
             };
             let reader = &mut &method_frame.arguments[..];
             let virtual_host = {
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let capabilities = {
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      };
-            let byte = try!(reader.read_byte());
+            let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
             let insist = bits.get(7).unwrap();
             Ok(Open { virtual_host: virtual_host, capabilities: capabilities, insist: insist })
@@ -543,8 +565,10 @@ pub mod connection {
             };
             let reader = &mut &method_frame.arguments[..];
             let known_hosts = {
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      };
             Ok(OpenOk { known_hosts: known_hosts })
           }
@@ -593,23 +617,25 @@ pub mod connection {
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let reader = &mut &method_frame.arguments[..];
-            let reply_code = try!(reader.read_be_u16());
+            let reply_code = try!(reader.read_u16::<BigEndian>());
             let reply_text = {
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      };
-            let class_id = try!(reader.read_be_u16());
-            let method_id = try!(reader.read_be_u16());
+            let class_id = try!(reader.read_u16::<BigEndian>());
+            let method_id = try!(reader.read_u16::<BigEndian>());
             Ok(Close { reply_code: reply_code, reply_text: reply_text, class_id: class_id, method_id: method_id })
           }
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = vec!();
-            writer.write_be_u16(self.reply_code).unwrap();
+            writer.write_u16::<BigEndian>(self.reply_code).unwrap();
             writer.write_u8(self.reply_text.len() as u8).unwrap();
     writer.write_all(self.reply_text.as_bytes()).unwrap();
-            writer.write_be_u16(self.class_id).unwrap();
-            writer.write_be_u16(self.method_id).unwrap();
+            writer.write_u16::<BigEndian>(self.class_id).unwrap();
+            writer.write_u16::<BigEndian>(self.method_id).unwrap();
             writer
         }
     }
@@ -682,8 +708,10 @@ pub mod connection {
             };
             let reader = &mut &method_frame.arguments[..];
             let reason = {
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      };
             Ok(Blocked { reason: reason })
           }
@@ -746,6 +774,9 @@ pub mod channel {
     use protocol::{Method, MethodFrame};
     use framing::ContentHeaderFrame;
     use amqp_error::{AMQPResult, AMQPError};
+    use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
+    use std::io::{Read, Write};
+    use std::iter;
 
 
 
@@ -775,8 +806,10 @@ pub mod channel {
             };
             let reader = &mut &method_frame.arguments[..];
             let out_of_band = {
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      };
             Ok(Open { out_of_band: out_of_band })
           }
@@ -823,15 +856,17 @@ pub mod channel {
             };
             let reader = &mut &method_frame.arguments[..];
             let channel_id = {
-          let size = try!(reader.read_be_u32()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u32::<BigEndian>()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
       };
             Ok(OpenOk { channel_id: channel_id })
           }
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = vec!();
-            writer.write_be_u32(self.channel_id.len() as u32).unwrap();
+            writer.write_u32::<BigEndian>(self.channel_id.len() as u32).unwrap();
     writer.write_all(self.channel_id.as_bytes()).unwrap();
             writer
         }
@@ -870,7 +905,7 @@ pub mod channel {
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let reader = &mut &method_frame.arguments[..];
-            let byte = try!(reader.read_byte());
+            let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
             let active = bits.get(7).unwrap();
             Ok(Flow { active: active })
@@ -911,7 +946,7 @@ pub mod channel {
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let reader = &mut &method_frame.arguments[..];
-            let byte = try!(reader.read_byte());
+            let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
             let active = bits.get(7).unwrap();
             Ok(FlowOk { active: active })
@@ -955,23 +990,25 @@ pub mod channel {
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let reader = &mut &method_frame.arguments[..];
-            let reply_code = try!(reader.read_be_u16());
+            let reply_code = try!(reader.read_u16::<BigEndian>());
             let reply_text = {
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      };
-            let class_id = try!(reader.read_be_u16());
-            let method_id = try!(reader.read_be_u16());
+            let class_id = try!(reader.read_u16::<BigEndian>());
+            let method_id = try!(reader.read_u16::<BigEndian>());
             Ok(Close { reply_code: reply_code, reply_text: reply_text, class_id: class_id, method_id: method_id })
           }
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = vec!();
-            writer.write_be_u16(self.reply_code).unwrap();
+            writer.write_u16::<BigEndian>(self.reply_code).unwrap();
             writer.write_u8(self.reply_text.len() as u8).unwrap();
     writer.write_all(self.reply_text.as_bytes()).unwrap();
-            writer.write_be_u16(self.class_id).unwrap();
-            writer.write_be_u16(self.method_id).unwrap();
+            writer.write_u16::<BigEndian>(self.class_id).unwrap();
+            writer.write_u16::<BigEndian>(self.method_id).unwrap();
             writer
         }
     }
@@ -1029,6 +1066,9 @@ pub mod access {
     use protocol::{Method, MethodFrame};
     use framing::ContentHeaderFrame;
     use amqp_error::{AMQPResult, AMQPError};
+    use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
+    use std::io::{Read, Write};
+    use std::iter;
 
 
 
@@ -1063,10 +1103,12 @@ pub mod access {
             };
             let reader = &mut &method_frame.arguments[..];
             let realm = {
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      };
-            let byte = try!(reader.read_byte());
+            let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
             let exclusive = bits.get(7).unwrap();
             let passive = bits.get(6).unwrap();
@@ -1129,13 +1171,13 @@ pub mod access {
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let reader = &mut &method_frame.arguments[..];
-            let ticket = try!(reader.read_be_u16());
+            let ticket = try!(reader.read_u16::<BigEndian>());
             Ok(RequestOk { ticket: ticket })
           }
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = vec!();
-            writer.write_be_u16(self.ticket).unwrap();
+            writer.write_u16::<BigEndian>(self.ticket).unwrap();
             writer
         }
     }
@@ -1159,6 +1201,9 @@ pub mod exchange {
     use protocol::{Method, MethodFrame};
     use framing::ContentHeaderFrame;
     use amqp_error::{AMQPResult, AMQPError};
+    use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
+    use std::io::{Read, Write};
+    use std::iter;
 
 
 
@@ -1195,16 +1240,20 @@ pub mod exchange {
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let reader = &mut &method_frame.arguments[..];
-            let ticket = try!(reader.read_be_u16());
+            let ticket = try!(reader.read_u16::<BigEndian>());
             let exchange = {
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let _type = {
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      };
-            let byte = try!(reader.read_byte());
+            let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
             let passive = bits.get(7).unwrap();
             let durable = bits.get(6).unwrap();
@@ -1217,7 +1266,7 @@ pub mod exchange {
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = vec!();
-            writer.write_be_u16(self.ticket).unwrap();
+            writer.write_u16::<BigEndian>(self.ticket).unwrap();
             writer.write_u8(self.exchange.len() as u8).unwrap();
     writer.write_all(self.exchange.as_bytes()).unwrap();
             writer.write_u8(self._type.len() as u8).unwrap();
@@ -1309,12 +1358,14 @@ pub mod exchange {
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let reader = &mut &method_frame.arguments[..];
-            let ticket = try!(reader.read_be_u16());
+            let ticket = try!(reader.read_u16::<BigEndian>());
             let exchange = {
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      };
-            let byte = try!(reader.read_byte());
+            let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
             let if_unused = bits.get(7).unwrap();
             let nowait = bits.get(6).unwrap();
@@ -1323,7 +1374,7 @@ pub mod exchange {
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = vec!();
-            writer.write_be_u16(self.ticket).unwrap();
+            writer.write_u16::<BigEndian>(self.ticket).unwrap();
             writer.write_u8(self.exchange.len() as u8).unwrap();
     writer.write_all(self.exchange.as_bytes()).unwrap();
             let mut bits = BitVec::from_elem(8, false);
@@ -1406,20 +1457,26 @@ pub mod exchange {
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let reader = &mut &method_frame.arguments[..];
-            let ticket = try!(reader.read_be_u16());
+            let ticket = try!(reader.read_u16::<BigEndian>());
             let destination = {
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let source = {
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let routing_key = {
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      };
-            let byte = try!(reader.read_byte());
+            let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
             let nowait = bits.get(7).unwrap();
             let arguments = try!(decode_table(reader));
@@ -1428,7 +1485,7 @@ pub mod exchange {
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = vec!();
-            writer.write_be_u16(self.ticket).unwrap();
+            writer.write_u16::<BigEndian>(self.ticket).unwrap();
             writer.write_u8(self.destination.len() as u8).unwrap();
     writer.write_all(self.destination.as_bytes()).unwrap();
             writer.write_u8(self.source.len() as u8).unwrap();
@@ -1517,20 +1574,26 @@ pub mod exchange {
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let reader = &mut &method_frame.arguments[..];
-            let ticket = try!(reader.read_be_u16());
+            let ticket = try!(reader.read_u16::<BigEndian>());
             let destination = {
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let source = {
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let routing_key = {
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      };
-            let byte = try!(reader.read_byte());
+            let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
             let nowait = bits.get(7).unwrap();
             let arguments = try!(decode_table(reader));
@@ -1539,7 +1602,7 @@ pub mod exchange {
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = vec!();
-            writer.write_be_u16(self.ticket).unwrap();
+            writer.write_u16::<BigEndian>(self.ticket).unwrap();
             writer.write_u8(self.destination.len() as u8).unwrap();
     writer.write_all(self.destination.as_bytes()).unwrap();
             writer.write_u8(self.source.len() as u8).unwrap();
@@ -1609,6 +1672,9 @@ pub mod queue {
     use protocol::{Method, MethodFrame};
     use framing::ContentHeaderFrame;
     use amqp_error::{AMQPResult, AMQPError};
+    use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
+    use std::io::{Read, Write};
+    use std::iter;
 
 
 
@@ -1644,12 +1710,14 @@ pub mod queue {
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let reader = &mut &method_frame.arguments[..];
-            let ticket = try!(reader.read_be_u16());
+            let ticket = try!(reader.read_u16::<BigEndian>());
             let queue = {
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      };
-            let byte = try!(reader.read_byte());
+            let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
             let passive = bits.get(7).unwrap();
             let durable = bits.get(6).unwrap();
@@ -1662,7 +1730,7 @@ pub mod queue {
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = vec!();
-            writer.write_be_u16(self.ticket).unwrap();
+            writer.write_u16::<BigEndian>(self.ticket).unwrap();
             writer.write_u8(self.queue.len() as u8).unwrap();
     writer.write_all(self.queue.as_bytes()).unwrap();
             let mut bits = BitVec::from_elem(8, false);
@@ -1720,11 +1788,13 @@ pub mod queue {
             };
             let reader = &mut &method_frame.arguments[..];
             let queue = {
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      };
-            let message_count = try!(reader.read_be_u32());
-            let consumer_count = try!(reader.read_be_u32());
+            let message_count = try!(reader.read_u32::<BigEndian>());
+            let consumer_count = try!(reader.read_u32::<BigEndian>());
             Ok(DeclareOk { queue: queue, message_count: message_count, consumer_count: consumer_count })
           }
 
@@ -1732,8 +1802,8 @@ pub mod queue {
             let mut writer = vec!();
             writer.write_u8(self.queue.len() as u8).unwrap();
     writer.write_all(self.queue.as_bytes()).unwrap();
-            writer.write_be_u32(self.message_count).unwrap();
-            writer.write_be_u32(self.consumer_count).unwrap();
+            writer.write_u32::<BigEndian>(self.message_count).unwrap();
+            writer.write_u32::<BigEndian>(self.consumer_count).unwrap();
             writer
         }
     }
@@ -1769,20 +1839,26 @@ pub mod queue {
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let reader = &mut &method_frame.arguments[..];
-            let ticket = try!(reader.read_be_u16());
+            let ticket = try!(reader.read_u16::<BigEndian>());
             let queue = {
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let exchange = {
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let routing_key = {
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      };
-            let byte = try!(reader.read_byte());
+            let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
             let nowait = bits.get(7).unwrap();
             let arguments = try!(decode_table(reader));
@@ -1791,7 +1867,7 @@ pub mod queue {
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = vec!();
-            writer.write_be_u16(self.ticket).unwrap();
+            writer.write_u16::<BigEndian>(self.ticket).unwrap();
             writer.write_u8(self.queue.len() as u8).unwrap();
     writer.write_all(self.queue.as_bytes()).unwrap();
             writer.write_u8(self.exchange.len() as u8).unwrap();
@@ -1877,12 +1953,14 @@ pub mod queue {
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let reader = &mut &method_frame.arguments[..];
-            let ticket = try!(reader.read_be_u16());
+            let ticket = try!(reader.read_u16::<BigEndian>());
             let queue = {
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      };
-            let byte = try!(reader.read_byte());
+            let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
             let nowait = bits.get(7).unwrap();
             Ok(Purge { ticket: ticket, queue: queue, nowait: nowait })
@@ -1890,7 +1968,7 @@ pub mod queue {
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = vec!();
-            writer.write_be_u16(self.ticket).unwrap();
+            writer.write_u16::<BigEndian>(self.ticket).unwrap();
             writer.write_u8(self.queue.len() as u8).unwrap();
     writer.write_all(self.queue.as_bytes()).unwrap();
             let mut bits = BitVec::from_elem(8, false);
@@ -1935,13 +2013,13 @@ pub mod queue {
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let reader = &mut &method_frame.arguments[..];
-            let message_count = try!(reader.read_be_u32());
+            let message_count = try!(reader.read_u32::<BigEndian>());
             Ok(PurgeOk { message_count: message_count })
           }
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = vec!();
-            writer.write_be_u32(self.message_count).unwrap();
+            writer.write_u32::<BigEndian>(self.message_count).unwrap();
             writer
         }
     }
@@ -1976,12 +2054,14 @@ pub mod queue {
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let reader = &mut &method_frame.arguments[..];
-            let ticket = try!(reader.read_be_u16());
+            let ticket = try!(reader.read_u16::<BigEndian>());
             let queue = {
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      };
-            let byte = try!(reader.read_byte());
+            let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
             let if_unused = bits.get(7).unwrap();
             let if_empty = bits.get(6).unwrap();
@@ -1991,7 +2071,7 @@ pub mod queue {
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = vec!();
-            writer.write_be_u16(self.ticket).unwrap();
+            writer.write_u16::<BigEndian>(self.ticket).unwrap();
             writer.write_u8(self.queue.len() as u8).unwrap();
     writer.write_all(self.queue.as_bytes()).unwrap();
             let mut bits = BitVec::from_elem(8, false);
@@ -2040,13 +2120,13 @@ pub mod queue {
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let reader = &mut &method_frame.arguments[..];
-            let message_count = try!(reader.read_be_u32());
+            let message_count = try!(reader.read_u32::<BigEndian>());
             Ok(DeleteOk { message_count: message_count })
           }
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = vec!();
-            writer.write_be_u32(self.message_count).unwrap();
+            writer.write_u32::<BigEndian>(self.message_count).unwrap();
             writer
         }
     }
@@ -2081,18 +2161,24 @@ pub mod queue {
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let reader = &mut &method_frame.arguments[..];
-            let ticket = try!(reader.read_be_u16());
+            let ticket = try!(reader.read_u16::<BigEndian>());
             let queue = {
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let exchange = {
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let routing_key = {
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let arguments = try!(decode_table(reader));
             Ok(Unbind { ticket: ticket, queue: queue, exchange: exchange, routing_key: routing_key, arguments: arguments })
@@ -2100,7 +2186,7 @@ pub mod queue {
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = vec!();
-            writer.write_be_u16(self.ticket).unwrap();
+            writer.write_u16::<BigEndian>(self.ticket).unwrap();
             writer.write_u8(self.queue.len() as u8).unwrap();
     writer.write_all(self.queue.as_bytes()).unwrap();
             writer.write_u8(self.exchange.len() as u8).unwrap();
@@ -2166,6 +2252,9 @@ pub mod basic {
     use protocol::{Method, MethodFrame};
     use framing::ContentHeaderFrame;
     use amqp_error::{AMQPResult, AMQPError};
+    use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
+    use std::io::{Read, Write};
+    use std::iter;
 
 
     //properties struct for basic
@@ -2194,16 +2283,20 @@ pub mod basic {
                 (content_header_frame.properties_flags & 0xff) as u8]);
             let content_type = if properties_flags.get(0).unwrap() {
                 Some({
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      })
             } else {
                 None
             };
             let content_encoding = if properties_flags.get(1).unwrap() {
                 Some({
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      })
             } else {
                 None
@@ -2214,80 +2307,96 @@ pub mod basic {
                 None
             };
             let delivery_mode = if properties_flags.get(3).unwrap() {
-                Some(try!(reader.read_byte()))
+                Some(try!(reader.read_u8()))
             } else {
                 None
             };
             let priority = if properties_flags.get(4).unwrap() {
-                Some(try!(reader.read_byte()))
+                Some(try!(reader.read_u8()))
             } else {
                 None
             };
             let correlation_id = if properties_flags.get(5).unwrap() {
                 Some({
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      })
             } else {
                 None
             };
             let reply_to = if properties_flags.get(6).unwrap() {
                 Some({
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      })
             } else {
                 None
             };
             let expiration = if properties_flags.get(7).unwrap() {
                 Some({
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      })
             } else {
                 None
             };
             let message_id = if properties_flags.get(8).unwrap() {
                 Some({
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      })
             } else {
                 None
             };
             let timestamp = if properties_flags.get(9).unwrap() {
-                Some(try!(reader.read_be_u64()))
+                Some(try!(reader.read_u64::<BigEndian>()))
             } else {
                 None
             };
             let _type = if properties_flags.get(10).unwrap() {
                 Some({
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      })
             } else {
                 None
             };
             let user_id = if properties_flags.get(11).unwrap() {
                 Some({
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      })
             } else {
                 None
             };
             let app_id = if properties_flags.get(12).unwrap() {
                 Some({
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      })
             } else {
                 None
             };
             let cluster_id = if properties_flags.get(13).unwrap() {
                 Some({
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      })
             } else {
                 None
@@ -2369,7 +2478,7 @@ pub mod basic {
               match self.timestamp {
                   Some(prop) => {
                       let timestamp =  prop;
-                      writer.write_be_u64(timestamp).unwrap();
+                      writer.write_u64::<BigEndian>(timestamp).unwrap();
                   }
                   None => {}
               };
@@ -2456,9 +2565,9 @@ pub mod basic {
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let reader = &mut &method_frame.arguments[..];
-            let prefetch_size = try!(reader.read_be_u32());
-            let prefetch_count = try!(reader.read_be_u16());
-            let byte = try!(reader.read_byte());
+            let prefetch_size = try!(reader.read_u32::<BigEndian>());
+            let prefetch_count = try!(reader.read_u16::<BigEndian>());
+            let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
             let global = bits.get(7).unwrap();
             Ok(Qos { prefetch_size: prefetch_size, prefetch_count: prefetch_count, global: global })
@@ -2466,8 +2575,8 @@ pub mod basic {
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = vec!();
-            writer.write_be_u32(self.prefetch_size).unwrap();
-            writer.write_be_u16(self.prefetch_count).unwrap();
+            writer.write_u32::<BigEndian>(self.prefetch_size).unwrap();
+            writer.write_u16::<BigEndian>(self.prefetch_count).unwrap();
             let mut bits = BitVec::from_elem(8, false);
             bits.set(7, self.global);
             writer.write_all(&bits.to_bytes()).unwrap();
@@ -2548,16 +2657,20 @@ pub mod basic {
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let reader = &mut &method_frame.arguments[..];
-            let ticket = try!(reader.read_be_u16());
+            let ticket = try!(reader.read_u16::<BigEndian>());
             let queue = {
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let consumer_tag = {
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      };
-            let byte = try!(reader.read_byte());
+            let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
             let no_local = bits.get(7).unwrap();
             let no_ack = bits.get(6).unwrap();
@@ -2569,7 +2682,7 @@ pub mod basic {
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = vec!();
-            writer.write_be_u16(self.ticket).unwrap();
+            writer.write_u16::<BigEndian>(self.ticket).unwrap();
             writer.write_u8(self.queue.len() as u8).unwrap();
     writer.write_all(self.queue.as_bytes()).unwrap();
             writer.write_u8(self.consumer_tag.len() as u8).unwrap();
@@ -2626,8 +2739,10 @@ pub mod basic {
             };
             let reader = &mut &method_frame.arguments[..];
             let consumer_tag = {
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      };
             Ok(ConsumeOk { consumer_tag: consumer_tag })
           }
@@ -2668,10 +2783,12 @@ pub mod basic {
             };
             let reader = &mut &method_frame.arguments[..];
             let consumer_tag = {
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      };
-            let byte = try!(reader.read_byte());
+            let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
             let nowait = bits.get(7).unwrap();
             Ok(Cancel { consumer_tag: consumer_tag, nowait: nowait })
@@ -2715,8 +2832,10 @@ pub mod basic {
             };
             let reader = &mut &method_frame.arguments[..];
             let consumer_tag = {
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      };
             Ok(CancelOk { consumer_tag: consumer_tag })
           }
@@ -2759,16 +2878,20 @@ pub mod basic {
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let reader = &mut &method_frame.arguments[..];
-            let ticket = try!(reader.read_be_u16());
+            let ticket = try!(reader.read_u16::<BigEndian>());
             let exchange = {
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let routing_key = {
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      };
-            let byte = try!(reader.read_byte());
+            let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
             let mandatory = bits.get(7).unwrap();
             let immediate = bits.get(6).unwrap();
@@ -2777,7 +2900,7 @@ pub mod basic {
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = vec!();
-            writer.write_be_u16(self.ticket).unwrap();
+            writer.write_u16::<BigEndian>(self.ticket).unwrap();
             writer.write_u8(self.exchange.len() as u8).unwrap();
     writer.write_all(self.exchange.as_bytes()).unwrap();
             writer.write_u8(self.routing_key.len() as u8).unwrap();
@@ -2830,25 +2953,31 @@ pub mod basic {
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let reader = &mut &method_frame.arguments[..];
-            let reply_code = try!(reader.read_be_u16());
+            let reply_code = try!(reader.read_u16::<BigEndian>());
             let reply_text = {
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let exchange = {
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let routing_key = {
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      };
             Ok(Return { reply_code: reply_code, reply_text: reply_text, exchange: exchange, routing_key: routing_key })
           }
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = vec!();
-            writer.write_be_u16(self.reply_code).unwrap();
+            writer.write_u16::<BigEndian>(self.reply_code).unwrap();
             writer.write_u8(self.reply_text.len() as u8).unwrap();
     writer.write_all(self.reply_text.as_bytes()).unwrap();
             writer.write_u8(self.exchange.len() as u8).unwrap();
@@ -2900,20 +3029,26 @@ pub mod basic {
             };
             let reader = &mut &method_frame.arguments[..];
             let consumer_tag = {
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      };
-            let delivery_tag = try!(reader.read_be_u64());
-            let byte = try!(reader.read_byte());
+            let delivery_tag = try!(reader.read_u64::<BigEndian>());
+            let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
             let redelivered = bits.get(7).unwrap();
             let exchange = {
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let routing_key = {
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      };
             Ok(Deliver { consumer_tag: consumer_tag, delivery_tag: delivery_tag, redelivered: redelivered, exchange: exchange, routing_key: routing_key })
           }
@@ -2922,7 +3057,7 @@ pub mod basic {
             let mut writer = vec!();
             writer.write_u8(self.consumer_tag.len() as u8).unwrap();
     writer.write_all(self.consumer_tag.as_bytes()).unwrap();
-            writer.write_be_u64(self.delivery_tag).unwrap();
+            writer.write_u64::<BigEndian>(self.delivery_tag).unwrap();
             let mut bits = BitVec::from_elem(8, false);
             bits.set(7, self.redelivered);
             writer.write_all(&bits.to_bytes()).unwrap();
@@ -2962,12 +3097,14 @@ pub mod basic {
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let reader = &mut &method_frame.arguments[..];
-            let ticket = try!(reader.read_be_u16());
+            let ticket = try!(reader.read_u16::<BigEndian>());
             let queue = {
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      };
-            let byte = try!(reader.read_byte());
+            let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
             let no_ack = bits.get(7).unwrap();
             Ok(Get { ticket: ticket, queue: queue, no_ack: no_ack })
@@ -2975,7 +3112,7 @@ pub mod basic {
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = vec!();
-            writer.write_be_u16(self.ticket).unwrap();
+            writer.write_u16::<BigEndian>(self.ticket).unwrap();
             writer.write_u8(self.queue.len() as u8).unwrap();
     writer.write_all(self.queue.as_bytes()).unwrap();
             let mut bits = BitVec::from_elem(8, false);
@@ -3024,25 +3161,29 @@ pub mod basic {
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let reader = &mut &method_frame.arguments[..];
-            let delivery_tag = try!(reader.read_be_u64());
-            let byte = try!(reader.read_byte());
+            let delivery_tag = try!(reader.read_u64::<BigEndian>());
+            let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
             let redelivered = bits.get(7).unwrap();
             let exchange = {
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let routing_key = {
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      };
-            let message_count = try!(reader.read_be_u32());
+            let message_count = try!(reader.read_u32::<BigEndian>());
             Ok(GetOk { delivery_tag: delivery_tag, redelivered: redelivered, exchange: exchange, routing_key: routing_key, message_count: message_count })
           }
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = vec!();
-            writer.write_be_u64(self.delivery_tag).unwrap();
+            writer.write_u64::<BigEndian>(self.delivery_tag).unwrap();
             let mut bits = BitVec::from_elem(8, false);
             bits.set(7, self.redelivered);
             writer.write_all(&bits.to_bytes()).unwrap();
@@ -3050,7 +3191,7 @@ pub mod basic {
     writer.write_all(self.exchange.as_bytes()).unwrap();
             writer.write_u8(self.routing_key.len() as u8).unwrap();
     writer.write_all(self.routing_key.as_bytes()).unwrap();
-            writer.write_be_u32(self.message_count).unwrap();
+            writer.write_u32::<BigEndian>(self.message_count).unwrap();
             writer
         }
     }
@@ -3082,8 +3223,10 @@ pub mod basic {
             };
             let reader = &mut &method_frame.arguments[..];
             let cluster_id = {
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      };
             Ok(GetEmpty { cluster_id: cluster_id })
           }
@@ -3130,8 +3273,8 @@ pub mod basic {
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let reader = &mut &method_frame.arguments[..];
-            let delivery_tag = try!(reader.read_be_u64());
-            let byte = try!(reader.read_byte());
+            let delivery_tag = try!(reader.read_u64::<BigEndian>());
+            let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
             let multiple = bits.get(7).unwrap();
             Ok(Ack { delivery_tag: delivery_tag, multiple: multiple })
@@ -3139,7 +3282,7 @@ pub mod basic {
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = vec!();
-            writer.write_be_u64(self.delivery_tag).unwrap();
+            writer.write_u64::<BigEndian>(self.delivery_tag).unwrap();
             let mut bits = BitVec::from_elem(8, false);
             bits.set(7, self.multiple);
             writer.write_all(&bits.to_bytes()).unwrap();
@@ -3182,8 +3325,8 @@ pub mod basic {
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let reader = &mut &method_frame.arguments[..];
-            let delivery_tag = try!(reader.read_be_u64());
-            let byte = try!(reader.read_byte());
+            let delivery_tag = try!(reader.read_u64::<BigEndian>());
+            let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
             let requeue = bits.get(7).unwrap();
             Ok(Reject { delivery_tag: delivery_tag, requeue: requeue })
@@ -3191,7 +3334,7 @@ pub mod basic {
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = vec!();
-            writer.write_be_u64(self.delivery_tag).unwrap();
+            writer.write_u64::<BigEndian>(self.delivery_tag).unwrap();
             let mut bits = BitVec::from_elem(8, false);
             bits.set(7, self.requeue);
             writer.write_all(&bits.to_bytes()).unwrap();
@@ -3233,7 +3376,7 @@ pub mod basic {
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let reader = &mut &method_frame.arguments[..];
-            let byte = try!(reader.read_byte());
+            let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
             let requeue = bits.get(7).unwrap();
             Ok(RecoverAsync { requeue: requeue })
@@ -3274,7 +3417,7 @@ pub mod basic {
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let reader = &mut &method_frame.arguments[..];
-            let byte = try!(reader.read_byte());
+            let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
             let requeue = bits.get(7).unwrap();
             Ok(Recover { requeue: requeue })
@@ -3348,8 +3491,8 @@ pub mod basic {
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let reader = &mut &method_frame.arguments[..];
-            let delivery_tag = try!(reader.read_be_u64());
-            let byte = try!(reader.read_byte());
+            let delivery_tag = try!(reader.read_u64::<BigEndian>());
+            let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
             let multiple = bits.get(7).unwrap();
             let requeue = bits.get(6).unwrap();
@@ -3358,7 +3501,7 @@ pub mod basic {
 
         fn encode(&self) -> Vec<u8> {
             let mut writer = vec!();
-            writer.write_be_u64(self.delivery_tag).unwrap();
+            writer.write_u64::<BigEndian>(self.delivery_tag).unwrap();
             let mut bits = BitVec::from_elem(8, false);
             bits.set(7, self.multiple);
             bits.set(6, self.requeue);
@@ -3388,6 +3531,9 @@ pub mod tx {
     use protocol::{Method, MethodFrame};
     use framing::ContentHeaderFrame;
     use amqp_error::{AMQPResult, AMQPError};
+    use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
+    use std::io::{Read, Write};
+    use std::iter;
 
 
 
@@ -3588,6 +3734,9 @@ pub mod confirm {
     use protocol::{Method, MethodFrame};
     use framing::ContentHeaderFrame;
     use amqp_error::{AMQPResult, AMQPError};
+    use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
+    use std::io::{Read, Write};
+    use std::iter;
 
 
 
@@ -3616,7 +3765,7 @@ pub mod confirm {
                 (_,_) => {return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))}
             };
             let reader = &mut &method_frame.arguments[..];
-            let byte = try!(reader.read_byte());
+            let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
             let nowait = bits.get(7).unwrap();
             Ok(Select { nowait: nowait })

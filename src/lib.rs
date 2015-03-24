@@ -70,14 +70,12 @@ cargo test
 ```
 */
 
-#![feature(io)]
 #![feature(collections)]
-#![feature(rustc_private)]
 #![feature(core)]
-#![feature(old_io)]
 
 extern crate collect;
 extern crate url;
+extern crate byteorder;
 #[macro_use]
 extern crate log;
 

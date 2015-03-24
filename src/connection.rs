@@ -1,14 +1,19 @@
-use std::old_io::TcpStream;
+use std::net::TcpStream;
 use std::io::Write;
 use std::cmp;
 
 use amqp_error::AMQPResult;
 use framing::{Frame, FrameType};
 
-#[derive(Clone)]
 pub struct Connection {
     socket: TcpStream,
     pub frame_max_limit: u32
+}
+
+impl Clone for Connection {
+    fn clone(&self) -> Connection {
+        Connection {socket: self.socket.try_clone().unwrap(), frame_max_limit: self.frame_max_limit}
+    }
 }
 
 impl Connection {

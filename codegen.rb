@@ -9,29 +9,33 @@ require 'erb'
 def read_type(type)
   case type
   when "octet"
-    "try!(reader.read_byte())"
+    "try!(reader.read_u8())"
   when "long"
-    "try!(reader.read_be_u32())"
+    "try!(reader.read_u32::<BigEndian>())"
   when "longlong"
-    "try!(reader.read_be_u64())"
+    "try!(reader.read_u64::<BigEndian>())"
   when "short"
-    "try!(reader.read_be_u16())"
+    "try!(reader.read_u16::<BigEndian>())"
   when "bit"
     raise "Cant read bit here..."
   when "shortstr"
     "{
-          let size = try!(reader.read_byte()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u8()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
      }"
   when "longstr"
     "{
-          let size = try!(reader.read_be_u32()) as usize;
-          String::from_utf8_lossy(&try!(reader.read_exact(size))).to_string()
+          let size = try!(reader.read_u32::<BigEndian>()) as usize;
+          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          try!(reader.read(buffer.as_mut_slice()));
+          String::from_utf8_lossy(&buffer[..]).to_string()
       }"
   when "table"
     "try!(decode_table(reader))"
   when "timestamp"
-    "try!(reader.read_be_u64())"
+    "try!(reader.read_u64::<BigEndian>())"
   else
     raise "Unknown type: #{type}"
   end
@@ -42,23 +46,23 @@ def write_type(name, type)
   when "octet"
     "writer.write_u8(#{name}).unwrap();"
   when "long"
-    "writer.write_be_u32(#{name}).unwrap();"
+    "writer.write_u32::<BigEndian>(#{name}).unwrap();"
   when "longlong"
-    "writer.write_be_u64(#{name}).unwrap();"
+    "writer.write_u64::<BigEndian>(#{name}).unwrap();"
   when "short"
-    "writer.write_be_u16(#{name}).unwrap();"
+    "writer.write_u16::<BigEndian>(#{name}).unwrap();"
   when "bit"
     raise "Cant write bit here..."
   when "shortstr"
     "writer.write_u8(#{name}.len() as u8).unwrap();
     writer.write_all(#{name}.as_bytes()).unwrap();"
   when "longstr"
-    "writer.write_be_u32(#{name}.len() as u32).unwrap();
+    "writer.write_u32::<BigEndian>(#{name}.len() as u32).unwrap();
     writer.write_all(#{name}.as_bytes()).unwrap();"
   when "table"
     "encode_table(&mut writer, &#{name}).ok().unwrap();"
   when "timestamp"
-    "writer.write_be_u64(#{name}).unwrap();"
+    "writer.write_u64::<BigEndian>(#{name}).unwrap();"
   else
     raise "Unknown type: #{type}"
   end
@@ -72,7 +76,7 @@ def generate_reader_body(arguments)
       type = argument["domain"] ? map_domain(argument["domain"]) : argument["type"]
       if type == "bit"
         if n_bits == 0
-          body << "let byte = try!(reader.read_byte());"
+          body << "let byte = try!(reader.read_u8());"
           body << "let bits = BitVec::from_bytes(&[byte]);"
         end
         body << "let #{snake_name(argument["name"])} = bits.get(#{7-n_bits}).unwrap();"

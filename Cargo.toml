@@ -1,7 +1,7 @@
 [package]
 
 name = "amqp"
-version = "0.0.5"
+version = "0.0.6"
 authors = ["Andrii Dmytrenko <andrey@reevoo.com>"]
 description = "AMQP/RabbitMQ protocol client."
 license = "MIT/BSD-2-Clause"
@@ -16,15 +16,18 @@ name = "amqp"
 #[dependencies.url]
 #git = "https://github.com/servo/rust-url.git"
 #
-[dependencies.collect]
-git = "https://github.com/Gankro/collect-rs.git"
+#[dependencies.collect]
+#git = "https://github.com/Gankro/collect-rs.git"
 
-[dependencies.byteorder]
-git = "https://github.com/BurntSushi/byteorder.git"
+#[dependencies.byteorder]
+#git = "https://github.com/BurntSushi/byteorder.git"
+
+[dependencies.bst]
+git = "https://github.com/contain-rs/bst.git"
 
 [dependencies]
 log = "*"
 env_logger = "*"
-#byteorder = "*"
-#collect = "*"
+byteorder = "*"
+#bst = "*"
 url = "*"

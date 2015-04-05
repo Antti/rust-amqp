@@ -1,4 +1,4 @@
-use std::error::FromError;
+use std::convert::From;
 use std::io;
 use byteorder;
 // use std::sync::poison::PoisonError;
@@ -18,14 +18,14 @@ pub enum AMQPError {
 
 pub type AMQPResult<T> = Result<T, AMQPError>;
 
-impl FromError<io::Error> for AMQPError {
-    fn from_error(err: io::Error) -> AMQPError {
+impl From<io::Error> for AMQPError {
+    fn from(err: io::Error) -> AMQPError {
         AMQPError::AMQPIoError(err)
     }
 }
 
-impl FromError<byteorder::Error> for AMQPError {
-    fn from_error(err: byteorder::Error) -> AMQPError {
+impl From<byteorder::Error> for AMQPError {
+    fn from(err: byteorder::Error) -> AMQPError {
         AMQPError::AMQPIoError2(err)
     }
 }

@@ -1,4 +1,4 @@
-use collect::tree_map::TreeMap;
+use bst::TreeMap;
 use amqp_error::AMQPResult;
 use std::io::{Read, Write};
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};

@@ -191,7 +191,7 @@ impl Session {
                 Err(some_err) => {debug!("Error in reading loop: {:?}", some_err); break} //Notify session somehow. It should stop now.
             };
             let chans = channels.lock().unwrap();
-            let ref target_channel = (*chans)[frame.channel];
+            let ref target_channel = (*chans)[&frame.channel];
             target_channel.send(frame).ok().expect("Error sending packet");
             // match frame.frame_type {
             //     framing::METHOD => {},

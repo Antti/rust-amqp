@@ -72,8 +72,9 @@ cargo test
 
 #![feature(collections)]
 #![feature(core)]
+#![feature(convert)]
 
-extern crate collect;
+extern crate bst;
 extern crate url;
 extern crate byteorder;
 #[macro_use]

@@ -26,11 +26,11 @@ fn main() {
     //queue: &str, passive: bool, durable: bool, exclusive: bool, auto_delete: bool, nowait: bool, arguments: Table
     let queue_declare = channel.queue_declare(queue_name, false, true, false, false, false, table::new());
     println!("Queue declare: {:?}", queue_declare);
-    for get_result in channel.basic_get(queue_name, false) {
+    for get_result in channel.basic_get(queue_name, true) {
         println!("Headers: {:?}", get_result.headers);
         println!("Reply: {:?}", get_result.reply);
         println!("Body: {:?}", String::from_utf8_lossy(&get_result.body));
-        get_result.channel.basic_ack(get_result.reply.delivery_tag, false);
+        // channel.basic_ack(get_result.reply.delivery_tag, false);
     }
 
     //queue: &str, consumer_tag: &str, no_local: bool, no_ack: bool, exclusive: bool, nowait: bool, arguments: Table

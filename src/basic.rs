@@ -8,7 +8,7 @@ use protocol::basic::{BasicProperties, GetOk, Consume, ConsumeOk, Deliver, Publi
 pub struct GetIterator <'a> {
     queue: &'a str,
     no_ack: bool,
-    channel: &'a mut Channel
+    pub channel: &'a mut Channel
 }
 
 pub trait Basic <'a> {
@@ -25,27 +25,25 @@ pub trait Basic <'a> {
 }
 
 // #[derive(Debug)]
-pub struct GetResult<'c> {
+pub struct GetResult{
     pub reply: GetOk,
     pub headers: BasicProperties,
-    pub body: Vec<u8>,
-    pub channel: &'c mut Channel
+    pub body: Vec<u8>
 }
 
-impl <'a, 'c> Iterator for GetIterator<'a > {
-    type Item = GetResult<'c>;
+impl <'a> Iterator for GetIterator<'a > {
+    type Item = GetResult;
 
-    fn next(&mut self) -> Option<GetResult> {
+    fn next(&mut self) -> Option<Self::Item> {
         let get = &basic::Get{ ticket: 0, queue: self.queue.to_string(), no_ack: self.no_ack };
-        let ref mut channel = self.channel;
-        let method_frame = channel.raw_rpc(get);
+        let method_frame = self.channel.raw_rpc(get);
         match method_frame.method_name() {
             "basic.get-ok" => {
                 let reply: basic::GetOk = Method::decode(method_frame).ok().unwrap();
-                let headers = channel.read_headers().ok().unwrap();
-                let body = channel.read_body(headers.body_size).ok().unwrap();
+                let headers = self.channel.read_headers().ok().unwrap();
+                let body = self.channel.read_body(headers.body_size).ok().unwrap();
                 let properties = BasicProperties::decode(headers).ok().unwrap();
-                Some(GetResult {headers: properties, reply: reply, body: body, channel: channel})
+                Some(GetResult {headers: properties, reply: reply, body: body})
             }
             "basic.get-empty" => None,
             method => panic!(format!("Not expected method: {}", method))

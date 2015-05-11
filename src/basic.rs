@@ -68,7 +68,7 @@ impl <'a> Basic<'a> for Channel {
     ///     println!("Headers: {:?}", get_result.headers);
     ///     println!("Reply: {:?}", get_result.reply);
     ///     println!("Body: {:?}", String::from_utf8_lossy(&get_result.body));
-    ///     get_result.channel.basic_ack(get_result.reply.delivery_tag, false);
+    ///     //get_result.channel.basic_ack(get_result.reply.delivery_tag, false);
     /// }
     /// ```
     ///
@@ -147,4 +147,3 @@ impl <'a> Basic<'a> for Channel {
     }
 
 }
-

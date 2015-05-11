@@ -1,9 +1,8 @@
-use bst::TreeMap;
+use std::collections::HashMap;
 use amqp_error::AMQPResult;
 use std::io::{Read, Write};
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use std::iter;
-
 
 #[derive(Debug, Clone)]
 pub enum TableEntry {
@@ -27,10 +26,10 @@ pub enum TableEntry {
     Void
 }
 
-pub type Table = TreeMap<String, TableEntry>;
+pub type Table = HashMap<String, TableEntry>;
 
 pub fn new() -> Table {
-    TreeMap::new()
+    HashMap::new()
 }
 
 fn read_table_entry(reader: &mut &[u8]) -> AMQPResult<TableEntry> {

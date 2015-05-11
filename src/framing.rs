@@ -1,15 +1,17 @@
 use amqp_error::{AMQPResult, AMQPError};
-use std::num::FromPrimitive;
 use std::io::{Read, Write, Cursor};
 use std::iter;
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
+use enum_primitive::FromPrimitive;
 
-#[derive(Debug, Clone, Eq, PartialEq, FromPrimitive)]
+enum_from_primitive! {
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum FrameType {
     METHOD = 1,
     HEADERS = 2,
     BODY  = 3,
     HEARTBEAT = 8
+}
 }
 
 impl Copy for FrameType {}
@@ -39,7 +41,7 @@ impl Frame {
         if frame_end != 0xCE {
             return Err(AMQPError::DecodeError("Frame end wasn't right"));
         }
-        let frame_type = match FromPrimitive::from_u8(frame_type_id){
+        let frame_type = match FrameType::from_u8(frame_type_id){
             Some(ft) => ft,
             None => return Err(AMQPError::DecodeError("Unknown frame type"))
         };

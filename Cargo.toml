@@ -15,19 +15,14 @@ name = "amqp"
 
 #[dependencies.url]
 #git = "https://github.com/servo/rust-url.git"
-#
-#[dependencies.collect]
-#git = "https://github.com/Gankro/collect-rs.git"
 
 #[dependencies.byteorder]
 #git = "https://github.com/BurntSushi/byteorder.git"
 
-[dependencies.bst]
-git = "https://github.com/contain-rs/bst.git"
 
 [dependencies]
 log = "*"
 env_logger = "*"
 byteorder = "*"
-#bst = "*"
 url = "*"
+enum_primitive = "*"

@@ -71,14 +71,15 @@ cargo test
 */
 
 #![feature(collections)]
-#![feature(core)]
 #![feature(convert)]
 
-extern crate bst;
+// extern crate bst;
 extern crate url;
 extern crate byteorder;
 #[macro_use]
 extern crate log;
+
+#[macro_use] extern crate enum_primitive;
 
 pub mod connection;
 pub mod channel;
@@ -88,4 +89,3 @@ pub mod protocol;
 pub mod session;
 pub mod basic;
 pub mod amqp_error;
-

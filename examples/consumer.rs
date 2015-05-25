@@ -15,6 +15,7 @@ fn consumer_function(channel: &mut Channel, deliver: protocol::basic::Deliver, h
     println!("Deliver info: {:?}", deliver);
     println!("Content headers: {:?}", headers);
     println!("Content body: {:?}", body);
+    println!("Content body(as string): {:?}", String::from_utf8(body).unwrap());
     channel.basic_ack(deliver.delivery_tag, false);
 }
 
@@ -26,11 +27,13 @@ fn main() {
     let queue_name = "test_queue";
     //queue: &str, passive: bool, durable: bool, exclusive: bool, auto_delete: bool, nowait: bool, arguments: Table
     let queue_declare = channel.queue_declare(queue_name, false, true, false, false, false, table::new());
-    println!("Queue declare: {:?}", queue_declare);
 
+    println!("Queue declare: {:?}", queue_declare);
+    channel.basic_prefetch(10);
     //queue: &str, consumer_tag: &str, no_local: bool, no_ack: bool, exclusive: bool, nowait: bool, arguments: Table
     println!("Declaring consumer...");
     let consumer_name = channel.basic_consume(consumer_function, queue_name, "", false, false, false, false, table::new());
+
     println!("Starting consumer {:?}", consumer_name);
     channel.start_consuming();
 

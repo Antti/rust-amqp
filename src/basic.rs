@@ -3,7 +3,7 @@ use channel::ConsumerCallback;
 use table::Table;
 use framing::{ContentHeaderFrame, FrameType, Frame};
 use protocol::{MethodFrame, basic, Method};
-use protocol::basic::{BasicProperties, GetOk, Consume, ConsumeOk, Deliver, Publish, Ack, Nack, Reject};
+use protocol::basic::{BasicProperties, GetOk, Consume, ConsumeOk, Deliver, Publish, Ack, Nack, Reject, Qos, QosOk};
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
 
 enum AckAction {
@@ -31,6 +31,8 @@ pub trait Basic <'a> {
     fn basic_ack(&mut self, delivery_tag: u64, multiple: bool);
     fn basic_nack(&mut self, delivery_tag: u64, multiple: bool, requeue: bool);
     fn basic_reject(&mut self, delivery_tag: u64, requeue: bool);
+    fn basic_prefetch(&mut self, prefetch_count: u16);
+    fn basic_qos(&mut self, prefetch_size: u32, prefetch_count: u16, global: bool);
 }
 
 // #[derive(Debug)]
@@ -190,4 +192,15 @@ impl <'a> Basic<'a> for Channel {
         self.send_method_frame(&Reject{delivery_tag: delivery_tag, requeue: requeue});
     }
 
+    fn basic_prefetch(&mut self, prefetch_count:u16 ){
+        self.basic_qos(0, prefetch_count, false);
+    }
+
+    fn basic_qos(&mut self, prefetch_size: u32, prefetch_count: u16, global: bool){
+        let qos=&Qos{prefetch_size: prefetch_size,
+                     prefetch_count: prefetch_count,
+                     global: global};
+        let reply: QosOk = self.rpc(qos, "basic.qos-ok").ok().unwrap();
+        println!("reply: {:?}", reply);
+    }
 }

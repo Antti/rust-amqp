@@ -80,6 +80,15 @@ impl Channel {
         self.rpc(&declare,"exchange.declare-ok")
     }
 
+    pub fn exchange_bind(&mut self, destination: &str, source: &str,
+                         routing_key: &str, arguments: Table) {
+        let bind = protocol::exchange::Bind {
+            ticket: 0, destination: destination.to_string(), source: source.to_string(),
+            routing_key:routing_key.to_string(), nowait: false, arguments: arguments
+        };
+        let _reply: protocol::exchange::BindOk = self.rpc(&bind, "exchange.bind-ok").ok().unwrap();
+    }
+    
     pub fn queue_declare(&mut self, queue: &str, passive: bool, durable: bool, exclusive: bool,
         auto_delete: bool, nowait: bool, arguments: Table) -> AMQPResult<protocol::queue::DeclareOk> {
         let declare = protocol::queue::Declare {

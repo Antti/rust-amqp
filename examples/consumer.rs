@@ -8,20 +8,18 @@ use amqp::basic::Basic;
 use amqp::channel::Channel;
 use std::default::Default;
 
-
-
 fn consumer_function(channel: &mut Channel, deliver: protocol::basic::Deliver, headers: protocol::basic::BasicProperties, body: Vec<u8>){
     println!("Got a delivery:");
     println!("Deliver info: {:?}", deliver);
     println!("Content headers: {:?}", headers);
     println!("Content body: {:?}", body);
-    println!("Content body(as string): {:?}", String::from_utf8(body).unwrap());
+    println!("Content body(as string): {:?}", String::from_utf8(body));
     channel.basic_ack(deliver.delivery_tag, false);
 }
 
 fn main() {
-    let mut session = Session::new(Options{.. Default::default()}).ok().unwrap();
-    let mut channel = session.open_channel(1).ok().unwrap();
+    let mut session = Session::new(Options{.. Default::default()}).ok().expect("Can't create session");
+    let mut channel = session.open_channel(1).ok().expect("Error openning channel 1");
     println!("Openned channel: {:?}", channel.id);
 
     let queue_name = "test_queue";

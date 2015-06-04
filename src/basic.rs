@@ -134,7 +134,7 @@ impl <'a> Basic<'a> for Channel {
         reply.consumer_tag
     }
 
-    // Will run the infinate loop, which will receive frames on the given channel & call consumers.
+    // Will run the infinite loop, which will receive frames on the given channel & call consumers.
     fn start_consuming(&mut self) {
         loop {
           let frame = self.read();
@@ -200,7 +200,6 @@ impl <'a> Basic<'a> for Channel {
         let qos=&Qos{prefetch_size: prefetch_size,
                      prefetch_count: prefetch_count,
                      global: global};
-        let reply: QosOk = self.rpc(qos, "basic.qos-ok").ok().unwrap();
-        println!("reply: {:?}", reply);
+        let _reply: QosOk = self.rpc(qos, "basic.qos-ok").ok().unwrap();
     }
 }

@@ -72,6 +72,7 @@ cargo test
 
 #![feature(collections)]
 #![feature(convert)]
+#![feature(bitvec)]
 
 // extern crate bst;
 extern crate url;

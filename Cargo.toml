@@ -13,16 +13,10 @@ readme = "Readme.md"
 
 name = "amqp"
 
-#[dependencies.url]
-#git = "https://github.com/servo/rust-url.git"
-
-#[dependencies.byteorder]
-#git = "https://github.com/BurntSushi/byteorder.git"
-
-
 [dependencies]
 log = "*"
 env_logger = "*"
 byteorder = "*"
 url = "*"
 enum_primitive = "*"
+bit-vec ="*"

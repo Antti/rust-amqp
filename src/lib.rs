@@ -71,11 +71,11 @@ cargo test
 */
 
 #![feature(convert)]
-#![feature(bitvec)]
 
 // extern crate bst;
 extern crate url;
 extern crate byteorder;
+extern crate bit_vec;
 #[macro_use]
 extern crate log;
 

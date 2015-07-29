@@ -14,6 +14,7 @@ pub trait Method {
     fn class_id(&self) -> u16;
 }
 
+
 #[derive(Debug, Clone)]
 pub struct MethodFrame {
     pub class_id: u16,
@@ -123,7 +124,7 @@ impl MethodFrame {
 #[allow(unused_imports)]
 #[allow(missing_copy_implementations)]
 pub mod connection {
-    use std::collections::BitVec;
+    use bit_vec::BitVec;
     use table;
     use table::{Table, decode_table, encode_table};
     use protocol::{Method, MethodFrame};
@@ -768,7 +769,7 @@ pub mod connection {
 #[allow(unused_imports)]
 #[allow(missing_copy_implementations)]
 pub mod channel {
-    use std::collections::BitVec;
+    use bit_vec::BitVec;
     use table;
     use table::{Table, decode_table, encode_table};
     use protocol::{Method, MethodFrame};
@@ -1060,7 +1061,7 @@ pub mod channel {
 #[allow(unused_imports)]
 #[allow(missing_copy_implementations)]
 pub mod access {
-    use std::collections::BitVec;
+    use bit_vec::BitVec;
     use table;
     use table::{Table, decode_table, encode_table};
     use protocol::{Method, MethodFrame};
@@ -1195,7 +1196,7 @@ pub mod access {
 #[allow(unused_imports)]
 #[allow(missing_copy_implementations)]
 pub mod exchange {
-    use std::collections::BitVec;
+    use bit_vec::BitVec;
     use table;
     use table::{Table, decode_table, encode_table};
     use protocol::{Method, MethodFrame};
@@ -1666,7 +1667,7 @@ pub mod exchange {
 #[allow(unused_imports)]
 #[allow(missing_copy_implementations)]
 pub mod queue {
-    use std::collections::BitVec;
+    use bit_vec::BitVec;
     use table;
     use table::{Table, decode_table, encode_table};
     use protocol::{Method, MethodFrame};
@@ -2246,7 +2247,7 @@ pub mod queue {
 #[allow(unused_imports)]
 #[allow(missing_copy_implementations)]
 pub mod basic {
-    use std::collections::BitVec;
+    use bit_vec::BitVec;
     use table;
     use table::{Table, decode_table, encode_table};
     use protocol::{Method, MethodFrame};
@@ -3525,7 +3526,7 @@ pub mod basic {
 #[allow(unused_imports)]
 #[allow(missing_copy_implementations)]
 pub mod tx {
-    use std::collections::BitVec;
+    use bit_vec::BitVec;
     use table;
     use table::{Table, decode_table, encode_table};
     use protocol::{Method, MethodFrame};
@@ -3728,7 +3729,7 @@ pub mod tx {
 #[allow(unused_imports)]
 #[allow(missing_copy_implementations)]
 pub mod confirm {
-    use std::collections::BitVec;
+    use bit_vec::BitVec;
     use table;
     use table::{Table, decode_table, encode_table};
     use protocol::{Method, MethodFrame};

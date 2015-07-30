@@ -1,9 +1,7 @@
 use std::convert::From;
 use std::io;
 use byteorder;
-// use std::sync::poison::PoisonError;
-// use std::sync::mutex::MutexGuard;
-// use std::collections::hash::map::HashMap;
+use url;
 
 #[derive(Debug)]
 pub enum AMQPError {
@@ -13,7 +11,8 @@ pub enum AMQPError {
     EncodeError,
     QueueEmpty,
     Protocol(String),
-    SyncError
+    SyncError,
+    UrlParseError(url::ParseError)
 }
 
 pub type AMQPResult<T> = Result<T, AMQPError>;
@@ -30,9 +29,8 @@ impl From<byteorder::Error> for AMQPError {
     }
 }
 
-//
-// impl <'a, T, U> FromError<PoisonError<MutexGuard<'a, HashMap<T, U>>>> for AMQPError {
-//     fn from_error(err: PoisonError<MutexGuard<'a, HashMap<T, U>>>) -> AMQPError {
-//         AMQPError::SyncError
-//     }
-// }
+impl From<url::ParseError> for AMQPError {
+    fn from(err: url::ParseError) -> AMQPError {
+        AMQPError::UrlParseError(err)
+    }
+}

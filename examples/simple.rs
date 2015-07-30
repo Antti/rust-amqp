@@ -1,4 +1,5 @@
 extern crate amqp;
+extern crate env_logger;
 
 use amqp::session::Session;
 use amqp::protocol;
@@ -18,7 +19,11 @@ fn consumer_function(channel: &mut Channel, deliver: protocol::basic::Deliver, h
 }
 
 fn main() {
-    let mut session = Session::open_url("amqp://localhost/").ok().unwrap();
+    env_logger::init().unwrap();
+    let mut session = match Session::open_url("amqp://localhost/") {
+        Ok(session) => session,
+        Err(error) => panic!("{:?}", error)
+    };
     let mut channel = session.open_channel(1).ok().unwrap();
     println!("Openned channel: {}", channel.id);
 

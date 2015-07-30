@@ -61,7 +61,7 @@ impl Session {
         let default: Options = Default::default();
         let mut url_parser = UrlParser::new();
         url_parser.scheme_type_mapper(scheme_type_mapper);
-        let url = url_parser.parse(url_string).unwrap();
+        let url = try!(url_parser.parse(url_string));
         let vhost = url.serialize_path().unwrap_or(default.vhost.to_string());
         let host  = url.domain().unwrap_or(default.host);
         let port = url.port().unwrap_or(default.port);
@@ -108,16 +108,16 @@ impl Session {
         let frame = self.channel_zero.read(); //Start
         let method_frame = MethodFrame::decode(frame);
         let start : protocol::connection::Start = match method_frame.method_name(){
-            "connection.start" => protocol::Method::decode(method_frame).ok().unwrap(),
-            meth => panic!("Unexpected method frame: {:?}", meth) //In reality you would probably skip the frame and try to read another?
+            "connection.start" => try!(protocol::Method::decode(method_frame)),
+            meth => panic!("Unexpected method frame: {:?}", meth)
         };
         debug!("Received connection.start: {:?}", start);
-        //  The client selects a security mechanism (Start-Ok).
-        //  The server starts the authentication process, which uses the SASL challenge-response model. It sends
+        // * The client selects a security mechanism (Start-Ok).
+        // * The server starts the authentication process, which uses the SASL challenge-response model. It sends
         // the client a challenge (Secure).
-        //  The client sends an authentication response (Secure-Ok). For example using the "plain" mechanism,
+        // * The client sends an authentication response (Secure-Ok). For example using the "plain" mechanism,
         // the response consist of a login name and password.
-        //  The server repeats the challenge (Secure) or moves to negotiation, sending a set of parameters such as
+        // * The server repeats the challenge (Secure) or moves to negotiation, sending a set of parameters such as
 
         let mut client_properties = table::new();
         let mut capabilities = table::new();
@@ -138,6 +138,7 @@ impl Session {
             client_properties: client_properties, mechanism: "PLAIN".to_string(),
             response: format!("\0{}\0{}", options.login, options.password), locale: options.locale.to_string()};
         let tune : protocol::connection::Tune = try!(self.channel_zero.rpc(&start_ok, "connection.tune"));
+        debug!("Tuning connection");
 
         self.channel_max_limit =  negotiate(tune.channel_max, self.channel_max_limit);
         self.connection.frame_max_limit = negotiate(tune.frame_max, options.frame_max_limit);
@@ -146,10 +147,14 @@ impl Session {
         let tune_ok = protocol::connection::TuneOk {
             channel_max: self.channel_max_limit,
             frame_max: frame_max_limit, heartbeat: 0};
+        debug!("Sending connection.tune-ok");
         self.channel_zero.send_method_frame(&tune_ok);
 
+        debug!("Sending connection.open");
         let open = protocol::connection::Open{virtual_host: options.vhost.to_string(), capabilities: "".to_string(), insist: false };
         let _ : protocol::connection::OpenOk = try!(self.channel_zero.rpc(&open, "connection.open-ok"));
+        debug!("Connection initialized. conneciton.open-ok recieved");
+        info!("Session initialized");
         Ok(())
     }
 

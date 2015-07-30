@@ -29,7 +29,7 @@ impl Channel {
     }
     pub fn close(&mut self, reply_code: u16, reply_text: String) {
         let close = &channel::Close {reply_code: reply_code, reply_text: reply_text, class_id: 0, method_id: 0};
-        let _: channel::CloseOk = self.rpc(close, "channel.close-ok").ok().unwrap();
+        let _: channel::CloseOk = self.rpc(close, "channel.close-ok").ok().expect("Error closing connection");
     }
 
     pub fn read(&self) -> Frame {
@@ -81,14 +81,14 @@ impl Channel {
     }
 
     pub fn exchange_bind(&mut self, destination: &str, source: &str,
-                         routing_key: &str, arguments: Table) {
+                         routing_key: &str, arguments: Table) -> AMQPResult<protocol::exchange::BindOk> {
         let bind = protocol::exchange::Bind {
             ticket: 0, destination: destination.to_string(), source: source.to_string(),
             routing_key:routing_key.to_string(), nowait: false, arguments: arguments
         };
-        let _reply: protocol::exchange::BindOk = self.rpc(&bind, "exchange.bind-ok").ok().unwrap();
+        self.rpc(&bind, "exchange.bind-ok")
     }
-    
+
     pub fn queue_declare(&mut self, queue: &str, passive: bool, durable: bool, exclusive: bool,
         auto_delete: bool, nowait: bool, arguments: Table) -> AMQPResult<protocol::queue::DeclareOk> {
         let declare = protocol::queue::Declare {

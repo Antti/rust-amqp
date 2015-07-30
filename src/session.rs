@@ -137,7 +137,15 @@ impl Session {
         let start_ok = protocol::connection::StartOk {
             client_properties: client_properties, mechanism: "PLAIN".to_string(),
             response: format!("\0{}\0{}", options.login, options.password), locale: options.locale.to_string()};
-        let tune : protocol::connection::Tune = try!(self.channel_zero.rpc(&start_ok, "connection.tune"));
+        let response = self.channel_zero.raw_rpc(&start_ok);
+        let tune : protocol::connection::Tune = match response.method_name() {
+            "connection.tune" => try!(protocol::Method::decode(response)),
+            "connection.close" => {
+                let close_frame : protocol::connection::Close = try!(protocol::Method::decode(response));
+                return Err(AMQPError::Protocol(format!("Connection was closed: {:?}", close_frame)));
+            },
+            response_method => return Err(AMQPError::Protocol(format!("Unexpected response: {}", response_method)))
+        };
         debug!("Tuning connection");
 
         self.channel_max_limit =  negotiate(tune.channel_max, self.channel_max_limit);
@@ -220,4 +228,3 @@ fn scheme_type_mapper(scheme: &str) -> SchemeType {
         _ => {panic!("Uknown scheme: {}", scheme)}
     }
 }
-

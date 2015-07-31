@@ -7,6 +7,8 @@ use amqp::table;
 use amqp::basic::Basic;
 use amqp::channel::Channel;
 use std::default::Default;
+use std::thread;
+
 //table types:
 //use table::{FieldTable, Table, Bool, ShortShortInt, ShortShortUint, ShortInt, ShortUint, LongInt, LongUint, LongLongInt, LongLongUint, Float, Double, DecimalValue, LongString, FieldArray, Timestamp};
 
@@ -42,7 +44,14 @@ fn main() {
     println!("Declaring consumer...");
     let consumer_name = channel.basic_consume(consumer_function, queue_name, "", false, false, false, false, table::new());
     println!("Starting consumer {:?}", consumer_name);
-    channel.start_consuming();
+
+    let consumers_thread = thread::spawn(move || {
+        channel.start_consuming();
+        channel
+    });
+
+    // There is currently no way to stop the consumers, so we infinitely join thread.
+    let mut channel = consumers_thread.join().ok().expect("Can't get channel from consumer thread");
 
     channel.basic_publish("", queue_name, true, false,
         protocol::basic::BasicProperties{ content_type: Some("text".to_string()), ..Default::default()},

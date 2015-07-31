@@ -137,30 +137,9 @@ impl <'a> Basic<'a> for Channel {
     // Will run the infinite loop, which will receive frames on the given channel & call consumers.
     fn start_consuming(&mut self) {
         loop {
-          let frame = self.read();
-                match frame.frame_type {
-                    FrameType::METHOD => {
-                        let method_frame = MethodFrame::decode(frame);
-                        match method_frame.method_name() {
-                            "basic.deliver" => {
-                                let deliver_method : Deliver = Method::decode(method_frame).ok().unwrap();
-                                let headers = self.read_headers().ok().unwrap();
-                                let body = self.read_body(headers.body_size).ok().unwrap();
-                                let properties = BasicProperties::decode(headers).ok().unwrap();
-                                let consumer = self.consumers.get(&deliver_method.consumer_tag).map(|&x| x);
-                                match consumer {
-                                    Some(callback) => (callback)(self, deliver_method, properties, body),
-                                    None => {error!("Received deliver frame for the unknown consumer: {}", deliver_method.consumer_tag)}
-                                };
-                            }
-                            _ => {} //TODO: Handle other callbacks as well.
-                        }
-                    }
-                    _ => {}
-                }
+            try_consume(self);
         }
     }
-
 
     fn basic_publish(&mut self, exchange: &str, routing_key: &str, mandatory: bool, immediate: bool,
                          properties: BasicProperties, content: Vec<u8>) {
@@ -201,5 +180,29 @@ impl <'a> Basic<'a> for Channel {
                      prefetch_count: prefetch_count,
                      global: global};
         let _reply: QosOk = self.rpc(qos, "basic.qos-ok").ok().unwrap();
+    }
+}
+
+fn try_consume(channel : &mut Channel){
+    let frame = channel.read();
+    match frame.frame_type {
+        FrameType::METHOD => {
+            let method_frame = MethodFrame::decode(frame);
+            match method_frame.method_name() {
+                "basic.deliver" => {
+                    let deliver_method : Deliver = Method::decode(method_frame).ok().unwrap();
+                    let headers = channel.read_headers().ok().unwrap();
+                    let body = channel.read_body(headers.body_size).ok().unwrap();
+                    let properties = BasicProperties::decode(headers).ok().unwrap();
+                    let consumer = channel.consumers.get(&deliver_method.consumer_tag).map(|&x| x);
+                    match consumer {
+                        Some(callback) => (callback)(channel, deliver_method, properties, body),
+                        None => {error!("Received deliver frame for the unknown consumer: {}", deliver_method.consumer_tag)}
+                    };
+                }
+                _ => {} //TODO: Handle other callbacks as well.
+            }
+        }
+        _ => {}
     }
 }

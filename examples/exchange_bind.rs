@@ -1,4 +1,5 @@
 extern crate amqp;
+extern crate env_logger;
 
 use amqp::session::Options;
 use amqp::session::Session;
@@ -7,6 +8,7 @@ use std::default::Default;
 
 
 fn main() {
+    env_logger::init().unwrap();
     let mut session = Session::new(Options{.. Default::default()}).ok().unwrap();
     let mut channel = session.open_channel(1).ok().unwrap();
     println!("Openned channel: {:?}", channel.id);

@@ -59,9 +59,8 @@ impl Session {
     /// with login `"guest"`, password: `"guest"` to vhost `"/"`
     pub fn open_url(url_string: &str) -> AMQPResult<Session> {
         fn decode(string: &str) -> String {
-            let input: Vec<u8> = string.bytes().collect();
-            let decoded = percent_encoding::percent_decode(&input[..]);
-            String::from_utf8(decoded).unwrap()
+            let input = string.as_bytes();
+            percent_encoding::lossy_utf8_percent_decode(input)
         }
 
         let default: Options = Default::default();

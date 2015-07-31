@@ -33,7 +33,7 @@ pub struct Options <'a>  {
 impl <'a>  Default for Options <'a>  {
     fn default() -> Options <'a>  {
         Options {
-            host: "127.0.0.1", port: 5672, vhost: "/",
+            host: "127.0.0.1", port: 5672, vhost: "",
             login: "guest", password: "guest",
             frame_max_limit: 131072, channel_max_limit: 65535,
             locale: "en_US"
@@ -108,7 +108,7 @@ impl Session {
         let mut session = Session {
             connection: connection,
             channels: channels,
-            channel_max_limit: 0,
+            channel_max_limit: 65535,
             channel_zero: channel_zero
         };
         try!(session.init(options));
@@ -142,7 +142,7 @@ impl Session {
         client_properties.insert("capabilities".to_string(), FieldTable(capabilities));
         client_properties.insert("product".to_string(), LongString("rust-amqp".to_string()));
         client_properties.insert("platform".to_string(), LongString("rust".to_string()));
-        client_properties.insert("version".to_string(), LongString("0.1".to_string()));
+        client_properties.insert("version".to_string(), LongString("0.1.8".to_string()));
         client_properties.insert("information".to_string(), LongString("https://github.com/Antti/rust-amqp".to_string()));
 
         debug!("Sending connection.start-ok");
@@ -158,7 +158,7 @@ impl Session {
             },
             response_method => return Err(AMQPError::Protocol(format!("Unexpected response: {}", response_method)))
         };
-        debug!("Tuning connection");
+        debug!("Received tune request: {:?}", tune);
 
         self.channel_max_limit =  negotiate(tune.channel_max, self.channel_max_limit);
         self.connection.frame_max_limit = negotiate(tune.frame_max, options.frame_max_limit);
@@ -167,7 +167,7 @@ impl Session {
         let tune_ok = protocol::connection::TuneOk {
             channel_max: self.channel_max_limit,
             frame_max: frame_max_limit, heartbeat: 0};
-        debug!("Sending connection.tune-ok");
+        debug!("Sending connection.tune-ok: {:?}", tune_ok);
         self.channel_zero.send_method_frame(&tune_ok);
 
         debug!("Sending connection.open");
@@ -213,7 +213,7 @@ impl Session {
         loop {
             let frame = match connection.read() {
                 Ok(frame) => frame,
-                Err(some_err) => {debug!("Error in reading loop: {:?}", some_err); break} //Notify session somehow. It should stop now.
+                Err(some_err) => {error!("Error in reading loop: {:?}", some_err); break} //Notify session somehow. It should stop now.
             };
             let chans = channels.lock().unwrap();
             let ref target_channel = (*chans)[&frame.channel];

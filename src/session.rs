@@ -62,12 +62,19 @@ impl Session {
             let input = string.as_bytes();
             percent_encoding::lossy_utf8_percent_decode(input)
         }
+        fn clean_vhost(string: String) -> String {
+            if &string.chars().next() == &Some('/') {
+              String::from(decode(&string[1..]))
+            } else {
+              String::from(decode(&string[..]))
+            }
+        }
 
         let default: Options = Default::default();
         let mut url_parser = UrlParser::new();
         url_parser.scheme_type_mapper(scheme_type_mapper);
         let url = try!(url_parser.parse(url_string));
-        let vhost = url.serialize_path().unwrap_or(default.vhost.to_string());
+        let vhost = url.serialize_path().map(|vh| clean_vhost(vh)).unwrap_or(String::from(default.vhost.to_string()));
         let host  = url.domain().unwrap_or(default.host);
         let port = url.port().unwrap_or(default.port);
         let login = url.username().and_then(|u| match u { "" => None, _ => Some(decode(u))} ).unwrap_or(String::from(default.login));

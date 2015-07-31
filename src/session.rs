@@ -13,7 +13,7 @@ use std::sync::mpsc::{SyncSender, sync_channel};
 use std::thread;
 use std::cmp;
 
-use url::{UrlParser, SchemeType};
+use url::{UrlParser, SchemeType, percent_encoding};
 
 const CHANNEL_BUFFER_SIZE :usize = 100;
 
@@ -58,6 +58,11 @@ impl Session {
     /// `"amqp://localhost/"` and it will connect to rabbitmq server, running on `localhost` on port `65535`,
     /// with login `"guest"`, password: `"guest"` to vhost `"/"`
     pub fn open_url(url_string: &str) -> AMQPResult<Session> {
+        fn decode(string: &str) -> String {
+            let input = string.as_bytes();
+            percent_encoding::lossy_utf8_percent_decode(input)
+        }
+
         let default: Options = Default::default();
         let mut url_parser = UrlParser::new();
         url_parser.scheme_type_mapper(scheme_type_mapper);
@@ -65,10 +70,10 @@ impl Session {
         let vhost = url.serialize_path().unwrap_or(default.vhost.to_string());
         let host  = url.domain().unwrap_or(default.host);
         let port = url.port().unwrap_or(default.port);
-        let login = url.username().and_then(|username| match username { "" => None, _ => Some(username)} ).unwrap_or(default.login);
-        let password = url.password().unwrap_or(default.password);
+        let login = url.username().and_then(|u| match u { "" => None, _ => Some(decode(u))} ).unwrap_or(String::from(default.login));
+        let password = url.password().map(|p| decode(p)).unwrap_or(String::from(default.password));
         let opts = Options { host: host, port: port,
-         login: login, password: password,
+         login: &login, password: &password,
          vhost: &vhost, ..Default::default()};
         Session::new(opts)
     }

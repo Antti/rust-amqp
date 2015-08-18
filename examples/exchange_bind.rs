@@ -9,8 +9,8 @@ use std::default::Default;
 
 fn main() {
     env_logger::init().unwrap();
-    let mut session = Session::new(Options{.. Default::default()}).ok().unwrap();
-    let mut channel = session.open_channel(1).ok().unwrap();
+    let mut session = Session::new(Options{.. Default::default()}).ok().expect("Can't create session");
+    let mut channel = session.open_channel(1).ok().expect("Can't open channel");
     println!("Openned channel: {:?}", channel.id);
 
     let exchange1 = "test_exchange";

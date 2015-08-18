@@ -60,7 +60,7 @@ fn read_table_entry(reader: &mut &[u8]) -> AMQPResult<TableEntry> {
         },
         b'A' => {
             let number = try!(reader.read_u32::<BigEndian>());
-            let arr = (0..number).map(|_| read_table_entry(reader).ok().unwrap()).collect(); //can't use try because of the closure
+            let arr = (0..number).map(|_| read_table_entry(reader).ok().expect("Error reading table entry")).collect(); //can't use try because of the closure
             TableEntry::FieldArray(arr)
         },
         b'T' => TableEntry::Timestamp(try!(reader.read_u64::<BigEndian>())),

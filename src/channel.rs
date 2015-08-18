@@ -14,13 +14,13 @@ pub type ConsumerCallback = fn(channel: &mut Channel, method: basic::Deliver, he
 pub struct Channel {
     pub id: u16,
     pub consumers: HashMap<String, ConsumerCallback>,
-    receiver: Receiver<Frame>,
+    receiver: Receiver<AMQPResult<Frame>>,
     pub connection: Connection //TODO: Make private
 }
 
 impl Channel {
-    pub fn new(id: u16, receiver: Receiver<Frame>, connection: Connection) -> Channel {
-        Channel{id: id, receiver: receiver, consumers: HashMap::new(), connection: connection}
+    pub fn new(id: u16, receiver: Receiver<AMQPResult<Frame>>, connection: Connection) -> Channel {
+        Channel{ id: id, receiver: receiver, consumers: HashMap::new(), connection: connection }
     }
 
     pub fn open(&mut self) -> AMQPResult<protocol::channel::OpenOk> {
@@ -32,7 +32,7 @@ impl Channel {
         let _: channel::CloseOk = self.rpc(close, "channel.close-ok").ok().expect("Error closing connection");
     }
 
-    pub fn read(&self) -> Frame {
+    pub fn read(&self) -> AMQPResult<Frame> {
         self.receiver.recv().ok().expect("Error reading packet from channel")
     }
 
@@ -47,26 +47,26 @@ impl Channel {
     }
 
     pub fn rpc<T, U>(&mut self, method: &U, expected_reply: &str) -> AMQPResult<T> where T: protocol::Method, U: protocol::Method {
-        let method_frame = self.raw_rpc(method);
+        let method_frame = try!(self.raw_rpc(method));
         match method_frame.method_name() {
             m_name if m_name == expected_reply => protocol::Method::decode(method_frame),
             m_name => Err(AMQPError::Protocol(format!("Unexpected method frame: {}, expected: {}", m_name, expected_reply)))
         }
     }
 
-    pub fn raw_rpc<T>(&mut self, method: &T) -> MethodFrame  where T: protocol::Method {
+    pub fn raw_rpc<T>(&mut self, method: &T) -> AMQPResult<MethodFrame>  where T: protocol::Method {
         self.send_method_frame(method);
-        MethodFrame::decode(self.read())
+        Ok(MethodFrame::decode(try!(self.read()))) // TODO: Probably decode can fail as well
     }
 
     pub fn read_headers(&mut self) -> AMQPResult<ContentHeaderFrame> {
-        ContentHeaderFrame::decode(self.read())
+        ContentHeaderFrame::decode(try!(self.read()))
     }
 
     pub fn read_body(&mut self, size: u64) -> AMQPResult<Vec<u8>> {
         let mut body = Vec::with_capacity(size as usize);
         while body.len() < size as usize {
-            body.extend(self.read().payload.into_iter())
+            body.extend(try!(self.read()).payload.into_iter())
         }
         Ok(body)
     }

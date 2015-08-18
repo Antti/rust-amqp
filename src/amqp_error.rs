@@ -3,10 +3,10 @@ use std::io;
 use byteorder;
 use url;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum AMQPError {
-    AMQPIoError(io::Error),
-    AMQPIoError2(byteorder::Error),
+    AMQPIoError(io::ErrorKind),
+    ByteOrderError,
     DecodeError(&'static str),
     EncodeError,
     QueueEmpty,
@@ -19,13 +19,13 @@ pub type AMQPResult<T> = Result<T, AMQPError>;
 
 impl From<io::Error> for AMQPError {
     fn from(err: io::Error) -> AMQPError {
-        AMQPError::AMQPIoError(err)
+        AMQPError::AMQPIoError(err.kind())
     }
 }
 
 impl From<byteorder::Error> for AMQPError {
-    fn from(err: byteorder::Error) -> AMQPError {
-        AMQPError::AMQPIoError2(err)
+    fn from(_err: byteorder::Error) -> AMQPError {
+        AMQPError::ByteOrderError
     }
 }
 

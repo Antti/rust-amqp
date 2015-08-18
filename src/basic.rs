@@ -5,6 +5,7 @@ use framing::{ContentHeaderFrame, FrameType, Frame};
 use protocol::{MethodFrame, basic, Method};
 use protocol::basic::{BasicProperties, GetOk, Consume, ConsumeOk, Deliver, Publish, Ack, Nack, Reject, Qos, QosOk};
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
+use amqp_error::AMQPResult;
 
 enum AckAction {
     Ack(u64),
@@ -49,7 +50,11 @@ impl <'a> Iterator for GetIterator<'a > {
     fn next(&mut self) -> Option<Self::Item> {
         self.ack_message();
         let get = &basic::Get{ ticket: 0, queue: self.queue.to_string(), no_ack: self.no_ack };
-        let method_frame = self.channel.raw_rpc(get);
+        let method_frame_result = self.channel.raw_rpc(get);
+        let method_frame = match method_frame_result {
+            Ok(m) => m,
+            Err(_) => { return None }
+        };
         match method_frame.method_name() {
             "basic.get-ok" => {
                 let reply: basic::GetOk = Method::decode(method_frame).ok().unwrap();
@@ -137,7 +142,10 @@ impl <'a> Basic<'a> for Channel {
     // Will run the infinite loop, which will receive frames on the given channel & call consumers.
     fn start_consuming(&mut self) {
         loop {
-            try_consume(self);
+            if let Err(err) = try_consume(self) {
+                error!("Error consuming {:?}", err);
+                return;
+            }
         }
     }
 
@@ -183,8 +191,8 @@ impl <'a> Basic<'a> for Channel {
     }
 }
 
-fn try_consume(channel : &mut Channel){
-    let frame = channel.read();
+fn try_consume(channel : &mut Channel) -> AMQPResult<()> {
+    let frame = try!(channel.read());
     match frame.frame_type {
         FrameType::METHOD => {
             let method_frame = MethodFrame::decode(frame);
@@ -205,4 +213,5 @@ fn try_consume(channel : &mut Channel){
         }
         _ => {}
     }
+    Ok(())
 }

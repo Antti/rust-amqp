@@ -15,7 +15,7 @@ use std::cmp;
 
 use url::{UrlParser, SchemeType, percent_encoding};
 
-const CHANNEL_BUFFER_SIZE :usize = 100;
+const CHANNEL_BUFFER_SIZE : usize = 100;
 
 
 #[derive(Debug)]
@@ -43,7 +43,7 @@ impl <'a>  Default for Options <'a>  {
 
 pub struct Session {
     connection: Connection,
-    channels: Arc<Mutex<HashMap<u16, SyncSender<Frame>> >>,
+    channels: Arc<Mutex<HashMap<u16, SyncSender<AMQPResult<Frame>>> >>,
     channel_max_limit: u16,
     channel_zero: channel::Channel
 }
@@ -117,7 +117,7 @@ impl Session {
 
     fn init(&mut self, options: Options) -> AMQPResult<()> {
         debug!("Starting init session");
-        let frame = self.channel_zero.read(); //Start
+        let frame = try!(self.channel_zero.read()); //Start
         let method_frame = MethodFrame::decode(frame);
         let start : protocol::connection::Start = match method_frame.method_name(){
             "connection.start" => try!(protocol::Method::decode(method_frame)),
@@ -149,7 +149,7 @@ impl Session {
         let start_ok = protocol::connection::StartOk {
             client_properties: client_properties, mechanism: "PLAIN".to_string(),
             response: format!("\0{}\0{}", options.login, options.password), locale: options.locale.to_string()};
-        let response = self.channel_zero.raw_rpc(&start_ok);
+        let response = try!(self.channel_zero.raw_rpc(&start_ok));
         let tune : protocol::connection::Tune = match response.method_name() {
             "connection.tune" => try!(protocol::Method::decode(response)),
             "connection.close" => {
@@ -208,16 +208,26 @@ impl Session {
         let _ : protocol::connection::CloseOk = self.channel_zero.rpc(&close, "connection.close-ok").ok().unwrap();
     }
 
-    pub fn reading_loop(mut connection: Connection, channels: Arc<Mutex<HashMap<u16, SyncSender<Frame>>>>) -> () {
+    // Receives and dispatches frames from the connection to the corresponding channels.
+    pub fn reading_loop(mut connection: Connection, channels: Arc<Mutex<HashMap<u16, SyncSender<AMQPResult<Frame>>>>>) -> () {
         debug!("Starting reading loop");
         loop {
-            let frame = match connection.read() {
-                Ok(frame) => frame,
-                Err(some_err) => {error!("Error in reading loop: {:?}", some_err); break} //Notify session somehow. It should stop now.
+            match connection.read() {
+                Ok(frame) => {
+                    let chans = channels.lock().unwrap();
+                    let ref target_channel = (*chans)[&frame.channel];
+                    target_channel.send(Ok(frame)).ok().expect("Error sending packet");
+                },
+                Err(read_err) => {
+                    error!("Error in reading loop: {:?}", read_err);
+                    let chans = channels.lock().unwrap();
+                    for chan in chans.values() {
+                        // Propagate error to every channel, so they can close
+                        chan.send(Err(read_err.clone())).ok().expect("Error sending packet");
+                    }
+                    break;
+                }
             };
-            let chans = channels.lock().unwrap();
-            let ref target_channel = (*chans)[&frame.channel];
-            target_channel.send(frame).ok().expect("Error sending packet");
             // match frame.frame_type {
             //     framing::METHOD => {},
             //     framing::HEADERS => {},

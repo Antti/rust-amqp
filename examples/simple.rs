@@ -26,7 +26,7 @@ fn main() {
         Ok(session) => session,
         Err(error) => panic!("{:?}", error)
     };
-    let mut channel = session.open_channel(1).ok().unwrap();
+    let mut channel = session.open_channel(1).ok().expect("Can't open channel");
     println!("Openned channel: {}", channel.id);
 
     let queue_name = "test_queue";

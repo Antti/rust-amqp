@@ -33,7 +33,7 @@ pub struct Options <'a>  {
 impl <'a>  Default for Options <'a>  {
     fn default() -> Options <'a>  {
         Options {
-            host: "127.0.0.1", port: 5672, vhost: "",
+            host: "127.0.0.1", port: 5672, vhost: "/",
             login: "guest", password: "guest",
             frame_max_limit: 131072, channel_max_limit: 65535,
             locale: "en_US"

@@ -1,9 +1,9 @@
 use channel::Channel;
-use channel::ConsumerCallback;
+use channel::Consumer;
 use table::Table;
 use framing::{ContentHeaderFrame, FrameType, Frame};
 use protocol::{MethodFrame, basic, Method};
-use protocol::basic::{BasicProperties, GetOk, Consume, ConsumeOk, Deliver, Publish, Ack, Nack, Reject, Qos, QosOk};
+use protocol::basic::{BasicProperties, GetOk, Consume, ConsumeOk, Deliver, Publish, Ack, Nack, Reject, Qos, QosOk, Cancel, CancelOk};
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
 use amqp_error::AMQPResult;
 
@@ -23,17 +23,18 @@ pub struct GetIterator <'a> {
 
 pub trait Basic <'a> {
     fn basic_get(&'a mut self, queue: &'a str, no_ack: bool) -> GetIterator<'a>;
-    fn basic_consume(&mut self, callback: ConsumerCallback,
+    fn basic_consume<T>(&mut self, callback: T,
     queue: &str, consumer_tag: &str, no_local: bool, no_ack: bool,
-    exclusive: bool, nowait: bool, arguments: Table) -> String;
+    exclusive: bool, nowait: bool, arguments: Table) -> String where T: Consumer;
     fn start_consuming(&mut self);
     fn basic_publish(&mut self, exchange: &str, routing_key: &str, mandatory: bool, immediate: bool,
                          properties: BasicProperties, content: Vec<u8>);
     fn basic_ack(&mut self, delivery_tag: u64, multiple: bool);
     fn basic_nack(&mut self, delivery_tag: u64, multiple: bool, requeue: bool);
     fn basic_reject(&mut self, delivery_tag: u64, requeue: bool);
-    fn basic_prefetch(&mut self, prefetch_count: u16);
-    fn basic_qos(&mut self, prefetch_size: u32, prefetch_count: u16, global: bool);
+    fn basic_prefetch(&mut self, prefetch_count: u16) -> AMQPResult<QosOk>;
+    fn basic_qos(&mut self, prefetch_size: u32, prefetch_count: u16, global: bool) -> AMQPResult<QosOk>;
+    fn basic_cancel(&mut self, consumer_tag: String, no_wait: bool) -> AMQPResult<CancelOk>;
 }
 
 // #[derive(Debug)]
@@ -127,15 +128,15 @@ impl <'a> Basic<'a> for Channel {
         GetIterator { channel: self, queue: queue, no_ack: no_ack, ack_receiver: rx, ack_sender: tx }
     }
 
-    fn basic_consume(&mut self, callback: ConsumerCallback,
+    fn basic_consume<T>(&mut self, callback: T,
         queue: &str, consumer_tag: &str, no_local: bool, no_ack: bool,
-        exclusive: bool, nowait: bool, arguments: Table) -> String {
+        exclusive: bool, nowait: bool, arguments: Table) -> String where T: Consumer + 'static {
         let consume = &Consume {
             ticket: 0, queue: queue.to_string(), consumer_tag: consumer_tag.to_string(),
             no_local: no_local, no_ack: no_ack, exclusive: exclusive, nowait: nowait, arguments: arguments
         };
         let reply: ConsumeOk = self.rpc(consume, "basic.consume-ok").ok().unwrap();
-        self.consumers.insert(reply.consumer_tag.clone(), callback);
+        self.consumers.borrow_mut().insert(reply.consumer_tag.clone(), Box::new(callback));
         reply.consumer_tag
     }
 
@@ -179,15 +180,20 @@ impl <'a> Basic<'a> for Channel {
         self.send_method_frame(&Reject{delivery_tag: delivery_tag, requeue: requeue});
     }
 
-    fn basic_prefetch(&mut self, prefetch_count:u16 ){
-        self.basic_qos(0, prefetch_count, false);
+    fn basic_prefetch(&mut self, prefetch_count:u16 ) -> AMQPResult<QosOk> {
+        self.basic_qos(0, prefetch_count, false)
     }
 
-    fn basic_qos(&mut self, prefetch_size: u32, prefetch_count: u16, global: bool){
+    fn basic_qos(&mut self, prefetch_size: u32, prefetch_count: u16, global: bool) -> AMQPResult<QosOk> {
         let qos=&Qos{prefetch_size: prefetch_size,
                      prefetch_count: prefetch_count,
                      global: global};
-        let _reply: QosOk = self.rpc(qos, "basic.qos-ok").ok().unwrap();
+        self.rpc(qos, "basic.qos-ok")
+    }
+
+    fn basic_cancel(&mut self, consumer_tag: String, no_wait: bool) -> AMQPResult<CancelOk>{
+        let cancel = &Cancel{ consumer_tag: consumer_tag, nowait: no_wait };
+        self.rpc(cancel, "basic.cancel-ok")
     }
 }
 
@@ -198,20 +204,24 @@ fn try_consume(channel : &mut Channel) -> AMQPResult<()> {
             let method_frame = MethodFrame::decode(frame);
             match method_frame.method_name() {
                 "basic.deliver" => {
-                    let deliver_method : Deliver = Method::decode(method_frame).ok().unwrap();
-                    let headers = channel.read_headers().ok().unwrap();
-                    let body = channel.read_body(headers.body_size).ok().unwrap();
-                    let properties = BasicProperties::decode(headers).ok().unwrap();
-                    let consumer = channel.consumers.get(&deliver_method.consumer_tag).map(|&x| x);
-                    match consumer {
-                        Some(callback) => (callback)(channel, deliver_method, properties, body),
-                        None => {error!("Received deliver frame for the unknown consumer: {}", deliver_method.consumer_tag)}
+                    let deliver_method : Deliver = try!(Method::decode(method_frame));
+                    let headers = try!(channel.read_headers());
+                    let body = try!(channel.read_body(headers.body_size));
+                    let properties = try!(BasicProperties::decode(headers));
+                    let conss1 = channel.consumers.clone();
+                    let mut conss = conss1.borrow_mut();
+                    let cons = conss.get_mut(&deliver_method.consumer_tag);
+                    match cons {
+                        Some(mut consumer) => {
+                            consumer.handle_delivery(channel, deliver_method, properties, body);
+                        }
+                        None => { error!("Received deliver frame for the unknown consumer: {}", deliver_method.consumer_tag) }
                     };
                 }
-                _ => {} //TODO: Handle other callbacks as well.
+                _ => {} //TODO: Handle other methods as well.
             }
         }
-        _ => {}
+        _ => {} // TODO: Handle other frames
     }
     Ok(())
 }

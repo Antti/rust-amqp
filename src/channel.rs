@@ -8,19 +8,34 @@ use protocol::{MethodFrame, channel, basic};
 use protocol::basic::BasicProperties;
 use connection::Connection;
 use std::collections::HashMap;
+use std::cell::RefCell;
+use std::sync::Arc;
+use std::rc::Rc;
 
-pub type ConsumerCallback = fn(channel: &mut Channel, method: basic::Deliver, headers: BasicProperties, body: Vec<u8>);
+pub trait Consumer : Send {
+    fn handle_delivery(&mut self, channel: &mut Channel, method: basic::Deliver, headers: BasicProperties, body: Vec<u8>);
+}
+
+pub type ConsumerCallBackFn = fn(channel: &mut Channel, method: basic::Deliver, headers: BasicProperties, body: Vec<u8>);
+
+impl Consumer for ConsumerCallBackFn {
+    fn handle_delivery(&mut self, channel: &mut Channel, method: basic::Deliver, headers: BasicProperties, body: Vec<u8>) {
+        self(channel, method, headers, body);
+    }
+}
 
 pub struct Channel {
     pub id: u16,
-    pub consumers: HashMap<String, ConsumerCallback>,
+    pub consumers: Rc<RefCell<HashMap<String, Box<Consumer>>>>,
     receiver: Receiver<AMQPResult<Frame>>,
     pub connection: Connection //TODO: Make private
 }
 
+unsafe impl Send for Channel {}
+
 impl Channel {
     pub fn new(id: u16, receiver: Receiver<AMQPResult<Frame>>, connection: Connection) -> Channel {
-        Channel{ id: id, receiver: receiver, consumers: HashMap::new(), connection: connection }
+        Channel{ id: id, receiver: receiver, consumers: Rc::new(RefCell::new(HashMap::new())), connection: connection }
     }
 
     pub fn open(&mut self) -> AMQPResult<protocol::channel::OpenOk> {

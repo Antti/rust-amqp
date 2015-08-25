@@ -3,7 +3,7 @@ use connection::Connection;
 use protocol::{self, MethodFrame};
 use table;
 use table::TableEntry::{FieldTable, Bool, LongString};
-use framing::Frame;
+use framing::{FrameType, Frame};
 use amqp_error::{AMQPResult, AMQPError};
 
 use std::sync::{Arc, Mutex};
@@ -33,7 +33,7 @@ pub struct Options <'a>  {
 impl <'a>  Default for Options <'a>  {
     fn default() -> Options <'a>  {
         Options {
-            host: "127.0.0.1", port: 5672, vhost: "/",
+            host: "127.0.0.1", port: 5672, vhost: "",
             login: "guest", password: "guest",
             frame_max_limit: 131072, channel_max_limit: 65535,
             locale: "en_US"
@@ -55,7 +55,7 @@ impl Session {
     /// * `url_string`: The format is: `amqp://username:password@host:port/virtual_host`
     ///
     /// Most of the params have their default, so you can just pass this:
-    /// `"amqp://localhost/"` and it will connect to rabbitmq server, running on `localhost` on port `65535`,
+    /// `"amqp://localhost//"` and it will connect to rabbitmq server, running on `localhost` on port `65535`,
     /// with login `"guest"`, password: `"guest"` to vhost `"/"`
     pub fn open_url(url_string: &str) -> AMQPResult<Session> {
         fn decode(string: &str) -> String {
@@ -71,6 +71,9 @@ impl Session {
         }
 
         let default: Options = Default::default();
+
+        // Due to an issue in UrlParser, which doesn't allow us to implement all AMQP URI spec,
+        // we're doing something dirty
         let mut url_parser = UrlParser::new();
         url_parser.scheme_type_mapper(scheme_type_mapper);
         let url = try!(url_parser.parse(url_string));
@@ -98,10 +101,10 @@ impl Session {
     /// ```
     pub fn new(options: Options) -> AMQPResult<Session> {
         let connection = try!(Connection::open(options.host, options.port));
-        let (channel_sender, channel_receiver) = sync_channel(CHANNEL_BUFFER_SIZE); //channel0
         let channels = Arc::new(Mutex::new(HashMap::new()));
+        let (channel_zero_sender, channel_receiver) = sync_channel(CHANNEL_BUFFER_SIZE); //channel0
         let channel_zero = channel::Channel::new(0, channel_receiver, connection.clone());
-        try!(channels.lock().map_err(|_| AMQPError::SyncError)).insert(0, channel_sender);
+        try!(channels.lock().map_err(|_| AMQPError::SyncError)).insert(0, channel_zero_sender);
         let con1 = connection.clone();
         let channels_clone = channels.clone();
         thread::spawn( || Session::reading_loop(con1, channels_clone ) );
@@ -170,8 +173,8 @@ impl Session {
         debug!("Sending connection.tune-ok: {:?}", tune_ok);
         self.channel_zero.send_method_frame(&tune_ok);
 
-        debug!("Sending connection.open");
         let open = protocol::connection::Open{virtual_host: options.vhost.to_string(), capabilities: "".to_string(), insist: false };
+        debug!("Sending connection.open: {:?}", open);
         let _ : protocol::connection::OpenOk = try!(self.channel_zero.rpc(&open, "connection.open-ok"));
         debug!("Connection initialized. conneciton.open-ok recieved");
         info!("Session initialized");
@@ -214,27 +217,25 @@ impl Session {
         loop {
             match connection.read() {
                 Ok(frame) => {
+                    // TODO: If channel 0 -> send to channel_zero_handler
+                    // If channel != 0 and FrameType == METHOD and method class =='connection', then reply code 503 (command invalid).
                     let chans = channels.lock().unwrap();
-                    let ref target_channel = (*chans)[&frame.channel];
-                    target_channel.send(Ok(frame)).ok().expect("Error sending packet");
+                    let target = chans.get(&frame.channel);
+                    match target {
+                        Some(target_channel) => target_channel.send(Ok(frame)).ok().expect("Error dispatching packet to a channel"),
+                        None => error!("Received frame to an unknown channel: {}", frame.channel)
+                    }
                 },
                 Err(read_err) => {
                     error!("Error in reading loop: {:?}", read_err);
                     let chans = channels.lock().unwrap();
                     for chan in chans.values() {
                         // Propagate error to every channel, so they can close
-                        chan.send(Err(read_err.clone())).ok().expect("Error sending packet");
+                        chan.send(Err(read_err.clone())).ok().expect("Error dispatching packet to a channel");
                     }
                     break;
                 }
             };
-            // match frame.frame_type {
-            //     framing::METHOD => {},
-            //     framing::HEADERS => {},
-            //     framing::BODY => {},
-            //     framing::HEARTBEAT => {}
-            // }
-            // Handle heartbeats
         }
         debug!("Exiting reading loop");
     }

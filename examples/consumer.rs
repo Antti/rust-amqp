@@ -19,25 +19,25 @@ fn consumer_function(channel: &mut Channel, deliver: protocol::basic::Deliver, h
 }
 
 struct MyConsumer {
-    deliveries: Vec<Vec<u8>>
+    deliveries_number: u64
 }
 
 impl amqp::channel::Consumer for MyConsumer {
     fn handle_delivery(&mut self, channel: &mut Channel, deliver: protocol::basic::Deliver, headers: protocol::basic::BasicProperties, body: Vec<u8>){
-        println!("[struct] Got a delivery:");
+        println!("[struct] Got a delivery # {}", self.deliveries_number);
         println!("[struct] Deliver info: {:?}", deliver);
         println!("[struct] Content headers: {:?}", headers);
         println!("[struct] Content body: {:?}", body);
         println!("[struct] Content body(as string): {:?}", String::from_utf8(body));
-        channel.basic_ack(deliver.delivery_tag, false);
         // DO SOME JOB:
-        // self.deliveries.push(body);
+        self.deliveries_number += 1;
+        channel.basic_ack(deliver.delivery_tag, false);
     }
 }
 
 fn main() {
     env_logger::init().unwrap();
-    let mut session = Session::new(Options{.. Default::default()}).ok().expect("Can't create session");
+    let mut session = Session::new(Options{vhost: "/", .. Default::default()}).ok().expect("Can't create session");
     let mut channel = session.open_channel(1).ok().expect("Error openning channel 1");
     println!("Openned channel: {:?}", channel.id);
 
@@ -51,7 +51,7 @@ fn main() {
     println!("Declaring consumer...");
     let consumer_name = channel.basic_consume(consumer_function  as ConsumerCallBackFn, queue_name, "", false, false, false, false, table::new());
     println!("Starting consumer {:?}", consumer_name);
-    let my_consumer = MyConsumer { deliveries: vec!() };
+    let my_consumer = MyConsumer { deliveries_number: 0 };
     let consumer_name = channel.basic_consume(my_consumer, queue_name, "", false, false, false, false, table::new());
 
     println!("Starting consumer {:?}", consumer_name);

@@ -9,7 +9,6 @@ use protocol::basic::BasicProperties;
 use connection::Connection;
 use std::collections::HashMap;
 use std::cell::RefCell;
-use std::sync::Arc;
 use std::rc::Rc;
 
 pub trait Consumer : Send {

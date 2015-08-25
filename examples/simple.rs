@@ -22,9 +22,10 @@ fn consumer_function(channel: &mut Channel, deliver: protocol::basic::Deliver, h
 
 fn main() {
     env_logger::init().unwrap();
-    let mut session = match Session::open_url("amqp://localhost/") {
+    let amqp_url = "amqp://guest:guest@127.0.0.1//";
+    let mut session = match Session::open_url(amqp_url) {
         Ok(session) => session,
-        Err(error) => panic!("{:?}", error)
+        Err(error) => panic!("Can't create session: {:?}", error)
     };
     let mut channel = session.open_channel(1).ok().expect("Can't open channel");
     println!("Openned channel: {}", channel.id);

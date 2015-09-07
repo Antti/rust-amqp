@@ -171,13 +171,13 @@ pub mod connection {
             let mechanisms = {
           let size = try!(reader.read_u32::<BigEndian>()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
       };
             let locales = {
           let size = try!(reader.read_u32::<BigEndian>()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
       };
             Ok(Start { version_major: version_major, version_minor: version_minor, server_properties: server_properties, mechanisms: mechanisms, locales: locales })
@@ -240,19 +240,19 @@ pub mod connection {
             let mechanism = {
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let response = {
           let size = try!(reader.read_u32::<BigEndian>()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
       };
             let locale = {
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      };
             Ok(StartOk { client_properties: client_properties, mechanism: mechanism, response: response, locale: locale })
@@ -310,7 +310,7 @@ pub mod connection {
             let challenge = {
           let size = try!(reader.read_u32::<BigEndian>()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
       };
             Ok(Secure { challenge: challenge })
@@ -353,7 +353,7 @@ pub mod connection {
             let response = {
           let size = try!(reader.read_u32::<BigEndian>()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
       };
             Ok(SecureOk { response: response })
@@ -502,13 +502,13 @@ pub mod connection {
             let virtual_host = {
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let capabilities = {
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let byte = try!(reader.read_u8());
@@ -568,7 +568,7 @@ pub mod connection {
             let known_hosts = {
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      };
             Ok(OpenOk { known_hosts: known_hosts })
@@ -622,7 +622,7 @@ pub mod connection {
             let reply_text = {
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let class_id = try!(reader.read_u16::<BigEndian>());
@@ -711,7 +711,7 @@ pub mod connection {
             let reason = {
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      };
             Ok(Blocked { reason: reason })
@@ -809,7 +809,7 @@ pub mod channel {
             let out_of_band = {
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      };
             Ok(Open { out_of_band: out_of_band })
@@ -859,7 +859,7 @@ pub mod channel {
             let channel_id = {
           let size = try!(reader.read_u32::<BigEndian>()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
       };
             Ok(OpenOk { channel_id: channel_id })
@@ -995,7 +995,7 @@ pub mod channel {
             let reply_text = {
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let class_id = try!(reader.read_u16::<BigEndian>());
@@ -1106,7 +1106,7 @@ pub mod access {
             let realm = {
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let byte = try!(reader.read_u8());
@@ -1245,13 +1245,13 @@ pub mod exchange {
             let exchange = {
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let _type = {
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let byte = try!(reader.read_u8());
@@ -1363,7 +1363,7 @@ pub mod exchange {
             let exchange = {
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let byte = try!(reader.read_u8());
@@ -1462,19 +1462,19 @@ pub mod exchange {
             let destination = {
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let source = {
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let routing_key = {
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let byte = try!(reader.read_u8());
@@ -1579,19 +1579,19 @@ pub mod exchange {
             let destination = {
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let source = {
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let routing_key = {
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let byte = try!(reader.read_u8());
@@ -1715,7 +1715,7 @@ pub mod queue {
             let queue = {
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let byte = try!(reader.read_u8());
@@ -1791,7 +1791,7 @@ pub mod queue {
             let queue = {
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let message_count = try!(reader.read_u32::<BigEndian>());
@@ -1844,19 +1844,19 @@ pub mod queue {
             let queue = {
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let exchange = {
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let routing_key = {
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let byte = try!(reader.read_u8());
@@ -1958,7 +1958,7 @@ pub mod queue {
             let queue = {
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let byte = try!(reader.read_u8());
@@ -2059,7 +2059,7 @@ pub mod queue {
             let queue = {
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let byte = try!(reader.read_u8());
@@ -2166,19 +2166,19 @@ pub mod queue {
             let queue = {
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let exchange = {
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let routing_key = {
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let arguments = try!(decode_table(reader));
@@ -2286,7 +2286,7 @@ pub mod basic {
                 Some({
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      })
             } else {
@@ -2296,7 +2296,7 @@ pub mod basic {
                 Some({
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      })
             } else {
@@ -2321,7 +2321,7 @@ pub mod basic {
                 Some({
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      })
             } else {
@@ -2331,7 +2331,7 @@ pub mod basic {
                 Some({
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      })
             } else {
@@ -2341,7 +2341,7 @@ pub mod basic {
                 Some({
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      })
             } else {
@@ -2351,7 +2351,7 @@ pub mod basic {
                 Some({
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      })
             } else {
@@ -2366,7 +2366,7 @@ pub mod basic {
                 Some({
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      })
             } else {
@@ -2376,7 +2376,7 @@ pub mod basic {
                 Some({
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      })
             } else {
@@ -2386,7 +2386,7 @@ pub mod basic {
                 Some({
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      })
             } else {
@@ -2396,7 +2396,7 @@ pub mod basic {
                 Some({
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      })
             } else {
@@ -2662,13 +2662,13 @@ pub mod basic {
             let queue = {
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let consumer_tag = {
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let byte = try!(reader.read_u8());
@@ -2742,7 +2742,7 @@ pub mod basic {
             let consumer_tag = {
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      };
             Ok(ConsumeOk { consumer_tag: consumer_tag })
@@ -2786,7 +2786,7 @@ pub mod basic {
             let consumer_tag = {
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let byte = try!(reader.read_u8());
@@ -2835,7 +2835,7 @@ pub mod basic {
             let consumer_tag = {
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      };
             Ok(CancelOk { consumer_tag: consumer_tag })
@@ -2883,13 +2883,13 @@ pub mod basic {
             let exchange = {
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let routing_key = {
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let byte = try!(reader.read_u8());
@@ -2958,19 +2958,19 @@ pub mod basic {
             let reply_text = {
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let exchange = {
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let routing_key = {
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      };
             Ok(Return { reply_code: reply_code, reply_text: reply_text, exchange: exchange, routing_key: routing_key })
@@ -3032,7 +3032,7 @@ pub mod basic {
             let consumer_tag = {
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let delivery_tag = try!(reader.read_u64::<BigEndian>());
@@ -3042,13 +3042,13 @@ pub mod basic {
             let exchange = {
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let routing_key = {
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      };
             Ok(Deliver { consumer_tag: consumer_tag, delivery_tag: delivery_tag, redelivered: redelivered, exchange: exchange, routing_key: routing_key })
@@ -3102,7 +3102,7 @@ pub mod basic {
             let queue = {
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let byte = try!(reader.read_u8());
@@ -3169,13 +3169,13 @@ pub mod basic {
             let exchange = {
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let routing_key = {
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      };
             let message_count = try!(reader.read_u32::<BigEndian>());
@@ -3226,7 +3226,7 @@ pub mod basic {
             let cluster_id = {
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      };
             Ok(GetEmpty { cluster_id: cluster_id })

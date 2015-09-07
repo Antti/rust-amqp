@@ -70,8 +70,6 @@ cargo test
 ```
 */
 
-#![feature(convert)]
-
 // extern crate bst;
 extern crate url;
 extern crate byteorder;

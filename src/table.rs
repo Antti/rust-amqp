@@ -54,7 +54,7 @@ fn read_table_entry(reader: &mut &[u8]) -> AMQPResult<TableEntry> {
         b'S' => {
             let size = try!(reader.read_u32::<BigEndian>()) as usize;
             let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-            try!(reader.read(buffer.as_mut_slice()));
+            try!(reader.read(&mut buffer[..]));
             let str = String::from_utf8_lossy(&buffer).to_string();
             TableEntry::LongString(str)
         },
@@ -125,7 +125,7 @@ pub fn decode_table(reader: &mut &[u8]) -> AMQPResult<Table> {
     while reader.len() > total_len - size {
         let field_name_size = try!(reader.read_u8()) as usize;
         let mut field_name: Vec<u8> = iter::repeat(0u8).take(field_name_size).collect();
-        try!(reader.read(field_name.as_mut_slice()));
+        try!(reader.read(&mut field_name[..]));
         let table_entry = try!(read_table_entry(reader));
         debug!("Read table entry: {:?} = {:?}", field_name, table_entry);
         table.insert(String::from_utf8_lossy(&field_name).to_string(), table_entry);

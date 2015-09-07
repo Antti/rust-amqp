@@ -3,7 +3,7 @@ use connection::Connection;
 use protocol::{self, MethodFrame};
 use table;
 use table::TableEntry::{FieldTable, Bool, LongString};
-use framing::{FrameType, Frame};
+use framing::Frame;
 use amqp_error::{AMQPResult, AMQPError};
 
 use std::sync::{Arc, Mutex};

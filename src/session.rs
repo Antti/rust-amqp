@@ -15,6 +15,9 @@ use std::cmp;
 
 use url::{UrlParser, SchemeType, percent_encoding};
 
+pub const AMQPS_PORT: u16 = 5671;
+pub const AMQP_PORT:  u16 = 5672;
+
 const CHANNEL_BUFFER_SIZE : usize = 100;
 
 
@@ -33,7 +36,7 @@ pub struct Options <'a>  {
 impl <'a>  Default for Options <'a>  {
     fn default() -> Options <'a>  {
         Options {
-            host: "127.0.0.1", port: 5672, vhost: "",
+            host: "127.0.0.1", port: AMQP_PORT, vhost: "",
             login: "guest", password: "guest",
             frame_max_limit: 131072, channel_max_limit: 65535,
             locale: "en_US"
@@ -247,7 +250,7 @@ fn negotiate<T : cmp::Ord>(their_value: T, our_value: T) -> T {
 }
 fn scheme_type_mapper(scheme: &str) -> SchemeType {
     match scheme{
-        "amqp" => SchemeType::Relative(5672),
+        "amqp" => SchemeType::Relative(AMQP_PORT),
         _ => {panic!("Uknown scheme: {}", scheme)}
     }
 }

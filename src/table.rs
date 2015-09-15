@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use amqp_error::AMQPResult;
+use amqp_error::{AMQPError, AMQPResult};
 use std::io::{Read, Write};
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use std::iter;
@@ -60,13 +60,16 @@ fn read_table_entry(reader: &mut &[u8]) -> AMQPResult<TableEntry> {
         },
         b'A' => {
             let number = try!(reader.read_u32::<BigEndian>());
-            let arr = (0..number).map(|_| read_table_entry(reader).ok().expect("Error reading table entry")).collect(); //can't use try because of the closure
+            let mut arr = Vec::with_capacity(number as usize);
+            for _ in (0..number) {
+                arr.push(try!(read_table_entry(reader)))
+            }
             TableEntry::FieldArray(arr)
         },
         b'T' => TableEntry::Timestamp(try!(reader.read_u64::<BigEndian>())),
         b'F' => TableEntry::FieldTable(try!(decode_table(reader))),
         b'V' => TableEntry::Void,
-        x => panic!("Unknown type {}", x)
+        x => { debug!("Unknown type: {}", x); return Err(AMQPError::DecodeError("Unknown type")) },
     };
     Ok(entry)
 }

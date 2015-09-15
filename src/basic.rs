@@ -65,7 +65,7 @@ impl <'a> Iterator for GetIterator<'a > {
                 Some(GetResult {headers: properties, reply: reply, body: body, ack_sender: self.ack_sender.clone()})
             }
             "basic.get-empty" => None,
-            method => panic!(format!("Not expected method: {}", method))
+            method => { debug!("Unexpected method: {}", method); return None }
         }
     }
 }
@@ -201,7 +201,7 @@ fn try_consume(channel : &mut Channel) -> AMQPResult<()> {
     let frame = try!(channel.read());
     match frame.frame_type {
         FrameType::METHOD => {
-            let method_frame = MethodFrame::decode(frame);
+            let method_frame = try!(MethodFrame::decode(frame));
             match method_frame.method_name() {
                 "basic.deliver" => {
                     let deliver_method : Deliver = try!(Method::decode(method_frame));

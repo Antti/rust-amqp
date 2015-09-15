@@ -22,14 +22,14 @@ def read_type(type)
     "{
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      }"
   when "longstr"
     "{
           let size = try!(reader.read_u32::<BigEndian>()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
-          try!(reader.read(buffer.as_mut_slice()));
+          try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
       }"
   when "table"

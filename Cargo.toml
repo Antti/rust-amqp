@@ -3,7 +3,8 @@
 name = "amqp"
 version = "0.0.9"
 authors = ["Andrii Dmytrenko <andrey@reevoo.com>"]
-description = "AMQP/RabbitMQ protocol client."
+description = "AMQP/RabbitMQ protocol client"
+repository = "https://github.com/Antti/rust-amqp"
 license = "MIT/BSD-2-Clause"
 keywords = ["amqp", "rabbitmq", "queue"]
 readme = "Readme.md"

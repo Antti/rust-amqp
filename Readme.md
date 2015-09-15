@@ -43,7 +43,7 @@ channel.basic_publish("", "my_queue_name", true, false,
 
 This will send message: "Hello from rust!" to the queue named "my_queue_name".
 
-The messages have type of Vec<u8>, so if you want to send string, first you must convert it to Vec<u8>.
+The messages have type of `Vec<u8>`, so if you want to send string, first you must convert it to `Vec<u8>`.
 
 ## Development notes:
 

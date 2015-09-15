@@ -13,7 +13,7 @@ AMQ protocol implementation in pure rust.
 * Declare queues/exchanges
 * All the methods from the Basic class are implemented, including get, publish, ack, nack, reject, consume. So you can send/receive messages.
 
-Have a look at the examples in examples folder.
+Have a look at the examples in `examples/` folder.
 
 
 ### Connecting to the server & openning channel:
@@ -55,13 +55,16 @@ To generate a new spec, run:
 make
 ```
 
-To build project, use cargo:
+To build the project and run the testsuite, use cargo:
 
 ```sh
 cargo build
+cargo test
 ```
 
-To build examples:
+Moreover, there are several source examples to show library usage, and an interactive one to quickly test the library.
+They can be run directly from cargo:
+
 ```sh
-cargo test
+cargo run --example interactive
 ```

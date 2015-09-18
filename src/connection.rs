@@ -2,27 +2,67 @@ use std::net::TcpStream;
 use std::io::Write;
 use std::cmp;
 
+#[cfg(feature = "tls")]
+use openssl::ssl::{SslContext, SslMethod, SslStream};
+
+#[cfg(not(feature = "tls"))]
+use url;
+
+#[cfg(not(feature = "tls"))]
+use amqp_error::AMQPError;
+
 use amqp_error::AMQPResult;
 use framing::{Frame, FrameType};
 
+enum AMQPStream {
+	Cleartext(TcpStream),
+#[cfg(feature = "tls")]
+	Tls(SslStream<TcpStream>)
+}
+
 pub struct Connection {
-    socket: TcpStream,
+    socket: AMQPStream,
     pub frame_max_limit: u32
 }
 
 impl Clone for Connection {
     fn clone(&self) -> Connection {
-        Connection {socket: self.socket.try_clone().unwrap(), frame_max_limit: self.frame_max_limit}
+        match self.socket {
+            AMQPStream::Cleartext(ref stream) => Connection {socket: AMQPStream::Cleartext(stream.try_clone().unwrap()), frame_max_limit: self.frame_max_limit},
+#[cfg(feature = "tls")]
+            AMQPStream::Tls(ref stream) => Connection {socket: AMQPStream::Tls(stream.try_clone().unwrap()), frame_max_limit: self.frame_max_limit},
+        }
     }
 }
 
 impl Connection {
-    pub fn open(host: &str, port: u16) -> AMQPResult<Connection> {
+#[cfg(feature = "tls")]
+    pub fn open(host: &str, port: u16, use_tls: bool) -> AMQPResult<Connection> {
+        let connection;
         let mut socket = try!(TcpStream::connect((host, port)));
-        try!(socket.write_all(&[b'A', b'M', b'Q', b'P', 0, 0, 9, 1]));
-        let connection = Connection { socket: socket, frame_max_limit: 131072 };
+        if use_tls {
+            let ctx = try!(SslContext::new(SslMethod::Sslv23));
+            let mut tls_socket = try!(SslStream::connect(&ctx, socket));
+            try!(tls_socket.write_all(&[b'A', b'M', b'Q', b'P', 0, 0, 9, 1]));
+            connection = Connection { socket: AMQPStream::Tls(tls_socket), frame_max_limit: 131072 };
+        } else {
+            try!(socket.write_all(&[b'A', b'M', b'Q', b'P', 0, 0, 9, 1]));
+            connection = Connection { socket: AMQPStream::Cleartext(socket), frame_max_limit: 131072 };
+        }
         Ok(connection)
     }
+
+#[cfg(not(feature = "tls"))]
+    pub fn open(host: &str, port: u16, use_tls: bool) -> AMQPResult<Connection> {
+        if use_tls {
+            return Err(AMQPError::UrlParseError(url::ParseError::InvalidScheme))
+        }
+        let mut socket = try!(TcpStream::connect((host, port)));
+        try!(socket.write_all(&[b'A', b'M', b'Q', b'P', 0, 0, 9, 1]));
+        let connection = Connection { socket: AMQPStream::Cleartext(socket), frame_max_limit: 131072 };
+        Ok(connection)
+    }
+
 
     pub fn write(&mut self, frame: Frame) -> AMQPResult<()>{
         match frame.frame_type {
@@ -38,11 +78,19 @@ impl Connection {
     }
 
     pub fn read(&mut self) -> AMQPResult<Frame> {
-        Frame::decode(&mut self.socket)
+        match self.socket {
+            AMQPStream::Cleartext(ref mut stream) => Frame::decode(stream),
+#[cfg(feature = "tls")]
+            AMQPStream::Tls(ref mut stream) => Frame::decode(stream),
+        }
     }
 
     fn write_frame(&mut self, frame: Frame) -> AMQPResult<()>{
-        Ok(try!(self.socket.write_all(&frame.encode())))
+        match self.socket {
+            AMQPStream::Cleartext(ref mut stream) => Ok(try!(stream.write_all(&frame.encode()))),
+#[cfg(feature = "tls")]
+            AMQPStream::Tls(ref mut stream) => Ok(try!(stream.write_all(&frame.encode()))),
+        }
     }
 
 }

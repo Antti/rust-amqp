@@ -25,6 +25,7 @@ const CHANNEL_BUFFER_SIZE : usize = 100;
 pub struct Options <'a>  {
     pub host: &'a str,
     pub port: u16,
+    pub tls: bool,
     pub login: &'a str,
     pub password: &'a str,
     pub vhost: &'a str,
@@ -36,7 +37,7 @@ pub struct Options <'a>  {
 impl <'a>  Default for Options <'a>  {
     fn default() -> Options <'a>  {
         Options {
-            host: "127.0.0.1", port: AMQP_PORT, vhost: "",
+            host: "127.0.0.1", port: AMQP_PORT, tls: false, vhost: "",
             login: "guest", password: "guest",
             frame_max_limit: 131072, channel_max_limit: 65535,
             locale: "en_US"
@@ -58,7 +59,7 @@ impl Session {
     /// * `url_string`: The format is: `amqp://username:password@host:port/virtual_host`
     ///
     /// Most of the params have their default, so you can just pass this:
-    /// `"amqp://localhost//"` and it will connect to rabbitmq server, running on `localhost` on port `65535`,
+    /// `"amqp://localhost//"` and it will connect to rabbitmq server, running on `localhost` on port `5672`,
     /// with login `"guest"`, password: `"guest"` to vhost `"/"`
     pub fn open_url(url_string: &str) -> AMQPResult<Session> {
         fn decode(string: &str) -> String {
@@ -80,12 +81,14 @@ impl Session {
         let mut url_parser = UrlParser::new();
         url_parser.scheme_type_mapper(scheme_type_mapper);
         let url = try!(url_parser.parse(url_string));
+        let tls = { url.scheme == "amqps" };
+        let default_port = if tls { AMQPS_PORT } else { default.port };
         let vhost = url.serialize_path().map(|vh| clean_vhost(vh)).unwrap_or(String::from(default.vhost.to_string()));
         let host  = url.domain().unwrap_or(default.host);
-        let port = url.port().unwrap_or(default.port);
+        let port = url.port().unwrap_or(default_port);
         let login = url.username().and_then(|u| match u { "" => None, _ => Some(decode(u))} ).unwrap_or(String::from(default.login));
         let password = url.password().map(|p| decode(p)).unwrap_or(String::from(default.password));
-        let opts = Options { host: host, port: port,
+        let opts = Options { host: host, port: port, tls: tls,
          login: &login, password: &password,
          vhost: &vhost, ..Default::default()};
         Session::new(opts)
@@ -103,7 +106,7 @@ impl Session {
     /// };
     /// ```
     pub fn new(options: Options) -> AMQPResult<Session> {
-        let connection = try!(Connection::open(options.host, options.port));
+        let connection = try!(Connection::open(options.host, options.port, options.tls));
         let channels = Arc::new(Mutex::new(HashMap::new()));
         let (channel_zero_sender, channel_receiver) = sync_channel(CHANNEL_BUFFER_SIZE); //channel0
         let channel_zero = channel::Channel::new(0, channel_receiver, connection.clone());
@@ -248,8 +251,11 @@ impl Session {
 fn negotiate<T : cmp::Ord>(their_value: T, our_value: T) -> T {
     cmp::min(their_value, our_value)
 }
+
 fn scheme_type_mapper(scheme: &str) -> SchemeType {
     match scheme{
+#[cfg(feature = "tls")]
+        "amqps" => SchemeType::Relative(AMQPS_PORT),
         "amqp" => SchemeType::Relative(AMQP_PORT),
         _ => {panic!("Uknown scheme: {}", scheme)}
     }

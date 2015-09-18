@@ -17,7 +17,6 @@ Have a look at the examples in `examples/` folder.
 
 
 ### Connecting to the server & openning channel:
->Note: Currently it can't connect using TLS connections.
 
 ```rust
 extern crate amqp;
@@ -27,6 +26,9 @@ use amqp::table;
 let mut session = Session::open_url("amqp://localhost/").unwrap();
 let mut channel = session.open_channel(1).unwrap();
 ```
+
+> Note: This library supports TLS connections, via OpenSSL.
+> However, this is an optional feature that is enabled by default but can be disabled at build-time (via `cargo --no-default-features` on the command-line, or with `default-features = false` in your `Cargo.toml`).
 
 ### Declaring queue:
 ```rust

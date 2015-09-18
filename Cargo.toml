@@ -14,6 +14,10 @@ readme = "Readme.md"
 
 name = "amqp"
 
+[features]
+tls = ["openssl"]
+default = ["tls"]
+
 [dependencies]
 log = "*"
 env_logger = "*"
@@ -21,3 +25,8 @@ byteorder = "*"
 url = "*"
 enum_primitive = "*"
 bit-vec ="*"
+
+[dependencies.openssl]
+version = "0.6"
+optional = true
+features = ["tlsv1_1", "tlsv1_2"]

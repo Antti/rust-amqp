@@ -13,7 +13,7 @@ use std::sync::mpsc::{SyncSender, sync_channel};
 use std::thread;
 use std::cmp;
 
-use url::{UrlParser, SchemeType, percent_encoding};
+use url::{ParseError, SchemeData, SchemeType, UrlParser, percent_encoding};
 
 pub const AMQPS_PORT: u16 = 5671;
 pub const AMQP_PORT:  u16 = 5672;
@@ -81,6 +81,10 @@ impl Session {
         let mut url_parser = UrlParser::new();
         url_parser.scheme_type_mapper(scheme_type_mapper);
         let url = try!(url_parser.parse(url_string));
+        match url.scheme_data {
+            SchemeData::NonRelative(_) => { return Err(AMQPError::UrlParseError(ParseError::InvalidScheme)) },
+            _ => {},
+        }
         let tls = { url.scheme == "amqps" };
         let default_port = if tls { AMQPS_PORT } else { default.port };
         let vhost = url.serialize_path().map(|vh| clean_vhost(vh)).unwrap_or(String::from(default.vhost.to_string()));
@@ -127,10 +131,10 @@ impl Session {
     fn init(&mut self, options: Options) -> AMQPResult<()> {
         debug!("Starting init session");
         let frame = try!(self.channel_zero.read()); //Start
-        let method_frame = MethodFrame::decode(frame);
+        let method_frame = try!(MethodFrame::decode(frame));
         let start : protocol::connection::Start = match method_frame.method_name(){
             "connection.start" => try!(protocol::Method::decode(method_frame)),
-            meth => panic!("Unexpected method frame: {:?}", meth)
+            meth => return Err(AMQPError::Protocol(format!("Unexpected method frame: {:?}", meth)))
         };
         debug!("Received connection.start: {:?}", start);
         // * The client selects a security mechanism (Start-Ok).
@@ -226,18 +230,24 @@ impl Session {
                     // TODO: If channel 0 -> send to channel_zero_handler
                     // If channel != 0 and FrameType == METHOD and method class =='connection', then reply code 503 (command invalid).
                     let chans = channels.lock().unwrap();
-                    let target = chans.get(&frame.channel);
-                    match target {
-                        Some(target_channel) => target_channel.send(Ok(frame)).ok().expect("Error dispatching packet to a channel"),
-                        None => error!("Received frame to an unknown channel: {}", frame.channel)
-                    }
+                    let chan_id = frame.channel;
+                    let target = chans.get(&chan_id);
+                    let dispatch = match target {
+                        Some(target_channel) => target_channel.send(Ok(frame)).map_err(|_| {
+                                                    format!("Error dispatching packet to channel {}", chan_id)
+                                                }),
+                        None => Err(format!("Received frame for an unknown channel: {}", chan_id))
+                    };
+                    dispatch.map_err(|e| error!("{}", e)).ok();
                 },
                 Err(read_err) => {
                     error!("Error in reading loop: {:?}", read_err);
                     let chans = channels.lock().unwrap();
                     for chan in chans.values() {
                         // Propagate error to every channel, so they can close
-                        chan.send(Err(read_err.clone())).ok().expect("Error dispatching packet to a channel");
+                        if chan.send(Err(read_err.clone())).is_err() {
+                            error!("Error dispatching closing packet to a channel");
+                        }
                     }
                     break;
                 }
@@ -257,6 +267,6 @@ fn scheme_type_mapper(scheme: &str) -> SchemeType {
 #[cfg(feature = "tls")]
         "amqps" => SchemeType::Relative(AMQPS_PORT),
         "amqp" => SchemeType::Relative(AMQP_PORT),
-        _ => {panic!("Uknown scheme: {}", scheme)}
+        _ => SchemeType::NonRelative
     }
 }

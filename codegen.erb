@@ -2,7 +2,7 @@
 // To make changes to this file, edit codegen.rb and/or codegen.erb and run make
 
 use framing::{FrameType, Frame};
-use amqp_error::AMQPResult;
+use amqp_error::{AMQPError, AMQPResult};
 use std::io::{Read, Write};
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 
@@ -36,16 +36,16 @@ impl MethodFrame {
     }
 
     // We need this method, so we can match on class_id & method_id
-    pub fn decode(frame: Frame) -> MethodFrame {
+    pub fn decode(frame: Frame) -> AMQPResult<MethodFrame> {
         if frame.frame_type != FrameType::METHOD {
-            panic!("Not a method frame");
+            return Err(AMQPError::DecodeError("Not a method frame"))
         }
         let reader = &mut &frame.payload[..];
         let class_id = reader.read_u16::<BigEndian>().unwrap();
         let method_id = reader.read_u16::<BigEndian>().unwrap();
         let mut arguments = vec!();
         reader.read_to_end(&mut arguments).unwrap();
-        MethodFrame { class_id: class_id, method_id: method_id, arguments: arguments}
+        Ok(MethodFrame { class_id: class_id, method_id: method_id, arguments: arguments})
     }
 
     pub fn method_name(&self) -> &'static str {

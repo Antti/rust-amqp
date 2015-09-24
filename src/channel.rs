@@ -43,15 +43,23 @@ impl Channel {
     }
     pub fn close(&mut self, reply_code: u16, reply_text: String) {
         let close = &channel::Close {reply_code: reply_code, reply_text: reply_text, class_id: 0, method_id: 0};
-        let _: channel::CloseOk = self.rpc(close, "channel.close-ok").ok().expect("Error closing connection");
+        let call: Option<channel::CloseOk> = self.rpc(close, "channel.close-ok").ok();
+        if call.is_none() {
+            error!("Error closing connection")
+        }
     }
 
     pub fn read(&self) -> AMQPResult<Frame> {
-        self.receiver.recv().ok().expect("Error reading packet from channel")
+        self.receiver.recv().map_err(|_|
+            AMQPError::Protocol("Error reading packet from channel".to_owned())
+        ).and_then(|frame| frame)
     }
 
     pub fn write(&mut self, frame: Frame) {
-        self.connection.write(frame).ok().expect("Error writing packet to connection");
+        match self.connection.write(frame) {
+            Ok(_) => {},
+            Err(_) => error!("Error writing packet to connection")
+        }
     }
 
     pub fn send_method_frame<T>(&mut self, method: &T)  where T: protocol::Method {
@@ -70,7 +78,7 @@ impl Channel {
 
     pub fn raw_rpc<T>(&mut self, method: &T) -> AMQPResult<MethodFrame>  where T: protocol::Method {
         self.send_method_frame(method);
-        Ok(MethodFrame::decode(try!(self.read()))) // TODO: Probably decode can fail as well
+        MethodFrame::decode(try!(self.read()))
     }
 
     pub fn read_headers(&mut self) -> AMQPResult<ContentHeaderFrame> {

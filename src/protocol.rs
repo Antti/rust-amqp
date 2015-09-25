@@ -8,7 +8,7 @@ use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 
 pub trait Method : Sized {
     fn decode(method_frame: MethodFrame) -> AMQPResult<Self>;
-    fn encode(&self) -> Vec<u8>;
+    fn encode(&self) -> AMQPResult<Vec<u8>>;
     fn name(&self) -> &'static str;
     fn id(&self) -> u16;
     fn class_id(&self) -> u16;
@@ -23,16 +23,16 @@ pub struct MethodFrame {
 }
 
 impl MethodFrame {
-    pub fn encode_method<T>(method: &T) -> Vec<u8> where T: Method {
-        let frame = MethodFrame {class_id: method.class_id(), method_id: method.id(), arguments: method.encode()};
+    pub fn encode_method<T>(method: &T) -> AMQPResult<Vec<u8>> where T: Method {
+        let frame = MethodFrame {class_id: method.class_id(), method_id: method.id(), arguments: try!(method.encode())};
         frame.encode()
     }
-    pub fn encode(&self) -> Vec<u8> {
+    pub fn encode(&self) -> AMQPResult<Vec<u8>> {
         let mut writer = vec!();
-        writer.write_u16::<BigEndian>(self.class_id).unwrap();
-        writer.write_u16::<BigEndian>(self.method_id).unwrap();
-        writer.write_all(&self.arguments).unwrap();
-        writer
+        try!(writer.write_u16::<BigEndian>(self.class_id));
+        try!(writer.write_u16::<BigEndian>(self.method_id));
+        try!(writer.write_all(&self.arguments));
+        Ok(writer)
     }
 
     // We need this method, so we can match on class_id & method_id
@@ -41,10 +41,10 @@ impl MethodFrame {
             return Err(AMQPError::DecodeError("Not a method frame"))
         }
         let reader = &mut &frame.payload[..];
-        let class_id = reader.read_u16::<BigEndian>().unwrap();
-        let method_id = reader.read_u16::<BigEndian>().unwrap();
+        let class_id = try!(reader.read_u16::<BigEndian>());
+        let method_id = try!(reader.read_u16::<BigEndian>());
         let mut arguments = vec!();
-        reader.read_to_end(&mut arguments).unwrap();
+        try!(reader.read_to_end(&mut arguments));
         Ok(MethodFrame { class_id: class_id, method_id: method_id, arguments: arguments})
     }
 
@@ -183,16 +183,16 @@ pub mod connection {
             Ok(Start { version_major: version_major, version_minor: version_minor, server_properties: server_properties, mechanisms: mechanisms, locales: locales })
           }
 
-        fn encode(&self) -> Vec<u8> {
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
             let mut writer = vec!();
-            writer.write_u8(self.version_major).unwrap();
-            writer.write_u8(self.version_minor).unwrap();
-            encode_table(&mut writer, &self.server_properties).ok().unwrap();
-            writer.write_u32::<BigEndian>(self.mechanisms.len() as u32).unwrap();
-    writer.write_all(self.mechanisms.as_bytes()).unwrap();
-            writer.write_u32::<BigEndian>(self.locales.len() as u32).unwrap();
-    writer.write_all(self.locales.as_bytes()).unwrap();
-            writer
+            try!(writer.write_u8(self.version_major));
+            try!(writer.write_u8(self.version_minor));
+            try!(encode_table(&mut writer, &self.server_properties));
+            try!(writer.write_u32::<BigEndian>(self.mechanisms.len() as u32));
+    try!(writer.write_all(self.mechanisms.as_bytes()));
+            try!(writer.write_u32::<BigEndian>(self.locales.len() as u32));
+    try!(writer.write_all(self.locales.as_bytes()));
+            Ok(writer)
         }
     }
 
@@ -258,16 +258,16 @@ pub mod connection {
             Ok(StartOk { client_properties: client_properties, mechanism: mechanism, response: response, locale: locale })
           }
 
-        fn encode(&self) -> Vec<u8> {
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
             let mut writer = vec!();
-            encode_table(&mut writer, &self.client_properties).ok().unwrap();
-            writer.write_u8(self.mechanism.len() as u8).unwrap();
-    writer.write_all(self.mechanism.as_bytes()).unwrap();
-            writer.write_u32::<BigEndian>(self.response.len() as u32).unwrap();
-    writer.write_all(self.response.as_bytes()).unwrap();
-            writer.write_u8(self.locale.len() as u8).unwrap();
-    writer.write_all(self.locale.as_bytes()).unwrap();
-            writer
+            try!(encode_table(&mut writer, &self.client_properties));
+            try!(writer.write_u8(self.mechanism.len() as u8));
+    try!(writer.write_all(self.mechanism.as_bytes()));
+            try!(writer.write_u32::<BigEndian>(self.response.len() as u32));
+    try!(writer.write_all(self.response.as_bytes()));
+            try!(writer.write_u8(self.locale.len() as u8));
+    try!(writer.write_all(self.locale.as_bytes()));
+            Ok(writer)
         }
     }
 
@@ -316,11 +316,11 @@ pub mod connection {
             Ok(Secure { challenge: challenge })
           }
 
-        fn encode(&self) -> Vec<u8> {
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
             let mut writer = vec!();
-            writer.write_u32::<BigEndian>(self.challenge.len() as u32).unwrap();
-    writer.write_all(self.challenge.as_bytes()).unwrap();
-            writer
+            try!(writer.write_u32::<BigEndian>(self.challenge.len() as u32));
+    try!(writer.write_all(self.challenge.as_bytes()));
+            Ok(writer)
         }
     }
 
@@ -359,11 +359,11 @@ pub mod connection {
             Ok(SecureOk { response: response })
           }
 
-        fn encode(&self) -> Vec<u8> {
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
             let mut writer = vec!();
-            writer.write_u32::<BigEndian>(self.response.len() as u32).unwrap();
-    writer.write_all(self.response.as_bytes()).unwrap();
-            writer
+            try!(writer.write_u32::<BigEndian>(self.response.len() as u32));
+    try!(writer.write_all(self.response.as_bytes()));
+            Ok(writer)
         }
     }
 
@@ -401,12 +401,12 @@ pub mod connection {
             Ok(Tune { channel_max: channel_max, frame_max: frame_max, heartbeat: heartbeat })
           }
 
-        fn encode(&self) -> Vec<u8> {
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
             let mut writer = vec!();
-            writer.write_u16::<BigEndian>(self.channel_max).unwrap();
-            writer.write_u32::<BigEndian>(self.frame_max).unwrap();
-            writer.write_u16::<BigEndian>(self.heartbeat).unwrap();
-            writer
+            try!(writer.write_u16::<BigEndian>(self.channel_max));
+            try!(writer.write_u32::<BigEndian>(self.frame_max));
+            try!(writer.write_u16::<BigEndian>(self.heartbeat));
+            Ok(writer)
         }
     }
 
@@ -453,12 +453,12 @@ pub mod connection {
             Ok(TuneOk { channel_max: channel_max, frame_max: frame_max, heartbeat: heartbeat })
           }
 
-        fn encode(&self) -> Vec<u8> {
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
             let mut writer = vec!();
-            writer.write_u16::<BigEndian>(self.channel_max).unwrap();
-            writer.write_u32::<BigEndian>(self.frame_max).unwrap();
-            writer.write_u16::<BigEndian>(self.heartbeat).unwrap();
-            writer
+            try!(writer.write_u16::<BigEndian>(self.channel_max));
+            try!(writer.write_u32::<BigEndian>(self.frame_max));
+            try!(writer.write_u16::<BigEndian>(self.heartbeat));
+            Ok(writer)
         }
     }
 
@@ -513,20 +513,23 @@ pub mod connection {
      };
             let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
-            let insist = bits.get(7).unwrap();
+            let insist = match bits.get(7){
+          Some(bit) => bit,
+          None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned()))
+        };
             Ok(Open { virtual_host: virtual_host, capabilities: capabilities, insist: insist })
           }
 
-        fn encode(&self) -> Vec<u8> {
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
             let mut writer = vec!();
-            writer.write_u8(self.virtual_host.len() as u8).unwrap();
-    writer.write_all(self.virtual_host.as_bytes()).unwrap();
-            writer.write_u8(self.capabilities.len() as u8).unwrap();
-    writer.write_all(self.capabilities.as_bytes()).unwrap();
+            try!(writer.write_u8(self.virtual_host.len() as u8));
+    try!(writer.write_all(self.virtual_host.as_bytes()));
+            try!(writer.write_u8(self.capabilities.len() as u8));
+    try!(writer.write_all(self.capabilities.as_bytes()));
             let mut bits = BitVec::from_elem(8, false);
             bits.set(7, self.insist);
-            writer.write_all(&bits.to_bytes()).unwrap();
-            writer
+            try!(writer.write_all(&bits.to_bytes()));
+            Ok(writer)
         }
     }
 
@@ -574,11 +577,11 @@ pub mod connection {
             Ok(OpenOk { known_hosts: known_hosts })
           }
 
-        fn encode(&self) -> Vec<u8> {
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
             let mut writer = vec!();
-            writer.write_u8(self.known_hosts.len() as u8).unwrap();
-    writer.write_all(self.known_hosts.as_bytes()).unwrap();
-            writer
+            try!(writer.write_u8(self.known_hosts.len() as u8));
+    try!(writer.write_all(self.known_hosts.as_bytes()));
+            Ok(writer)
         }
     }
 
@@ -630,14 +633,14 @@ pub mod connection {
             Ok(Close { reply_code: reply_code, reply_text: reply_text, class_id: class_id, method_id: method_id })
           }
 
-        fn encode(&self) -> Vec<u8> {
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
             let mut writer = vec!();
-            writer.write_u16::<BigEndian>(self.reply_code).unwrap();
-            writer.write_u8(self.reply_text.len() as u8).unwrap();
-    writer.write_all(self.reply_text.as_bytes()).unwrap();
-            writer.write_u16::<BigEndian>(self.class_id).unwrap();
-            writer.write_u16::<BigEndian>(self.method_id).unwrap();
-            writer
+            try!(writer.write_u16::<BigEndian>(self.reply_code));
+            try!(writer.write_u8(self.reply_text.len() as u8));
+    try!(writer.write_all(self.reply_text.as_bytes()));
+            try!(writer.write_u16::<BigEndian>(self.class_id));
+            try!(writer.write_u16::<BigEndian>(self.method_id));
+            Ok(writer)
         }
     }
 
@@ -677,8 +680,8 @@ pub mod connection {
             Ok(CloseOk)
           }
 
-        fn encode(&self) -> Vec<u8> {
-            vec!()
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
+            Ok(vec!())
         }
     }
 
@@ -717,11 +720,11 @@ pub mod connection {
             Ok(Blocked { reason: reason })
           }
 
-        fn encode(&self) -> Vec<u8> {
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
             let mut writer = vec!();
-            writer.write_u8(self.reason.len() as u8).unwrap();
-    writer.write_all(self.reason.as_bytes()).unwrap();
-            writer
+            try!(writer.write_u8(self.reason.len() as u8));
+    try!(writer.write_all(self.reason.as_bytes()));
+            Ok(writer)
         }
     }
 
@@ -758,8 +761,8 @@ pub mod connection {
             Ok(Unblocked)
           }
 
-        fn encode(&self) -> Vec<u8> {
-            vec!()
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
+            Ok(vec!())
         }
     }
 
@@ -815,11 +818,11 @@ pub mod channel {
             Ok(Open { out_of_band: out_of_band })
           }
 
-        fn encode(&self) -> Vec<u8> {
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
             let mut writer = vec!();
-            writer.write_u8(self.out_of_band.len() as u8).unwrap();
-    writer.write_all(self.out_of_band.as_bytes()).unwrap();
-            writer
+            try!(writer.write_u8(self.out_of_band.len() as u8));
+    try!(writer.write_all(self.out_of_band.as_bytes()));
+            Ok(writer)
         }
     }
 
@@ -865,11 +868,11 @@ pub mod channel {
             Ok(OpenOk { channel_id: channel_id })
           }
 
-        fn encode(&self) -> Vec<u8> {
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
             let mut writer = vec!();
-            writer.write_u32::<BigEndian>(self.channel_id.len() as u32).unwrap();
-    writer.write_all(self.channel_id.as_bytes()).unwrap();
-            writer
+            try!(writer.write_u32::<BigEndian>(self.channel_id.len() as u32));
+    try!(writer.write_all(self.channel_id.as_bytes()));
+            Ok(writer)
         }
     }
 
@@ -908,16 +911,19 @@ pub mod channel {
             let reader = &mut &method_frame.arguments[..];
             let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
-            let active = bits.get(7).unwrap();
+            let active = match bits.get(7){
+          Some(bit) => bit,
+          None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned()))
+        };
             Ok(Flow { active: active })
           }
 
-        fn encode(&self) -> Vec<u8> {
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
             let mut writer = vec!();
             let mut bits = BitVec::from_elem(8, false);
             bits.set(7, self.active);
-            writer.write_all(&bits.to_bytes()).unwrap();
-            writer
+            try!(writer.write_all(&bits.to_bytes()));
+            Ok(writer)
         }
     }
 
@@ -949,16 +955,19 @@ pub mod channel {
             let reader = &mut &method_frame.arguments[..];
             let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
-            let active = bits.get(7).unwrap();
+            let active = match bits.get(7){
+          Some(bit) => bit,
+          None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned()))
+        };
             Ok(FlowOk { active: active })
           }
 
-        fn encode(&self) -> Vec<u8> {
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
             let mut writer = vec!();
             let mut bits = BitVec::from_elem(8, false);
             bits.set(7, self.active);
-            writer.write_all(&bits.to_bytes()).unwrap();
-            writer
+            try!(writer.write_all(&bits.to_bytes()));
+            Ok(writer)
         }
     }
 
@@ -1003,14 +1012,14 @@ pub mod channel {
             Ok(Close { reply_code: reply_code, reply_text: reply_text, class_id: class_id, method_id: method_id })
           }
 
-        fn encode(&self) -> Vec<u8> {
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
             let mut writer = vec!();
-            writer.write_u16::<BigEndian>(self.reply_code).unwrap();
-            writer.write_u8(self.reply_text.len() as u8).unwrap();
-    writer.write_all(self.reply_text.as_bytes()).unwrap();
-            writer.write_u16::<BigEndian>(self.class_id).unwrap();
-            writer.write_u16::<BigEndian>(self.method_id).unwrap();
-            writer
+            try!(writer.write_u16::<BigEndian>(self.reply_code));
+            try!(writer.write_u8(self.reply_text.len() as u8));
+    try!(writer.write_all(self.reply_text.as_bytes()));
+            try!(writer.write_u16::<BigEndian>(self.class_id));
+            try!(writer.write_u16::<BigEndian>(self.method_id));
+            Ok(writer)
         }
     }
 
@@ -1050,8 +1059,8 @@ pub mod channel {
             Ok(CloseOk)
           }
 
-        fn encode(&self) -> Vec<u8> {
-            vec!()
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
+            Ok(vec!())
         }
     }
 
@@ -1111,26 +1120,41 @@ pub mod access {
      };
             let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
-            let exclusive = bits.get(7).unwrap();
-            let passive = bits.get(6).unwrap();
-            let active = bits.get(5).unwrap();
-            let write = bits.get(4).unwrap();
-            let read = bits.get(3).unwrap();
+            let exclusive = match bits.get(7){
+          Some(bit) => bit,
+          None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned()))
+        };
+            let passive = match bits.get(6){
+          Some(bit) => bit,
+          None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned()))
+        };
+            let active = match bits.get(5){
+          Some(bit) => bit,
+          None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned()))
+        };
+            let write = match bits.get(4){
+          Some(bit) => bit,
+          None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned()))
+        };
+            let read = match bits.get(3){
+          Some(bit) => bit,
+          None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned()))
+        };
             Ok(Request { realm: realm, exclusive: exclusive, passive: passive, active: active, write: write, read: read })
           }
 
-        fn encode(&self) -> Vec<u8> {
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
             let mut writer = vec!();
-            writer.write_u8(self.realm.len() as u8).unwrap();
-    writer.write_all(self.realm.as_bytes()).unwrap();
+            try!(writer.write_u8(self.realm.len() as u8));
+    try!(writer.write_all(self.realm.as_bytes()));
             let mut bits = BitVec::from_elem(8, false);
             bits.set(7, self.exclusive);
             bits.set(6, self.passive);
             bits.set(5, self.active);
             bits.set(4, self.write);
             bits.set(3, self.read);
-            writer.write_all(&bits.to_bytes()).unwrap();
-            writer
+            try!(writer.write_all(&bits.to_bytes()));
+            Ok(writer)
         }
     }
 
@@ -1176,10 +1200,10 @@ pub mod access {
             Ok(RequestOk { ticket: ticket })
           }
 
-        fn encode(&self) -> Vec<u8> {
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
             let mut writer = vec!();
-            writer.write_u16::<BigEndian>(self.ticket).unwrap();
-            writer
+            try!(writer.write_u16::<BigEndian>(self.ticket));
+            Ok(writer)
         }
     }
 
@@ -1256,31 +1280,46 @@ pub mod exchange {
      };
             let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
-            let passive = bits.get(7).unwrap();
-            let durable = bits.get(6).unwrap();
-            let auto_delete = bits.get(5).unwrap();
-            let internal = bits.get(4).unwrap();
-            let nowait = bits.get(3).unwrap();
+            let passive = match bits.get(7){
+          Some(bit) => bit,
+          None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned()))
+        };
+            let durable = match bits.get(6){
+          Some(bit) => bit,
+          None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned()))
+        };
+            let auto_delete = match bits.get(5){
+          Some(bit) => bit,
+          None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned()))
+        };
+            let internal = match bits.get(4){
+          Some(bit) => bit,
+          None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned()))
+        };
+            let nowait = match bits.get(3){
+          Some(bit) => bit,
+          None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned()))
+        };
             let arguments = try!(decode_table(reader));
             Ok(Declare { ticket: ticket, exchange: exchange, _type: _type, passive: passive, durable: durable, auto_delete: auto_delete, internal: internal, nowait: nowait, arguments: arguments })
           }
 
-        fn encode(&self) -> Vec<u8> {
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
             let mut writer = vec!();
-            writer.write_u16::<BigEndian>(self.ticket).unwrap();
-            writer.write_u8(self.exchange.len() as u8).unwrap();
-    writer.write_all(self.exchange.as_bytes()).unwrap();
-            writer.write_u8(self._type.len() as u8).unwrap();
-    writer.write_all(self._type.as_bytes()).unwrap();
+            try!(writer.write_u16::<BigEndian>(self.ticket));
+            try!(writer.write_u8(self.exchange.len() as u8));
+    try!(writer.write_all(self.exchange.as_bytes()));
+            try!(writer.write_u8(self._type.len() as u8));
+    try!(writer.write_all(self._type.as_bytes()));
             let mut bits = BitVec::from_elem(8, false);
             bits.set(7, self.passive);
             bits.set(6, self.durable);
             bits.set(5, self.auto_delete);
             bits.set(4, self.internal);
             bits.set(3, self.nowait);
-            writer.write_all(&bits.to_bytes()).unwrap();
-            encode_table(&mut writer, &self.arguments).ok().unwrap();
-            writer
+            try!(writer.write_all(&bits.to_bytes()));
+            try!(encode_table(&mut writer, &self.arguments));
+            Ok(writer)
         }
     }
 
@@ -1325,8 +1364,8 @@ pub mod exchange {
             Ok(DeclareOk)
           }
 
-        fn encode(&self) -> Vec<u8> {
-            vec!()
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
+            Ok(vec!())
         }
     }
 
@@ -1368,21 +1407,27 @@ pub mod exchange {
      };
             let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
-            let if_unused = bits.get(7).unwrap();
-            let nowait = bits.get(6).unwrap();
+            let if_unused = match bits.get(7){
+          Some(bit) => bit,
+          None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned()))
+        };
+            let nowait = match bits.get(6){
+          Some(bit) => bit,
+          None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned()))
+        };
             Ok(Delete { ticket: ticket, exchange: exchange, if_unused: if_unused, nowait: nowait })
           }
 
-        fn encode(&self) -> Vec<u8> {
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
             let mut writer = vec!();
-            writer.write_u16::<BigEndian>(self.ticket).unwrap();
-            writer.write_u8(self.exchange.len() as u8).unwrap();
-    writer.write_all(self.exchange.as_bytes()).unwrap();
+            try!(writer.write_u16::<BigEndian>(self.ticket));
+            try!(writer.write_u8(self.exchange.len() as u8));
+    try!(writer.write_all(self.exchange.as_bytes()));
             let mut bits = BitVec::from_elem(8, false);
             bits.set(7, self.if_unused);
             bits.set(6, self.nowait);
-            writer.write_all(&bits.to_bytes()).unwrap();
-            writer
+            try!(writer.write_all(&bits.to_bytes()));
+            Ok(writer)
         }
     }
 
@@ -1422,8 +1467,8 @@ pub mod exchange {
             Ok(DeleteOk)
           }
 
-        fn encode(&self) -> Vec<u8> {
-            vec!()
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
+            Ok(vec!())
         }
     }
 
@@ -1479,25 +1524,28 @@ pub mod exchange {
      };
             let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
-            let nowait = bits.get(7).unwrap();
+            let nowait = match bits.get(7){
+          Some(bit) => bit,
+          None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned()))
+        };
             let arguments = try!(decode_table(reader));
             Ok(Bind { ticket: ticket, destination: destination, source: source, routing_key: routing_key, nowait: nowait, arguments: arguments })
           }
 
-        fn encode(&self) -> Vec<u8> {
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
             let mut writer = vec!();
-            writer.write_u16::<BigEndian>(self.ticket).unwrap();
-            writer.write_u8(self.destination.len() as u8).unwrap();
-    writer.write_all(self.destination.as_bytes()).unwrap();
-            writer.write_u8(self.source.len() as u8).unwrap();
-    writer.write_all(self.source.as_bytes()).unwrap();
-            writer.write_u8(self.routing_key.len() as u8).unwrap();
-    writer.write_all(self.routing_key.as_bytes()).unwrap();
+            try!(writer.write_u16::<BigEndian>(self.ticket));
+            try!(writer.write_u8(self.destination.len() as u8));
+    try!(writer.write_all(self.destination.as_bytes()));
+            try!(writer.write_u8(self.source.len() as u8));
+    try!(writer.write_all(self.source.as_bytes()));
+            try!(writer.write_u8(self.routing_key.len() as u8));
+    try!(writer.write_all(self.routing_key.as_bytes()));
             let mut bits = BitVec::from_elem(8, false);
             bits.set(7, self.nowait);
-            writer.write_all(&bits.to_bytes()).unwrap();
-            encode_table(&mut writer, &self.arguments).ok().unwrap();
-            writer
+            try!(writer.write_all(&bits.to_bytes()));
+            try!(encode_table(&mut writer, &self.arguments));
+            Ok(writer)
         }
     }
 
@@ -1539,8 +1587,8 @@ pub mod exchange {
             Ok(BindOk)
           }
 
-        fn encode(&self) -> Vec<u8> {
-            vec!()
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
+            Ok(vec!())
         }
     }
 
@@ -1596,25 +1644,28 @@ pub mod exchange {
      };
             let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
-            let nowait = bits.get(7).unwrap();
+            let nowait = match bits.get(7){
+          Some(bit) => bit,
+          None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned()))
+        };
             let arguments = try!(decode_table(reader));
             Ok(Unbind { ticket: ticket, destination: destination, source: source, routing_key: routing_key, nowait: nowait, arguments: arguments })
           }
 
-        fn encode(&self) -> Vec<u8> {
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
             let mut writer = vec!();
-            writer.write_u16::<BigEndian>(self.ticket).unwrap();
-            writer.write_u8(self.destination.len() as u8).unwrap();
-    writer.write_all(self.destination.as_bytes()).unwrap();
-            writer.write_u8(self.source.len() as u8).unwrap();
-    writer.write_all(self.source.as_bytes()).unwrap();
-            writer.write_u8(self.routing_key.len() as u8).unwrap();
-    writer.write_all(self.routing_key.as_bytes()).unwrap();
+            try!(writer.write_u16::<BigEndian>(self.ticket));
+            try!(writer.write_u8(self.destination.len() as u8));
+    try!(writer.write_all(self.destination.as_bytes()));
+            try!(writer.write_u8(self.source.len() as u8));
+    try!(writer.write_all(self.source.as_bytes()));
+            try!(writer.write_u8(self.routing_key.len() as u8));
+    try!(writer.write_all(self.routing_key.as_bytes()));
             let mut bits = BitVec::from_elem(8, false);
             bits.set(7, self.nowait);
-            writer.write_all(&bits.to_bytes()).unwrap();
-            encode_table(&mut writer, &self.arguments).ok().unwrap();
-            writer
+            try!(writer.write_all(&bits.to_bytes()));
+            try!(encode_table(&mut writer, &self.arguments));
+            Ok(writer)
         }
     }
 
@@ -1656,8 +1707,8 @@ pub mod exchange {
             Ok(UnbindOk)
           }
 
-        fn encode(&self) -> Vec<u8> {
-            vec!()
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
+            Ok(vec!())
         }
     }
 
@@ -1720,29 +1771,44 @@ pub mod queue {
      };
             let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
-            let passive = bits.get(7).unwrap();
-            let durable = bits.get(6).unwrap();
-            let exclusive = bits.get(5).unwrap();
-            let auto_delete = bits.get(4).unwrap();
-            let nowait = bits.get(3).unwrap();
+            let passive = match bits.get(7){
+          Some(bit) => bit,
+          None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned()))
+        };
+            let durable = match bits.get(6){
+          Some(bit) => bit,
+          None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned()))
+        };
+            let exclusive = match bits.get(5){
+          Some(bit) => bit,
+          None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned()))
+        };
+            let auto_delete = match bits.get(4){
+          Some(bit) => bit,
+          None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned()))
+        };
+            let nowait = match bits.get(3){
+          Some(bit) => bit,
+          None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned()))
+        };
             let arguments = try!(decode_table(reader));
             Ok(Declare { ticket: ticket, queue: queue, passive: passive, durable: durable, exclusive: exclusive, auto_delete: auto_delete, nowait: nowait, arguments: arguments })
           }
 
-        fn encode(&self) -> Vec<u8> {
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
             let mut writer = vec!();
-            writer.write_u16::<BigEndian>(self.ticket).unwrap();
-            writer.write_u8(self.queue.len() as u8).unwrap();
-    writer.write_all(self.queue.as_bytes()).unwrap();
+            try!(writer.write_u16::<BigEndian>(self.ticket));
+            try!(writer.write_u8(self.queue.len() as u8));
+    try!(writer.write_all(self.queue.as_bytes()));
             let mut bits = BitVec::from_elem(8, false);
             bits.set(7, self.passive);
             bits.set(6, self.durable);
             bits.set(5, self.exclusive);
             bits.set(4, self.auto_delete);
             bits.set(3, self.nowait);
-            writer.write_all(&bits.to_bytes()).unwrap();
-            encode_table(&mut writer, &self.arguments).ok().unwrap();
-            writer
+            try!(writer.write_all(&bits.to_bytes()));
+            try!(encode_table(&mut writer, &self.arguments));
+            Ok(writer)
         }
     }
 
@@ -1799,13 +1865,13 @@ pub mod queue {
             Ok(DeclareOk { queue: queue, message_count: message_count, consumer_count: consumer_count })
           }
 
-        fn encode(&self) -> Vec<u8> {
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
             let mut writer = vec!();
-            writer.write_u8(self.queue.len() as u8).unwrap();
-    writer.write_all(self.queue.as_bytes()).unwrap();
-            writer.write_u32::<BigEndian>(self.message_count).unwrap();
-            writer.write_u32::<BigEndian>(self.consumer_count).unwrap();
-            writer
+            try!(writer.write_u8(self.queue.len() as u8));
+    try!(writer.write_all(self.queue.as_bytes()));
+            try!(writer.write_u32::<BigEndian>(self.message_count));
+            try!(writer.write_u32::<BigEndian>(self.consumer_count));
+            Ok(writer)
         }
     }
 
@@ -1861,25 +1927,28 @@ pub mod queue {
      };
             let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
-            let nowait = bits.get(7).unwrap();
+            let nowait = match bits.get(7){
+          Some(bit) => bit,
+          None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned()))
+        };
             let arguments = try!(decode_table(reader));
             Ok(Bind { ticket: ticket, queue: queue, exchange: exchange, routing_key: routing_key, nowait: nowait, arguments: arguments })
           }
 
-        fn encode(&self) -> Vec<u8> {
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
             let mut writer = vec!();
-            writer.write_u16::<BigEndian>(self.ticket).unwrap();
-            writer.write_u8(self.queue.len() as u8).unwrap();
-    writer.write_all(self.queue.as_bytes()).unwrap();
-            writer.write_u8(self.exchange.len() as u8).unwrap();
-    writer.write_all(self.exchange.as_bytes()).unwrap();
-            writer.write_u8(self.routing_key.len() as u8).unwrap();
-    writer.write_all(self.routing_key.as_bytes()).unwrap();
+            try!(writer.write_u16::<BigEndian>(self.ticket));
+            try!(writer.write_u8(self.queue.len() as u8));
+    try!(writer.write_all(self.queue.as_bytes()));
+            try!(writer.write_u8(self.exchange.len() as u8));
+    try!(writer.write_all(self.exchange.as_bytes()));
+            try!(writer.write_u8(self.routing_key.len() as u8));
+    try!(writer.write_all(self.routing_key.as_bytes()));
             let mut bits = BitVec::from_elem(8, false);
             bits.set(7, self.nowait);
-            writer.write_all(&bits.to_bytes()).unwrap();
-            encode_table(&mut writer, &self.arguments).ok().unwrap();
-            writer
+            try!(writer.write_all(&bits.to_bytes()));
+            try!(encode_table(&mut writer, &self.arguments));
+            Ok(writer)
         }
     }
 
@@ -1921,8 +1990,8 @@ pub mod queue {
             Ok(BindOk)
           }
 
-        fn encode(&self) -> Vec<u8> {
-            vec!()
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
+            Ok(vec!())
         }
     }
 
@@ -1963,19 +2032,22 @@ pub mod queue {
      };
             let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
-            let nowait = bits.get(7).unwrap();
+            let nowait = match bits.get(7){
+          Some(bit) => bit,
+          None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned()))
+        };
             Ok(Purge { ticket: ticket, queue: queue, nowait: nowait })
           }
 
-        fn encode(&self) -> Vec<u8> {
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
             let mut writer = vec!();
-            writer.write_u16::<BigEndian>(self.ticket).unwrap();
-            writer.write_u8(self.queue.len() as u8).unwrap();
-    writer.write_all(self.queue.as_bytes()).unwrap();
+            try!(writer.write_u16::<BigEndian>(self.ticket));
+            try!(writer.write_u8(self.queue.len() as u8));
+    try!(writer.write_all(self.queue.as_bytes()));
             let mut bits = BitVec::from_elem(8, false);
             bits.set(7, self.nowait);
-            writer.write_all(&bits.to_bytes()).unwrap();
-            writer
+            try!(writer.write_all(&bits.to_bytes()));
+            Ok(writer)
         }
     }
 
@@ -2018,10 +2090,10 @@ pub mod queue {
             Ok(PurgeOk { message_count: message_count })
           }
 
-        fn encode(&self) -> Vec<u8> {
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
             let mut writer = vec!();
-            writer.write_u32::<BigEndian>(self.message_count).unwrap();
-            writer
+            try!(writer.write_u32::<BigEndian>(self.message_count));
+            Ok(writer)
         }
     }
 
@@ -2064,23 +2136,32 @@ pub mod queue {
      };
             let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
-            let if_unused = bits.get(7).unwrap();
-            let if_empty = bits.get(6).unwrap();
-            let nowait = bits.get(5).unwrap();
+            let if_unused = match bits.get(7){
+          Some(bit) => bit,
+          None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned()))
+        };
+            let if_empty = match bits.get(6){
+          Some(bit) => bit,
+          None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned()))
+        };
+            let nowait = match bits.get(5){
+          Some(bit) => bit,
+          None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned()))
+        };
             Ok(Delete { ticket: ticket, queue: queue, if_unused: if_unused, if_empty: if_empty, nowait: nowait })
           }
 
-        fn encode(&self) -> Vec<u8> {
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
             let mut writer = vec!();
-            writer.write_u16::<BigEndian>(self.ticket).unwrap();
-            writer.write_u8(self.queue.len() as u8).unwrap();
-    writer.write_all(self.queue.as_bytes()).unwrap();
+            try!(writer.write_u16::<BigEndian>(self.ticket));
+            try!(writer.write_u8(self.queue.len() as u8));
+    try!(writer.write_all(self.queue.as_bytes()));
             let mut bits = BitVec::from_elem(8, false);
             bits.set(7, self.if_unused);
             bits.set(6, self.if_empty);
             bits.set(5, self.nowait);
-            writer.write_all(&bits.to_bytes()).unwrap();
-            writer
+            try!(writer.write_all(&bits.to_bytes()));
+            Ok(writer)
         }
     }
 
@@ -2125,10 +2206,10 @@ pub mod queue {
             Ok(DeleteOk { message_count: message_count })
           }
 
-        fn encode(&self) -> Vec<u8> {
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
             let mut writer = vec!();
-            writer.write_u32::<BigEndian>(self.message_count).unwrap();
-            writer
+            try!(writer.write_u32::<BigEndian>(self.message_count));
+            Ok(writer)
         }
     }
 
@@ -2185,17 +2266,17 @@ pub mod queue {
             Ok(Unbind { ticket: ticket, queue: queue, exchange: exchange, routing_key: routing_key, arguments: arguments })
           }
 
-        fn encode(&self) -> Vec<u8> {
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
             let mut writer = vec!();
-            writer.write_u16::<BigEndian>(self.ticket).unwrap();
-            writer.write_u8(self.queue.len() as u8).unwrap();
-    writer.write_all(self.queue.as_bytes()).unwrap();
-            writer.write_u8(self.exchange.len() as u8).unwrap();
-    writer.write_all(self.exchange.as_bytes()).unwrap();
-            writer.write_u8(self.routing_key.len() as u8).unwrap();
-    writer.write_all(self.routing_key.as_bytes()).unwrap();
-            encode_table(&mut writer, &self.arguments).ok().unwrap();
-            writer
+            try!(writer.write_u16::<BigEndian>(self.ticket));
+            try!(writer.write_u8(self.queue.len() as u8));
+    try!(writer.write_all(self.queue.as_bytes()));
+            try!(writer.write_u8(self.exchange.len() as u8));
+    try!(writer.write_all(self.exchange.as_bytes()));
+            try!(writer.write_u8(self.routing_key.len() as u8));
+    try!(writer.write_all(self.routing_key.as_bytes()));
+            try!(encode_table(&mut writer, &self.arguments));
+            Ok(writer)
         }
     }
 
@@ -2236,8 +2317,8 @@ pub mod queue {
             Ok(UnbindOk)
           }
 
-        fn encode(&self) -> Vec<u8> {
-            vec!()
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
+            Ok(vec!())
         }
     }
 
@@ -2282,240 +2363,240 @@ pub mod basic {
             let reader = &mut &content_header_frame.properties[..];
             let properties_flags = BitVec::from_bytes(&[((content_header_frame.properties_flags >> 8) & 0xff) as u8,
                 (content_header_frame.properties_flags & 0xff) as u8]);
-            let content_type = if properties_flags.get(0).unwrap() {
-                Some({
+            let content_type = match properties_flags.get(0) {
+              Some(flag) if flag => Some({
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
           try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
-     })
-            } else {
-                None
+     }),
+              None => None,
+              _ => return Err(AMQPError::Protocol("Properties flags are not correct".to_owned()))
             };
-            let content_encoding = if properties_flags.get(1).unwrap() {
-                Some({
+            let content_encoding = match properties_flags.get(1) {
+              Some(flag) if flag => Some({
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
           try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
-     })
-            } else {
-                None
+     }),
+              None => None,
+              _ => return Err(AMQPError::Protocol("Properties flags are not correct".to_owned()))
             };
-            let headers = if properties_flags.get(2).unwrap() {
-                Some(try!(decode_table(reader)))
-            } else {
-                None
+            let headers = match properties_flags.get(2) {
+              Some(flag) if flag => Some(try!(decode_table(reader))),
+              None => None,
+              _ => return Err(AMQPError::Protocol("Properties flags are not correct".to_owned()))
             };
-            let delivery_mode = if properties_flags.get(3).unwrap() {
-                Some(try!(reader.read_u8()))
-            } else {
-                None
+            let delivery_mode = match properties_flags.get(3) {
+              Some(flag) if flag => Some(try!(reader.read_u8())),
+              None => None,
+              _ => return Err(AMQPError::Protocol("Properties flags are not correct".to_owned()))
             };
-            let priority = if properties_flags.get(4).unwrap() {
-                Some(try!(reader.read_u8()))
-            } else {
-                None
+            let priority = match properties_flags.get(4) {
+              Some(flag) if flag => Some(try!(reader.read_u8())),
+              None => None,
+              _ => return Err(AMQPError::Protocol("Properties flags are not correct".to_owned()))
             };
-            let correlation_id = if properties_flags.get(5).unwrap() {
-                Some({
+            let correlation_id = match properties_flags.get(5) {
+              Some(flag) if flag => Some({
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
           try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
-     })
-            } else {
-                None
+     }),
+              None => None,
+              _ => return Err(AMQPError::Protocol("Properties flags are not correct".to_owned()))
             };
-            let reply_to = if properties_flags.get(6).unwrap() {
-                Some({
+            let reply_to = match properties_flags.get(6) {
+              Some(flag) if flag => Some({
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
           try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
-     })
-            } else {
-                None
+     }),
+              None => None,
+              _ => return Err(AMQPError::Protocol("Properties flags are not correct".to_owned()))
             };
-            let expiration = if properties_flags.get(7).unwrap() {
-                Some({
+            let expiration = match properties_flags.get(7) {
+              Some(flag) if flag => Some({
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
           try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
-     })
-            } else {
-                None
+     }),
+              None => None,
+              _ => return Err(AMQPError::Protocol("Properties flags are not correct".to_owned()))
             };
-            let message_id = if properties_flags.get(8).unwrap() {
-                Some({
+            let message_id = match properties_flags.get(8) {
+              Some(flag) if flag => Some({
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
           try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
-     })
-            } else {
-                None
+     }),
+              None => None,
+              _ => return Err(AMQPError::Protocol("Properties flags are not correct".to_owned()))
             };
-            let timestamp = if properties_flags.get(9).unwrap() {
-                Some(try!(reader.read_u64::<BigEndian>()))
-            } else {
-                None
+            let timestamp = match properties_flags.get(9) {
+              Some(flag) if flag => Some(try!(reader.read_u64::<BigEndian>())),
+              None => None,
+              _ => return Err(AMQPError::Protocol("Properties flags are not correct".to_owned()))
             };
-            let _type = if properties_flags.get(10).unwrap() {
-                Some({
+            let _type = match properties_flags.get(10) {
+              Some(flag) if flag => Some({
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
           try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
-     })
-            } else {
-                None
+     }),
+              None => None,
+              _ => return Err(AMQPError::Protocol("Properties flags are not correct".to_owned()))
             };
-            let user_id = if properties_flags.get(11).unwrap() {
-                Some({
+            let user_id = match properties_flags.get(11) {
+              Some(flag) if flag => Some({
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
           try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
-     })
-            } else {
-                None
+     }),
+              None => None,
+              _ => return Err(AMQPError::Protocol("Properties flags are not correct".to_owned()))
             };
-            let app_id = if properties_flags.get(12).unwrap() {
-                Some({
+            let app_id = match properties_flags.get(12) {
+              Some(flag) if flag => Some({
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
           try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
-     })
-            } else {
-                None
+     }),
+              None => None,
+              _ => return Err(AMQPError::Protocol("Properties flags are not correct".to_owned()))
             };
-            let cluster_id = if properties_flags.get(13).unwrap() {
-                Some({
+            let cluster_id = match properties_flags.get(13) {
+              Some(flag) if flag => Some({
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
           try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
-     })
-            } else {
-                None
+     }),
+              None => None,
+              _ => return Err(AMQPError::Protocol("Properties flags are not correct".to_owned()))
             };
             Ok(BasicProperties { content_type: content_type, content_encoding: content_encoding, headers: headers, delivery_mode: delivery_mode, priority: priority, correlation_id: correlation_id, reply_to: reply_to, expiration: expiration, message_id: message_id, timestamp: timestamp, _type: _type, user_id: user_id, app_id: app_id, cluster_id: cluster_id })
         }
 
-        pub fn encode(self) -> Vec<u8> {
+        pub fn encode(self) -> AMQPResult<Vec<u8>> {
             let mut writer = vec!();
               match self.content_type {
                   Some(prop) => {
                       let content_type =  prop;
-                      writer.write_u8(content_type.len() as u8).unwrap();
-    writer.write_all(content_type.as_bytes()).unwrap();
+                      try!(writer.write_u8(content_type.len() as u8));
+    try!(writer.write_all(content_type.as_bytes()));
                   }
                   None => {}
               };
               match self.content_encoding {
                   Some(prop) => {
                       let content_encoding =  prop;
-                      writer.write_u8(content_encoding.len() as u8).unwrap();
-    writer.write_all(content_encoding.as_bytes()).unwrap();
+                      try!(writer.write_u8(content_encoding.len() as u8));
+    try!(writer.write_all(content_encoding.as_bytes()));
                   }
                   None => {}
               };
               match self.headers {
                   Some(prop) => {
                       let headers =  prop;
-                      encode_table(&mut writer, &headers).ok().unwrap();
+                      try!(encode_table(&mut writer, &headers));
                   }
                   None => {}
               };
               match self.delivery_mode {
                   Some(prop) => {
                       let delivery_mode =  prop;
-                      writer.write_u8(delivery_mode).unwrap();
+                      try!(writer.write_u8(delivery_mode));
                   }
                   None => {}
               };
               match self.priority {
                   Some(prop) => {
                       let priority =  prop;
-                      writer.write_u8(priority).unwrap();
+                      try!(writer.write_u8(priority));
                   }
                   None => {}
               };
               match self.correlation_id {
                   Some(prop) => {
                       let correlation_id =  prop;
-                      writer.write_u8(correlation_id.len() as u8).unwrap();
-    writer.write_all(correlation_id.as_bytes()).unwrap();
+                      try!(writer.write_u8(correlation_id.len() as u8));
+    try!(writer.write_all(correlation_id.as_bytes()));
                   }
                   None => {}
               };
               match self.reply_to {
                   Some(prop) => {
                       let reply_to =  prop;
-                      writer.write_u8(reply_to.len() as u8).unwrap();
-    writer.write_all(reply_to.as_bytes()).unwrap();
+                      try!(writer.write_u8(reply_to.len() as u8));
+    try!(writer.write_all(reply_to.as_bytes()));
                   }
                   None => {}
               };
               match self.expiration {
                   Some(prop) => {
                       let expiration =  prop;
-                      writer.write_u8(expiration.len() as u8).unwrap();
-    writer.write_all(expiration.as_bytes()).unwrap();
+                      try!(writer.write_u8(expiration.len() as u8));
+    try!(writer.write_all(expiration.as_bytes()));
                   }
                   None => {}
               };
               match self.message_id {
                   Some(prop) => {
                       let message_id =  prop;
-                      writer.write_u8(message_id.len() as u8).unwrap();
-    writer.write_all(message_id.as_bytes()).unwrap();
+                      try!(writer.write_u8(message_id.len() as u8));
+    try!(writer.write_all(message_id.as_bytes()));
                   }
                   None => {}
               };
               match self.timestamp {
                   Some(prop) => {
                       let timestamp =  prop;
-                      writer.write_u64::<BigEndian>(timestamp).unwrap();
+                      try!(writer.write_u64::<BigEndian>(timestamp));
                   }
                   None => {}
               };
               match self._type {
                   Some(prop) => {
                       let _type =  prop;
-                      writer.write_u8(_type.len() as u8).unwrap();
-    writer.write_all(_type.as_bytes()).unwrap();
+                      try!(writer.write_u8(_type.len() as u8));
+    try!(writer.write_all(_type.as_bytes()));
                   }
                   None => {}
               };
               match self.user_id {
                   Some(prop) => {
                       let user_id =  prop;
-                      writer.write_u8(user_id.len() as u8).unwrap();
-    writer.write_all(user_id.as_bytes()).unwrap();
+                      try!(writer.write_u8(user_id.len() as u8));
+    try!(writer.write_all(user_id.as_bytes()));
                   }
                   None => {}
               };
               match self.app_id {
                   Some(prop) => {
                       let app_id =  prop;
-                      writer.write_u8(app_id.len() as u8).unwrap();
-    writer.write_all(app_id.as_bytes()).unwrap();
+                      try!(writer.write_u8(app_id.len() as u8));
+    try!(writer.write_all(app_id.as_bytes()));
                   }
                   None => {}
               };
               match self.cluster_id {
                   Some(prop) => {
                       let cluster_id =  prop;
-                      writer.write_u8(cluster_id.len() as u8).unwrap();
-    writer.write_all(cluster_id.as_bytes()).unwrap();
+                      try!(writer.write_u8(cluster_id.len() as u8));
+    try!(writer.write_all(cluster_id.as_bytes()));
                   }
                   None => {}
               };
-            writer
+            Ok(writer)
         }
 
         pub fn flags(&self) -> u16 {
@@ -2570,18 +2651,21 @@ pub mod basic {
             let prefetch_count = try!(reader.read_u16::<BigEndian>());
             let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
-            let global = bits.get(7).unwrap();
+            let global = match bits.get(7){
+          Some(bit) => bit,
+          None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned()))
+        };
             Ok(Qos { prefetch_size: prefetch_size, prefetch_count: prefetch_count, global: global })
           }
 
-        fn encode(&self) -> Vec<u8> {
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
             let mut writer = vec!();
-            writer.write_u32::<BigEndian>(self.prefetch_size).unwrap();
-            writer.write_u16::<BigEndian>(self.prefetch_count).unwrap();
+            try!(writer.write_u32::<BigEndian>(self.prefetch_size));
+            try!(writer.write_u16::<BigEndian>(self.prefetch_count));
             let mut bits = BitVec::from_elem(8, false);
             bits.set(7, self.global);
-            writer.write_all(&bits.to_bytes()).unwrap();
-            writer
+            try!(writer.write_all(&bits.to_bytes()));
+            Ok(writer)
         }
     }
 
@@ -2620,8 +2704,8 @@ pub mod basic {
             Ok(QosOk)
           }
 
-        fn encode(&self) -> Vec<u8> {
-            vec!()
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
+            Ok(vec!())
         }
     }
 
@@ -2673,29 +2757,41 @@ pub mod basic {
      };
             let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
-            let no_local = bits.get(7).unwrap();
-            let no_ack = bits.get(6).unwrap();
-            let exclusive = bits.get(5).unwrap();
-            let nowait = bits.get(4).unwrap();
+            let no_local = match bits.get(7){
+          Some(bit) => bit,
+          None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned()))
+        };
+            let no_ack = match bits.get(6){
+          Some(bit) => bit,
+          None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned()))
+        };
+            let exclusive = match bits.get(5){
+          Some(bit) => bit,
+          None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned()))
+        };
+            let nowait = match bits.get(4){
+          Some(bit) => bit,
+          None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned()))
+        };
             let arguments = try!(decode_table(reader));
             Ok(Consume { ticket: ticket, queue: queue, consumer_tag: consumer_tag, no_local: no_local, no_ack: no_ack, exclusive: exclusive, nowait: nowait, arguments: arguments })
           }
 
-        fn encode(&self) -> Vec<u8> {
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
             let mut writer = vec!();
-            writer.write_u16::<BigEndian>(self.ticket).unwrap();
-            writer.write_u8(self.queue.len() as u8).unwrap();
-    writer.write_all(self.queue.as_bytes()).unwrap();
-            writer.write_u8(self.consumer_tag.len() as u8).unwrap();
-    writer.write_all(self.consumer_tag.as_bytes()).unwrap();
+            try!(writer.write_u16::<BigEndian>(self.ticket));
+            try!(writer.write_u8(self.queue.len() as u8));
+    try!(writer.write_all(self.queue.as_bytes()));
+            try!(writer.write_u8(self.consumer_tag.len() as u8));
+    try!(writer.write_all(self.consumer_tag.as_bytes()));
             let mut bits = BitVec::from_elem(8, false);
             bits.set(7, self.no_local);
             bits.set(6, self.no_ack);
             bits.set(5, self.exclusive);
             bits.set(4, self.nowait);
-            writer.write_all(&bits.to_bytes()).unwrap();
-            encode_table(&mut writer, &self.arguments).ok().unwrap();
-            writer
+            try!(writer.write_all(&bits.to_bytes()));
+            try!(encode_table(&mut writer, &self.arguments));
+            Ok(writer)
         }
     }
 
@@ -2748,11 +2844,11 @@ pub mod basic {
             Ok(ConsumeOk { consumer_tag: consumer_tag })
           }
 
-        fn encode(&self) -> Vec<u8> {
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
             let mut writer = vec!();
-            writer.write_u8(self.consumer_tag.len() as u8).unwrap();
-    writer.write_all(self.consumer_tag.as_bytes()).unwrap();
-            writer
+            try!(writer.write_u8(self.consumer_tag.len() as u8));
+    try!(writer.write_all(self.consumer_tag.as_bytes()));
+            Ok(writer)
         }
     }
 
@@ -2791,18 +2887,21 @@ pub mod basic {
      };
             let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
-            let nowait = bits.get(7).unwrap();
+            let nowait = match bits.get(7){
+          Some(bit) => bit,
+          None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned()))
+        };
             Ok(Cancel { consumer_tag: consumer_tag, nowait: nowait })
           }
 
-        fn encode(&self) -> Vec<u8> {
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
             let mut writer = vec!();
-            writer.write_u8(self.consumer_tag.len() as u8).unwrap();
-    writer.write_all(self.consumer_tag.as_bytes()).unwrap();
+            try!(writer.write_u8(self.consumer_tag.len() as u8));
+    try!(writer.write_all(self.consumer_tag.as_bytes()));
             let mut bits = BitVec::from_elem(8, false);
             bits.set(7, self.nowait);
-            writer.write_all(&bits.to_bytes()).unwrap();
-            writer
+            try!(writer.write_all(&bits.to_bytes()));
+            Ok(writer)
         }
     }
 
@@ -2841,11 +2940,11 @@ pub mod basic {
             Ok(CancelOk { consumer_tag: consumer_tag })
           }
 
-        fn encode(&self) -> Vec<u8> {
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
             let mut writer = vec!();
-            writer.write_u8(self.consumer_tag.len() as u8).unwrap();
-    writer.write_all(self.consumer_tag.as_bytes()).unwrap();
-            writer
+            try!(writer.write_u8(self.consumer_tag.len() as u8));
+    try!(writer.write_all(self.consumer_tag.as_bytes()));
+            Ok(writer)
         }
     }
 
@@ -2894,23 +2993,29 @@ pub mod basic {
      };
             let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
-            let mandatory = bits.get(7).unwrap();
-            let immediate = bits.get(6).unwrap();
+            let mandatory = match bits.get(7){
+          Some(bit) => bit,
+          None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned()))
+        };
+            let immediate = match bits.get(6){
+          Some(bit) => bit,
+          None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned()))
+        };
             Ok(Publish { ticket: ticket, exchange: exchange, routing_key: routing_key, mandatory: mandatory, immediate: immediate })
           }
 
-        fn encode(&self) -> Vec<u8> {
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
             let mut writer = vec!();
-            writer.write_u16::<BigEndian>(self.ticket).unwrap();
-            writer.write_u8(self.exchange.len() as u8).unwrap();
-    writer.write_all(self.exchange.as_bytes()).unwrap();
-            writer.write_u8(self.routing_key.len() as u8).unwrap();
-    writer.write_all(self.routing_key.as_bytes()).unwrap();
+            try!(writer.write_u16::<BigEndian>(self.ticket));
+            try!(writer.write_u8(self.exchange.len() as u8));
+    try!(writer.write_all(self.exchange.as_bytes()));
+            try!(writer.write_u8(self.routing_key.len() as u8));
+    try!(writer.write_all(self.routing_key.as_bytes()));
             let mut bits = BitVec::from_elem(8, false);
             bits.set(7, self.mandatory);
             bits.set(6, self.immediate);
-            writer.write_all(&bits.to_bytes()).unwrap();
-            writer
+            try!(writer.write_all(&bits.to_bytes()));
+            Ok(writer)
         }
     }
 
@@ -2976,16 +3081,16 @@ pub mod basic {
             Ok(Return { reply_code: reply_code, reply_text: reply_text, exchange: exchange, routing_key: routing_key })
           }
 
-        fn encode(&self) -> Vec<u8> {
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
             let mut writer = vec!();
-            writer.write_u16::<BigEndian>(self.reply_code).unwrap();
-            writer.write_u8(self.reply_text.len() as u8).unwrap();
-    writer.write_all(self.reply_text.as_bytes()).unwrap();
-            writer.write_u8(self.exchange.len() as u8).unwrap();
-    writer.write_all(self.exchange.as_bytes()).unwrap();
-            writer.write_u8(self.routing_key.len() as u8).unwrap();
-    writer.write_all(self.routing_key.as_bytes()).unwrap();
-            writer
+            try!(writer.write_u16::<BigEndian>(self.reply_code));
+            try!(writer.write_u8(self.reply_text.len() as u8));
+    try!(writer.write_all(self.reply_text.as_bytes()));
+            try!(writer.write_u8(self.exchange.len() as u8));
+    try!(writer.write_all(self.exchange.as_bytes()));
+            try!(writer.write_u8(self.routing_key.len() as u8));
+    try!(writer.write_all(self.routing_key.as_bytes()));
+            Ok(writer)
         }
     }
 
@@ -3038,7 +3143,10 @@ pub mod basic {
             let delivery_tag = try!(reader.read_u64::<BigEndian>());
             let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
-            let redelivered = bits.get(7).unwrap();
+            let redelivered = match bits.get(7){
+          Some(bit) => bit,
+          None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned()))
+        };
             let exchange = {
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
@@ -3054,19 +3162,19 @@ pub mod basic {
             Ok(Deliver { consumer_tag: consumer_tag, delivery_tag: delivery_tag, redelivered: redelivered, exchange: exchange, routing_key: routing_key })
           }
 
-        fn encode(&self) -> Vec<u8> {
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
             let mut writer = vec!();
-            writer.write_u8(self.consumer_tag.len() as u8).unwrap();
-    writer.write_all(self.consumer_tag.as_bytes()).unwrap();
-            writer.write_u64::<BigEndian>(self.delivery_tag).unwrap();
+            try!(writer.write_u8(self.consumer_tag.len() as u8));
+    try!(writer.write_all(self.consumer_tag.as_bytes()));
+            try!(writer.write_u64::<BigEndian>(self.delivery_tag));
             let mut bits = BitVec::from_elem(8, false);
             bits.set(7, self.redelivered);
-            writer.write_all(&bits.to_bytes()).unwrap();
-            writer.write_u8(self.exchange.len() as u8).unwrap();
-    writer.write_all(self.exchange.as_bytes()).unwrap();
-            writer.write_u8(self.routing_key.len() as u8).unwrap();
-    writer.write_all(self.routing_key.as_bytes()).unwrap();
-            writer
+            try!(writer.write_all(&bits.to_bytes()));
+            try!(writer.write_u8(self.exchange.len() as u8));
+    try!(writer.write_all(self.exchange.as_bytes()));
+            try!(writer.write_u8(self.routing_key.len() as u8));
+    try!(writer.write_all(self.routing_key.as_bytes()));
+            Ok(writer)
         }
     }
 
@@ -3107,19 +3215,22 @@ pub mod basic {
      };
             let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
-            let no_ack = bits.get(7).unwrap();
+            let no_ack = match bits.get(7){
+          Some(bit) => bit,
+          None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned()))
+        };
             Ok(Get { ticket: ticket, queue: queue, no_ack: no_ack })
           }
 
-        fn encode(&self) -> Vec<u8> {
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
             let mut writer = vec!();
-            writer.write_u16::<BigEndian>(self.ticket).unwrap();
-            writer.write_u8(self.queue.len() as u8).unwrap();
-    writer.write_all(self.queue.as_bytes()).unwrap();
+            try!(writer.write_u16::<BigEndian>(self.ticket));
+            try!(writer.write_u8(self.queue.len() as u8));
+    try!(writer.write_all(self.queue.as_bytes()));
             let mut bits = BitVec::from_elem(8, false);
             bits.set(7, self.no_ack);
-            writer.write_all(&bits.to_bytes()).unwrap();
-            writer
+            try!(writer.write_all(&bits.to_bytes()));
+            Ok(writer)
         }
     }
 
@@ -3165,7 +3276,10 @@ pub mod basic {
             let delivery_tag = try!(reader.read_u64::<BigEndian>());
             let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
-            let redelivered = bits.get(7).unwrap();
+            let redelivered = match bits.get(7){
+          Some(bit) => bit,
+          None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned()))
+        };
             let exchange = {
           let size = try!(reader.read_u8()) as usize;
           let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
@@ -3182,18 +3296,18 @@ pub mod basic {
             Ok(GetOk { delivery_tag: delivery_tag, redelivered: redelivered, exchange: exchange, routing_key: routing_key, message_count: message_count })
           }
 
-        fn encode(&self) -> Vec<u8> {
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
             let mut writer = vec!();
-            writer.write_u64::<BigEndian>(self.delivery_tag).unwrap();
+            try!(writer.write_u64::<BigEndian>(self.delivery_tag));
             let mut bits = BitVec::from_elem(8, false);
             bits.set(7, self.redelivered);
-            writer.write_all(&bits.to_bytes()).unwrap();
-            writer.write_u8(self.exchange.len() as u8).unwrap();
-    writer.write_all(self.exchange.as_bytes()).unwrap();
-            writer.write_u8(self.routing_key.len() as u8).unwrap();
-    writer.write_all(self.routing_key.as_bytes()).unwrap();
-            writer.write_u32::<BigEndian>(self.message_count).unwrap();
-            writer
+            try!(writer.write_all(&bits.to_bytes()));
+            try!(writer.write_u8(self.exchange.len() as u8));
+    try!(writer.write_all(self.exchange.as_bytes()));
+            try!(writer.write_u8(self.routing_key.len() as u8));
+    try!(writer.write_all(self.routing_key.as_bytes()));
+            try!(writer.write_u32::<BigEndian>(self.message_count));
+            Ok(writer)
         }
     }
 
@@ -3232,11 +3346,11 @@ pub mod basic {
             Ok(GetEmpty { cluster_id: cluster_id })
           }
 
-        fn encode(&self) -> Vec<u8> {
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
             let mut writer = vec!();
-            writer.write_u8(self.cluster_id.len() as u8).unwrap();
-    writer.write_all(self.cluster_id.as_bytes()).unwrap();
-            writer
+            try!(writer.write_u8(self.cluster_id.len() as u8));
+    try!(writer.write_all(self.cluster_id.as_bytes()));
+            Ok(writer)
         }
     }
 
@@ -3277,17 +3391,20 @@ pub mod basic {
             let delivery_tag = try!(reader.read_u64::<BigEndian>());
             let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
-            let multiple = bits.get(7).unwrap();
+            let multiple = match bits.get(7){
+          Some(bit) => bit,
+          None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned()))
+        };
             Ok(Ack { delivery_tag: delivery_tag, multiple: multiple })
           }
 
-        fn encode(&self) -> Vec<u8> {
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
             let mut writer = vec!();
-            writer.write_u64::<BigEndian>(self.delivery_tag).unwrap();
+            try!(writer.write_u64::<BigEndian>(self.delivery_tag));
             let mut bits = BitVec::from_elem(8, false);
             bits.set(7, self.multiple);
-            writer.write_all(&bits.to_bytes()).unwrap();
-            writer
+            try!(writer.write_all(&bits.to_bytes()));
+            Ok(writer)
         }
     }
 
@@ -3329,17 +3446,20 @@ pub mod basic {
             let delivery_tag = try!(reader.read_u64::<BigEndian>());
             let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
-            let requeue = bits.get(7).unwrap();
+            let requeue = match bits.get(7){
+          Some(bit) => bit,
+          None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned()))
+        };
             Ok(Reject { delivery_tag: delivery_tag, requeue: requeue })
           }
 
-        fn encode(&self) -> Vec<u8> {
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
             let mut writer = vec!();
-            writer.write_u64::<BigEndian>(self.delivery_tag).unwrap();
+            try!(writer.write_u64::<BigEndian>(self.delivery_tag));
             let mut bits = BitVec::from_elem(8, false);
             bits.set(7, self.requeue);
-            writer.write_all(&bits.to_bytes()).unwrap();
-            writer
+            try!(writer.write_all(&bits.to_bytes()));
+            Ok(writer)
         }
     }
 
@@ -3379,16 +3499,19 @@ pub mod basic {
             let reader = &mut &method_frame.arguments[..];
             let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
-            let requeue = bits.get(7).unwrap();
+            let requeue = match bits.get(7){
+          Some(bit) => bit,
+          None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned()))
+        };
             Ok(RecoverAsync { requeue: requeue })
           }
 
-        fn encode(&self) -> Vec<u8> {
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
             let mut writer = vec!();
             let mut bits = BitVec::from_elem(8, false);
             bits.set(7, self.requeue);
-            writer.write_all(&bits.to_bytes()).unwrap();
-            writer
+            try!(writer.write_all(&bits.to_bytes()));
+            Ok(writer)
         }
     }
 
@@ -3420,16 +3543,19 @@ pub mod basic {
             let reader = &mut &method_frame.arguments[..];
             let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
-            let requeue = bits.get(7).unwrap();
+            let requeue = match bits.get(7){
+          Some(bit) => bit,
+          None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned()))
+        };
             Ok(Recover { requeue: requeue })
           }
 
-        fn encode(&self) -> Vec<u8> {
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
             let mut writer = vec!();
             let mut bits = BitVec::from_elem(8, false);
             bits.set(7, self.requeue);
-            writer.write_all(&bits.to_bytes()).unwrap();
-            writer
+            try!(writer.write_all(&bits.to_bytes()));
+            Ok(writer)
         }
     }
 
@@ -3459,8 +3585,8 @@ pub mod basic {
             Ok(RecoverOk)
           }
 
-        fn encode(&self) -> Vec<u8> {
-            vec!()
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
+            Ok(vec!())
         }
     }
 
@@ -3495,19 +3621,25 @@ pub mod basic {
             let delivery_tag = try!(reader.read_u64::<BigEndian>());
             let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
-            let multiple = bits.get(7).unwrap();
-            let requeue = bits.get(6).unwrap();
+            let multiple = match bits.get(7){
+          Some(bit) => bit,
+          None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned()))
+        };
+            let requeue = match bits.get(6){
+          Some(bit) => bit,
+          None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned()))
+        };
             Ok(Nack { delivery_tag: delivery_tag, multiple: multiple, requeue: requeue })
           }
 
-        fn encode(&self) -> Vec<u8> {
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
             let mut writer = vec!();
-            writer.write_u64::<BigEndian>(self.delivery_tag).unwrap();
+            try!(writer.write_u64::<BigEndian>(self.delivery_tag));
             let mut bits = BitVec::from_elem(8, false);
             bits.set(7, self.multiple);
             bits.set(6, self.requeue);
-            writer.write_all(&bits.to_bytes()).unwrap();
-            writer
+            try!(writer.write_all(&bits.to_bytes()));
+            Ok(writer)
         }
     }
 
@@ -3563,8 +3695,8 @@ pub mod tx {
             Ok(Select)
           }
 
-        fn encode(&self) -> Vec<u8> {
-            vec!()
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
+            Ok(vec!())
         }
     }
 
@@ -3594,8 +3726,8 @@ pub mod tx {
             Ok(SelectOk)
           }
 
-        fn encode(&self) -> Vec<u8> {
-            vec!()
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
+            Ok(vec!())
         }
     }
 
@@ -3625,8 +3757,8 @@ pub mod tx {
             Ok(Commit)
           }
 
-        fn encode(&self) -> Vec<u8> {
-            vec!()
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
+            Ok(vec!())
         }
     }
 
@@ -3656,8 +3788,8 @@ pub mod tx {
             Ok(CommitOk)
           }
 
-        fn encode(&self) -> Vec<u8> {
-            vec!()
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
+            Ok(vec!())
         }
     }
 
@@ -3687,8 +3819,8 @@ pub mod tx {
             Ok(Rollback)
           }
 
-        fn encode(&self) -> Vec<u8> {
-            vec!()
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
+            Ok(vec!())
         }
     }
 
@@ -3718,8 +3850,8 @@ pub mod tx {
             Ok(RollbackOk)
           }
 
-        fn encode(&self) -> Vec<u8> {
-            vec!()
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
+            Ok(vec!())
         }
     }
 
@@ -3768,16 +3900,19 @@ pub mod confirm {
             let reader = &mut &method_frame.arguments[..];
             let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
-            let nowait = bits.get(7).unwrap();
+            let nowait = match bits.get(7){
+          Some(bit) => bit,
+          None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned()))
+        };
             Ok(Select { nowait: nowait })
           }
 
-        fn encode(&self) -> Vec<u8> {
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
             let mut writer = vec!();
             let mut bits = BitVec::from_elem(8, false);
             bits.set(7, self.nowait);
-            writer.write_all(&bits.to_bytes()).unwrap();
-            writer
+            try!(writer.write_all(&bits.to_bytes()));
+            Ok(writer)
         }
     }
 
@@ -3807,8 +3942,8 @@ pub mod confirm {
             Ok(SelectOk)
           }
 
-        fn encode(&self) -> Vec<u8> {
-            vec!()
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
+            Ok(vec!())
         }
     }
 

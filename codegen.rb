@@ -44,25 +44,25 @@ end
 def write_type(name, type)
   case type
   when "octet"
-    "writer.write_u8(#{name}).unwrap();"
+    "try!(writer.write_u8(#{name}));"
   when "long"
-    "writer.write_u32::<BigEndian>(#{name}).unwrap();"
+    "try!(writer.write_u32::<BigEndian>(#{name}));"
   when "longlong"
-    "writer.write_u64::<BigEndian>(#{name}).unwrap();"
+    "try!(writer.write_u64::<BigEndian>(#{name}));"
   when "short"
-    "writer.write_u16::<BigEndian>(#{name}).unwrap();"
+    "try!(writer.write_u16::<BigEndian>(#{name}));"
   when "bit"
     raise "Cant write bit here..."
   when "shortstr"
-    "writer.write_u8(#{name}.len() as u8).unwrap();
-    writer.write_all(#{name}.as_bytes()).unwrap();"
+    "try!(writer.write_u8(#{name}.len() as u8));
+    try!(writer.write_all(#{name}.as_bytes()));"
   when "longstr"
-    "writer.write_u32::<BigEndian>(#{name}.len() as u32).unwrap();
-    writer.write_all(#{name}.as_bytes()).unwrap();"
+    "try!(writer.write_u32::<BigEndian>(#{name}.len() as u32));
+    try!(writer.write_all(#{name}.as_bytes()));"
   when "table"
-    "encode_table(&mut writer, &#{name}).ok().unwrap();"
+    "try!(encode_table(&mut writer, &#{name}));"
   when "timestamp"
-    "writer.write_u64::<BigEndian>(#{name}).unwrap();"
+    "try!(writer.write_u64::<BigEndian>(#{name}));"
   else
     raise "Unknown type: #{type}"
   end
@@ -79,7 +79,10 @@ def generate_reader_body(arguments)
           body << "let byte = try!(reader.read_u8());"
           body << "let bits = BitVec::from_bytes(&[byte]);"
         end
-        body << "let #{snake_name(argument["name"])} = bits.get(#{7-n_bits}).unwrap();"
+        body << "let #{snake_name(argument["name"])} = match bits.get(#{7-n_bits}){
+          Some(bit) => bit,
+          None => return Err(AMQPError::Protocol(\"Bitmap is not correct\".to_owned()))
+        };"
         n_bits += 1
         if n_bits == 8
           n_bits = 0
@@ -105,19 +108,19 @@ def generate_writer_body(arguments)
         body << "bits.set(#{7-n_bits}, self.#{snake_name(argument["name"])});"
         n_bits += 1
         if n_bits == 8
-          body << "writer.write_all(&bits.to_bytes()).unwrap();"
+          body << "try!(writer.write_all(&bits.to_bytes()));"
           n_bits = 0
         end
       else
         if n_bits > 0
-          body << "writer.write_all(&bits.to_bytes()).unwrap();"
+          body << "try!(writer.write_all(&bits.to_bytes()));"
           n_bits = 0
         end
         body << write_type("self."+snake_name(argument["name"]), type)
       end
     end
-    body << "writer.write_all(&bits.to_bytes()).unwrap();" if n_bits > 0 #if bits were the last element
-    body << "writer"
+    body << "try!(writer.write_all(&bits.to_bytes()));" if n_bits > 0 #if bits were the last element
+    body << "Ok(writer)"
     body
 end
 

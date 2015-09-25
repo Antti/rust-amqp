@@ -181,7 +181,7 @@ impl Session {
             channel_max: self.channel_max_limit,
             frame_max: frame_max_limit, heartbeat: 0};
         debug!("Sending connection.tune-ok: {:?}", tune_ok);
-        self.channel_zero.send_method_frame(&tune_ok);
+        try!(self.channel_zero.send_method_frame(&tune_ok));
 
         let open = protocol::connection::Open{virtual_host: options.vhost.to_string(), capabilities: "".to_string(), insist: false };
         debug!("Sending connection.open: {:?}", open);

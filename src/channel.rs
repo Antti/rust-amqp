@@ -41,12 +41,9 @@ impl Channel {
         let meth = protocol::channel::Open {out_of_band: "".to_string()};
         self.rpc(&meth, "channel.open-ok")
     }
-    pub fn close(&mut self, reply_code: u16, reply_text: String) {
+    pub fn close(&mut self, reply_code: u16, reply_text: String) -> AMQPResult<channel::CloseOk> {
         let close = &channel::Close {reply_code: reply_code, reply_text: reply_text, class_id: 0, method_id: 0};
-        let call: Option<channel::CloseOk> = self.rpc(close, "channel.close-ok").ok();
-        if call.is_none() {
-            error!("Error closing connection")
-        }
+        self.rpc(close, "channel.close-ok")
     }
 
     pub fn read(&self) -> AMQPResult<Frame> {
@@ -55,17 +52,14 @@ impl Channel {
         ).and_then(|frame| frame)
     }
 
-    pub fn write(&mut self, frame: Frame) {
-        match self.connection.write(frame) {
-            Ok(_) => {},
-            Err(_) => error!("Error writing packet to connection")
-        }
+    pub fn write(&mut self, frame: Frame) -> AMQPResult<()> {
+        self.connection.write(frame)
     }
 
-    pub fn send_method_frame<T>(&mut self, method: &T)  where T: protocol::Method {
+    pub fn send_method_frame<T>(&mut self, method: &T) -> AMQPResult<()> where T: protocol::Method {
         debug!("Sending method {} to channel {}", method.name(), self.id);
         let id = self.id;
-        self.write(Frame {frame_type: FrameType::METHOD, channel: id, payload: MethodFrame::encode_method(method) })
+        self.write(Frame {frame_type: FrameType::METHOD, channel: id, payload: try!(MethodFrame::encode_method(method)) })
     }
 
     pub fn rpc<T, U>(&mut self, method: &U, expected_reply: &str) -> AMQPResult<T> where T: protocol::Method, U: protocol::Method {
@@ -77,7 +71,7 @@ impl Channel {
     }
 
     pub fn raw_rpc<T>(&mut self, method: &T) -> AMQPResult<MethodFrame>  where T: protocol::Method {
-        self.send_method_frame(method);
+        try!(self.send_method_frame(method));
         MethodFrame::decode(try!(self.read()))
     }
 

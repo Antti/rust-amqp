@@ -8,7 +8,7 @@ use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 
 pub trait Method : Sized {
     fn decode(method_frame: MethodFrame) -> AMQPResult<Self>;
-    fn encode(&self) -> Vec<u8>;
+    fn encode(&self) -> AMQPResult<Vec<u8>>;
     fn name(&self) -> &'static str;
     fn id(&self) -> u16;
     fn class_id(&self) -> u16;
@@ -23,16 +23,16 @@ pub struct MethodFrame {
 }
 
 impl MethodFrame {
-    pub fn encode_method<T>(method: &T) -> Vec<u8> where T: Method {
-        let frame = MethodFrame {class_id: method.class_id(), method_id: method.id(), arguments: method.encode()};
+    pub fn encode_method<T>(method: &T) -> AMQPResult<Vec<u8>> where T: Method {
+        let frame = MethodFrame {class_id: method.class_id(), method_id: method.id(), arguments: try!(method.encode())};
         frame.encode()
     }
-    pub fn encode(&self) -> Vec<u8> {
+    pub fn encode(&self) -> AMQPResult<Vec<u8>> {
         let mut writer = vec!();
-        writer.write_u16::<BigEndian>(self.class_id).unwrap();
-        writer.write_u16::<BigEndian>(self.method_id).unwrap();
-        writer.write_all(&self.arguments).unwrap();
-        writer
+        try!(writer.write_u16::<BigEndian>(self.class_id));
+        try!(writer.write_u16::<BigEndian>(self.method_id));
+        try!(writer.write_all(&self.arguments));
+        Ok(writer)
     }
 
     // We need this method, so we can match on class_id & method_id
@@ -41,10 +41,10 @@ impl MethodFrame {
             return Err(AMQPError::DecodeError("Not a method frame"))
         }
         let reader = &mut &frame.payload[..];
-        let class_id = reader.read_u16::<BigEndian>().unwrap();
-        let method_id = reader.read_u16::<BigEndian>().unwrap();
+        let class_id = try!(reader.read_u16::<BigEndian>());
+        let method_id = try!(reader.read_u16::<BigEndian>());
         let mut arguments = vec!();
-        reader.read_to_end(&mut arguments).unwrap();
+        try!(reader.read_to_end(&mut arguments));
         Ok(MethodFrame { class_id: class_id, method_id: method_id, arguments: arguments})
     }
 
@@ -89,16 +89,16 @@ pub mod <%= klass["name"] %> {
             let properties_flags = BitVec::from_bytes(&[((content_header_frame.properties_flags >> 8) & 0xff) as u8,
                 (content_header_frame.properties_flags & 0xff) as u8]);
 <% klass["properties"].each.with_index do |prop, idx| -%>
-            let <%= prop["prop_name"] %> = if properties_flags.get(<%= idx %>).unwrap() {
-                Some(<%=read_type(prop["prop_type"])%>)
-            } else {
-                None
+            let <%= prop["prop_name"] %> = match properties_flags.get(<%= idx %>) {
+              Some(flag) if flag => Some(<%=read_type(prop["prop_type"])%>),
+              None => None,
+              _ => return Err(AMQPError::Protocol("Properties flags are not correct".to_owned()))
             };
 <% end -%>
             Ok(<%=klass["properties_struct_name"]%> { <%= klass["properties_struct_create"].join(", ") %> })
         }
 
-        pub fn encode(self) -> Vec<u8> {
+        pub fn encode(self) -> AMQPResult<Vec<u8>> {
             let mut writer = vec!();
 <% klass["properties"].each.with_index do |prop, idx| -%>
               match self.<%= prop["prop_name"] %> {
@@ -109,7 +109,7 @@ pub mod <%= klass["name"] %> {
                   None => {}
               };
 <% end -%>
-            writer
+            Ok(writer)
         }
 
         pub fn flags(&self) -> u16 {
@@ -164,13 +164,13 @@ pub mod <%= klass["name"] %> {
 <% end -%>
           }
 
-        fn encode(&self) -> Vec<u8> {
+        fn encode(&self) -> AMQPResult<Vec<u8>> {
 <% if method["arguments"].any? -%>
 <% method["writers"].each do |writer| -%>
             <%= writer %>
 <% end -%>
 <% else -%>
-            vec!()
+            Ok(vec!())
 <% end -%>
         }
     }

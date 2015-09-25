@@ -87,9 +87,9 @@ impl Connection {
 
     fn write_frame(&mut self, frame: Frame) -> AMQPResult<()>{
         match self.socket {
-            AMQPStream::Cleartext(ref mut stream) => Ok(try!(stream.write_all(&frame.encode()))),
+            AMQPStream::Cleartext(ref mut stream) => Ok(try!(stream.write_all(&try!(frame.encode())))),
 #[cfg(feature = "tls")]
-            AMQPStream::Tls(ref mut stream) => Ok(try!(stream.write_all(&frame.encode()))),
+            AMQPStream::Tls(ref mut stream) => Ok(try!(stream.write_all(&try!(frame.encode())))),
         }
     }
 

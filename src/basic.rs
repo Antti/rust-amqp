@@ -5,7 +5,7 @@ use framing::{ContentHeaderFrame, FrameType, Frame};
 use protocol::{MethodFrame, basic, Method};
 use protocol::basic::{BasicProperties, GetOk, Consume, ConsumeOk, Deliver, Publish, Ack, Nack, Reject, Qos, QosOk, Cancel, CancelOk};
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
-use amqp_error::AMQPResult;
+use amqp_error::{AMQPResult, AMQPError};
 
 enum AckAction {
     Ack(u64),
@@ -25,13 +25,13 @@ pub trait Basic <'a> {
     fn basic_get(&'a mut self, queue: &'a str, no_ack: bool) -> GetIterator<'a>;
     fn basic_consume<T>(&mut self, callback: T,
     queue: &str, consumer_tag: &str, no_local: bool, no_ack: bool,
-    exclusive: bool, nowait: bool, arguments: Table) -> String where T: Consumer;
+    exclusive: bool, nowait: bool, arguments: Table) -> AMQPResult<String> where T: Consumer;
     fn start_consuming(&mut self);
     fn basic_publish(&mut self, exchange: &str, routing_key: &str, mandatory: bool, immediate: bool,
-                         properties: BasicProperties, content: Vec<u8>);
-    fn basic_ack(&mut self, delivery_tag: u64, multiple: bool);
-    fn basic_nack(&mut self, delivery_tag: u64, multiple: bool, requeue: bool);
-    fn basic_reject(&mut self, delivery_tag: u64, requeue: bool);
+                         properties: BasicProperties, content: Vec<u8>) -> AMQPResult<()>;
+    fn basic_ack(&mut self, delivery_tag: u64, multiple: bool) -> AMQPResult<()>;
+    fn basic_nack(&mut self, delivery_tag: u64, multiple: bool, requeue: bool) -> AMQPResult<()>;
+    fn basic_reject(&mut self, delivery_tag: u64, requeue: bool) -> AMQPResult<()>;
     fn basic_prefetch(&mut self, prefetch_count: u16) -> AMQPResult<QosOk>;
     fn basic_qos(&mut self, prefetch_size: u32, prefetch_count: u16, global: bool) -> AMQPResult<QosOk>;
     fn basic_cancel(&mut self, consumer_tag: String, no_wait: bool) -> AMQPResult<CancelOk>;
@@ -48,6 +48,7 @@ pub struct GetResult {
 impl <'a> Iterator for GetIterator<'a > {
     type Item = GetResult;
 
+    #[allow(unused_must_use)]
     fn next(&mut self) -> Option<Self::Item> {
         self.ack_message();
         let get = &basic::Get{ ticket: 0, queue: self.queue.to_string(), no_ack: self.no_ack };
@@ -73,20 +74,23 @@ impl <'a> Iterator for GetIterator<'a > {
 /// Will acknowledge
 
 impl <'a> Drop for GetIterator <'a> {
+    #[allow(unused_must_use)]
     fn drop(&mut self) {
         self.ack_message();
     }
 }
 
 impl <'a> GetIterator <'a> {
-    fn ack_message(&mut self) {
-        self.ack_receiver.try_recv().map(|ack_action|
-            match ack_action {
-                AckAction::Ack(delivery_tag) => self.channel.basic_ack(delivery_tag, false),
-                AckAction::Nack(delivery_tag, requeue) => self.channel.basic_nack(delivery_tag, false, requeue),
-                AckAction::Reject(delivery_tag, requeue) => self.channel.basic_reject(delivery_tag, requeue)
-            }
-        ).unwrap_or(());
+    fn ack_message(&mut self) -> AMQPResult<()> {
+        match self.ack_receiver.try_recv(){
+            Ok(ack_action) => match ack_action {
+                            AckAction::Ack(delivery_tag) => try!(self.channel.basic_ack(delivery_tag, false)),
+                            AckAction::Nack(delivery_tag, requeue) => try!(self.channel.basic_nack(delivery_tag, false, requeue)),
+                            AckAction::Reject(delivery_tag, requeue) => try!(self.channel.basic_reject(delivery_tag, requeue))
+            },
+            Err(_) => return Err(AMQPError::QueueEmpty)
+        };
+        Ok(())
     }
 }
 
@@ -130,14 +134,14 @@ impl <'a> Basic<'a> for Channel {
 
     fn basic_consume<T>(&mut self, callback: T,
         queue: &str, consumer_tag: &str, no_local: bool, no_ack: bool,
-        exclusive: bool, nowait: bool, arguments: Table) -> String where T: Consumer + 'static {
+        exclusive: bool, nowait: bool, arguments: Table) -> AMQPResult<String> where T: Consumer + 'static {
         let consume = &Consume {
             ticket: 0, queue: queue.to_string(), consumer_tag: consumer_tag.to_string(),
             no_local: no_local, no_ack: no_ack, exclusive: exclusive, nowait: nowait, arguments: arguments
         };
-        let reply: ConsumeOk = self.rpc(consume, "basic.consume-ok").ok().unwrap();
+        let reply: ConsumeOk = try!(self.rpc(consume, "basic.consume-ok"));
         self.consumers.borrow_mut().insert(reply.consumer_tag.clone(), Box::new(callback));
-        reply.consumer_tag
+        Ok(reply.consumer_tag)
     }
 
     // Will run the infinite loop, which will receive frames on the given channel & call consumers.
@@ -151,33 +155,34 @@ impl <'a> Basic<'a> for Channel {
     }
 
     fn basic_publish(&mut self, exchange: &str, routing_key: &str, mandatory: bool, immediate: bool,
-                         properties: BasicProperties, content: Vec<u8>) {
+                         properties: BasicProperties, content: Vec<u8>) -> AMQPResult<()> {
         let publish = &Publish {
             ticket: 0, exchange: exchange.to_string(),
             routing_key: routing_key.to_string(), mandatory: mandatory, immediate: immediate};
         let properties_flags = properties.flags();
         let content_header = ContentHeaderFrame { content_class: 60, weight: 0, body_size: content.len() as u64,
-            properties_flags: properties_flags, properties: properties.encode() };
+            properties_flags: properties_flags, properties: try!(properties.encode()) };
         let content_header_frame = Frame {frame_type: FrameType::HEADERS, channel: self.id,
-            payload: content_header.encode() };
+            payload: try!(content_header.encode()) };
         let content_frame = Frame { frame_type: FrameType::BODY, channel: self.id, payload: content};
 
-        self.send_method_frame(publish);
-        self.write(content_header_frame);
-        self.write(content_frame);
+        try!(self.send_method_frame(publish));
+        try!(self.write(content_header_frame));
+        try!(self.write(content_frame));
+        Ok(())
     }
 
-    fn basic_ack(&mut self, delivery_tag: u64, multiple: bool) {
-        self.send_method_frame(&Ack{delivery_tag: delivery_tag, multiple: multiple});
+    fn basic_ack(&mut self, delivery_tag: u64, multiple: bool) -> AMQPResult<()> {
+        self.send_method_frame(&Ack{delivery_tag: delivery_tag, multiple: multiple})
     }
 
     // Rabbitmq specific
-    fn basic_nack(&mut self, delivery_tag: u64, multiple: bool, requeue: bool) {
-        self.send_method_frame(&Nack{delivery_tag: delivery_tag, multiple: multiple, requeue: requeue});
+    fn basic_nack(&mut self, delivery_tag: u64, multiple: bool, requeue: bool) -> AMQPResult<()> {
+        self.send_method_frame(&Nack{delivery_tag: delivery_tag, multiple: multiple, requeue: requeue})
     }
 
-    fn basic_reject(&mut self, delivery_tag: u64, requeue: bool) {
-        self.send_method_frame(&Reject{delivery_tag: delivery_tag, requeue: requeue});
+    fn basic_reject(&mut self, delivery_tag: u64, requeue: bool) -> AMQPResult<()> {
+        self.send_method_frame(&Reject{delivery_tag: delivery_tag, requeue: requeue})
     }
 
     fn basic_prefetch(&mut self, prefetch_count:u16 ) -> AMQPResult<QosOk> {

@@ -54,14 +54,14 @@ impl Frame {
         Ok(frame)
     }
 
-    pub fn encode(&self) -> Vec<u8> {
+    pub fn encode(&self) -> AMQPResult<Vec<u8>> {
         let mut writer = vec!();
-        writer.write_u8(self.frame_type as u8).unwrap();
-        writer.write_u16::<BigEndian>(self.channel).unwrap();
-        writer.write_u32::<BigEndian>(self.payload.len() as u32).unwrap();
-        writer.write_all(&self.payload).unwrap();
-        writer.write_u8(0xCE).unwrap();
-        writer
+        try!(writer.write_u8(self.frame_type as u8));
+        try!(writer.write_u16::<BigEndian>(self.channel));
+        try!(writer.write_u32::<BigEndian>(self.payload.len() as u32));
+        try!(writer.write_all(&self.payload));
+        try!(writer.write_u8(0xCE));
+        Ok(writer)
     }
 }
 
@@ -89,19 +89,20 @@ impl ContentHeaderFrame {
         })
     }
 
-    pub fn encode(&self) -> Vec<u8> {
+    pub fn encode(&self) -> AMQPResult<Vec<u8>> {
         let mut writer = vec!();
-        writer.write_u16::<BigEndian>(self.content_class).unwrap();
-        writer.write_u16::<BigEndian>(self.weight).unwrap(); //0 all the time for now
-        writer.write_u64::<BigEndian>(self.body_size).unwrap();
-        writer.write_u16::<BigEndian>(self.properties_flags).unwrap();
-        writer.write_all(&self.properties).unwrap();
-        writer
+        try!(writer.write_u16::<BigEndian>(self.content_class));
+        try!(writer.write_u16::<BigEndian>(self.weight)); //0 all the time for now
+        try!(writer.write_u64::<BigEndian>(self.body_size));
+        try!(writer.write_u16::<BigEndian>(self.properties_flags));
+        try!(writer.write_all(&self.properties));
+        Ok(writer)
     }
 }
 
 #[test]
 fn test_encode_decode(){
     let frame = Frame{ frame_type: FrameType::METHOD, channel: 5, payload: vec!(1,2,3,4,5) };
-    assert_eq!(frame, Frame::decode(&mut Cursor::new(frame.encode())).ok().unwrap());
+    let frame_encoded = frame.encode().ok().unwrap();
+    assert_eq!(frame, Frame::decode(&mut Cursor::new(frame_encoded)).ok().unwrap());
 }

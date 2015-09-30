@@ -1,6 +1,5 @@
 use amqp_error::{AMQPResult, AMQPError};
 use std::io::{Read, Write, Cursor};
-use std::iter;
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use enum_primitive::FromPrimitive;
 
@@ -36,7 +35,7 @@ impl Frame {
         let channel = try!(header.read_u16::<BigEndian>());
         let size = try!(header.read_u32::<BigEndian>()) as usize;
         // We need to use Vec because the size is not know in compile time.
-        let mut payload: Vec<u8> = iter::repeat(0u8).take(size).collect();
+        let mut payload: Vec<u8> = vec![0u8; size];
         try!(reader.read(&mut payload));
         let frame_end = try!(reader.read_u8());
         if payload.len() != size {

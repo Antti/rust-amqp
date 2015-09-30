@@ -2370,118 +2370,118 @@ pub mod basic {
           try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      }),
-              None => None,
-              _ => return Err(AMQPError::Protocol("Properties flags are not correct".to_owned()))
+              None => return Err(AMQPError::Protocol("Properties flags are not correct".to_owned())),
+              _ => None
             };
             let content_encoding = match properties_flags.get(1) {
               Some(flag) if flag => Some({
           let size = try!(reader.read_u8()) as usize;
-          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          let mut buffer: Vec<u8> = vec![0u8; size];
           try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      }),
-              None => None,
-              _ => return Err(AMQPError::Protocol("Properties flags are not correct".to_owned()))
+              None => return Err(AMQPError::Protocol("Properties flags are not correct".to_owned())),
+              _ => None
             };
             let headers = match properties_flags.get(2) {
               Some(flag) if flag => Some(try!(decode_table(reader))),
-              None => None,
-              _ => return Err(AMQPError::Protocol("Properties flags are not correct".to_owned()))
+              None => return Err(AMQPError::Protocol("Properties flags are not correct".to_owned())),
+              _ => None
             };
             let delivery_mode = match properties_flags.get(3) {
               Some(flag) if flag => Some(try!(reader.read_u8())),
-              None => None,
-              _ => return Err(AMQPError::Protocol("Properties flags are not correct".to_owned()))
+              None => return Err(AMQPError::Protocol("Properties flags are not correct".to_owned())),
+              _ => None
             };
             let priority = match properties_flags.get(4) {
               Some(flag) if flag => Some(try!(reader.read_u8())),
-              None => None,
-              _ => return Err(AMQPError::Protocol("Properties flags are not correct".to_owned()))
+              None => return Err(AMQPError::Protocol("Properties flags are not correct".to_owned())),
+              _ => None
             };
             let correlation_id = match properties_flags.get(5) {
               Some(flag) if flag => Some({
           let size = try!(reader.read_u8()) as usize;
-          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          let mut buffer: Vec<u8> = vec![0u8; size];
           try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      }),
-              None => None,
-              _ => return Err(AMQPError::Protocol("Properties flags are not correct".to_owned()))
+              None => return Err(AMQPError::Protocol("Properties flags are not correct".to_owned())),
+              _ => None
             };
             let reply_to = match properties_flags.get(6) {
               Some(flag) if flag => Some({
           let size = try!(reader.read_u8()) as usize;
-          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          let mut buffer: Vec<u8> = vec![0u8; size];
           try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      }),
-              None => None,
-              _ => return Err(AMQPError::Protocol("Properties flags are not correct".to_owned()))
+              None => return Err(AMQPError::Protocol("Properties flags are not correct".to_owned())),
+              _ => None
             };
             let expiration = match properties_flags.get(7) {
               Some(flag) if flag => Some({
           let size = try!(reader.read_u8()) as usize;
-          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          let mut buffer: Vec<u8> = vec![0u8; size];
           try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      }),
-              None => None,
-              _ => return Err(AMQPError::Protocol("Properties flags are not correct".to_owned()))
+              None => return Err(AMQPError::Protocol("Properties flags are not correct".to_owned())),
+              _ => None
             };
             let message_id = match properties_flags.get(8) {
               Some(flag) if flag => Some({
           let size = try!(reader.read_u8()) as usize;
-          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          let mut buffer: Vec<u8> = vec![0u8; size];
           try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      }),
-              None => None,
-              _ => return Err(AMQPError::Protocol("Properties flags are not correct".to_owned()))
+              None => return Err(AMQPError::Protocol("Properties flags are not correct".to_owned())),
+              _ => None
             };
             let timestamp = match properties_flags.get(9) {
               Some(flag) if flag => Some(try!(reader.read_u64::<BigEndian>())),
-              None => None,
-              _ => return Err(AMQPError::Protocol("Properties flags are not correct".to_owned()))
+              None => return Err(AMQPError::Protocol("Properties flags are not correct".to_owned())),
+              _ => None
             };
             let _type = match properties_flags.get(10) {
               Some(flag) if flag => Some({
           let size = try!(reader.read_u8()) as usize;
-          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          let mut buffer: Vec<u8> = vec![0u8; size];
           try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      }),
-              None => None,
-              _ => return Err(AMQPError::Protocol("Properties flags are not correct".to_owned()))
+              None => return Err(AMQPError::Protocol("Properties flags are not correct".to_owned())),
+              _ => None
             };
             let user_id = match properties_flags.get(11) {
               Some(flag) if flag => Some({
           let size = try!(reader.read_u8()) as usize;
-          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          let mut buffer: Vec<u8> = vec![0u8; size];
           try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      }),
-              None => None,
-              _ => return Err(AMQPError::Protocol("Properties flags are not correct".to_owned()))
+              None => return Err(AMQPError::Protocol("Properties flags are not correct".to_owned())),
+              _ => None
             };
             let app_id = match properties_flags.get(12) {
               Some(flag) if flag => Some({
           let size = try!(reader.read_u8()) as usize;
-          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          let mut buffer: Vec<u8> = vec![0u8; size];
           try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      }),
-              None => None,
-              _ => return Err(AMQPError::Protocol("Properties flags are not correct".to_owned()))
+              None => return Err(AMQPError::Protocol("Properties flags are not correct".to_owned())),
+              _ => None
             };
             let cluster_id = match properties_flags.get(13) {
               Some(flag) if flag => Some({
           let size = try!(reader.read_u8()) as usize;
-          let mut buffer: Vec<u8> = iter::repeat(0u8).take(size).collect();
+          let mut buffer: Vec<u8> = vec![0u8; size];
           try!(reader.read(&mut buffer[..]));
           String::from_utf8_lossy(&buffer[..]).to_string()
      }),
-              None => None,
-              _ => return Err(AMQPError::Protocol("Properties flags are not correct".to_owned()))
+              None => return Err(AMQPError::Protocol("Properties flags are not correct".to_owned())),
+              _ => None
             };
             Ok(BasicProperties { content_type: content_type, content_encoding: content_encoding, headers: headers, delivery_mode: delivery_mode, priority: priority, correlation_id: correlation_id, reply_to: reply_to, expiration: expiration, message_id: message_id, timestamp: timestamp, _type: _type, user_id: user_id, app_id: app_id, cluster_id: cluster_id })
         }

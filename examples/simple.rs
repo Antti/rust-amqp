@@ -18,7 +18,6 @@ fn consumer_function(channel: &mut Channel, deliver: protocol::basic::Deliver, h
 
 fn main() {
     env_logger::init().unwrap();
-    let amqp_url = "amqp://xbisgjql:CmWhamjl6jasNNM6OVJOxiiy0yGdDjt2@bunny.cloudamqp.com/xbisgjql";
     let amqp_url = "amqp://guest:guest@127.0.0.1//";
     let mut session = match Session::open_url(amqp_url) {
         Ok(session) => session,

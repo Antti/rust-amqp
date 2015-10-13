@@ -1324,7 +1324,7 @@ pub mod exchange {
             Declare {
                 ticket: 0,
                 _type: "direct".to_string(),
-                arguments: table::new(),
+                arguments: Table::new(),
                 exchange: exchange,
                 passive: passive,
                 durable: durable,
@@ -1550,7 +1550,7 @@ pub mod exchange {
             Bind {
                 ticket: 0,
                 routing_key: "".to_string(),
-                arguments: table::new(),
+                arguments: Table::new(),
                 destination: destination,
                 source: source,
                 nowait: nowait,
@@ -1670,7 +1670,7 @@ pub mod exchange {
             Unbind {
                 ticket: 0,
                 routing_key: "".to_string(),
-                arguments: table::new(),
+                arguments: Table::new(),
                 destination: destination,
                 source: source,
                 nowait: nowait,
@@ -1812,7 +1812,7 @@ pub mod queue {
             Declare {
                 ticket: 0,
                 queue: "".to_string(),
-                arguments: table::new(),
+                arguments: Table::new(),
                 passive: passive,
                 durable: durable,
                 exclusive: exclusive,
@@ -1953,7 +1953,7 @@ pub mod queue {
                 ticket: 0,
                 queue: "".to_string(),
                 routing_key: "".to_string(),
-                arguments: table::new(),
+                arguments: Table::new(),
                 exchange: exchange,
                 nowait: nowait,
             }
@@ -2281,7 +2281,7 @@ pub mod queue {
                 ticket: 0,
                 queue: "".to_string(),
                 routing_key: "".to_string(),
-                arguments: table::new(),
+                arguments: Table::new(),
                 exchange: exchange,
             }
         }
@@ -2795,7 +2795,7 @@ pub mod basic {
                 ticket: 0,
                 queue: "".to_string(),
                 consumer_tag: "".to_string(),
-                arguments: table::new(),
+                arguments: Table::new(),
                 no_local: no_local,
                 no_ack: no_ack,
                 exclusive: exclusive,

@@ -1,10 +1,7 @@
 extern crate amqp;
 extern crate env_logger;
 
-use amqp::session::Session;
-use amqp::protocol;
-use amqp::table;
-use amqp::basic::Basic;
+use amqp::{Session, Table, Basic, protocol};
 use std::default::Default;
 use std::io;
 
@@ -20,7 +17,7 @@ fn main() {
     let mut channel = session.open_channel(1).ok().expect("Can't open channel!");
 
     let queue_name = "test_queue";
-    channel.queue_declare(queue_name, false, true, false, false, false, table::new()).ok().expect("Unable to declare queue!");
+    channel.queue_declare(queue_name, false, true, false, false, false, Table::new()).ok().expect("Unable to declare queue!");
 
     println!("Type some text here below, it will be sent into the '{}' queue. Hit Enter when done.", queue_name);
     let mut input_data = String::new();

@@ -1,11 +1,7 @@
 extern crate amqp;
 extern crate env_logger;
 
-use amqp::session::Options;
-use amqp::session::Session;
-use amqp::protocol;
-use amqp::table;
-use amqp::basic::Basic;
+use amqp::{Session, Options, Table, Basic, protocol};
 use std::default::Default;
 
 extern "C" {
@@ -27,7 +23,7 @@ fn main() {
 
     let queue_name = "test_queue";
     //queue: &str, passive: bool, durable: bool, exclusive: bool, auto_delete: bool, nowait: bool, arguments: Table
-    let queue_declare = channel.queue_declare(queue_name, false, true, false, false, false, table::new());
+    let queue_declare = channel.queue_declare(queue_name, false, true, false, false, false, Table::new());
     println!("Queue declare: {:?}", queue_declare);
 
     unsafe {

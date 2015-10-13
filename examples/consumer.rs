@@ -1,12 +1,7 @@
 extern crate amqp;
 extern crate env_logger;
 
-use amqp::session::Options;
-use amqp::session::Session;
-use amqp::protocol;
-use amqp::table;
-use amqp::basic::Basic;
-use amqp::channel::{Channel, ConsumerCallBackFn};
+use amqp::{Session, Options, Table, Basic, protocol, Channel, ConsumerCallBackFn, Consumer};
 use std::default::Default;
 
 fn consumer_function(channel: &mut Channel, deliver: protocol::basic::Deliver, headers: protocol::basic::BasicProperties, body: Vec<u8>){
@@ -22,7 +17,7 @@ struct MyConsumer {
     deliveries_number: u64
 }
 
-impl amqp::channel::Consumer for MyConsumer {
+impl amqp::Consumer for MyConsumer {
     fn handle_delivery(&mut self, channel: &mut Channel, deliver: protocol::basic::Deliver, headers: protocol::basic::BasicProperties, body: Vec<u8>){
         println!("[struct] Got a delivery # {}", self.deliveries_number);
         println!("[struct] Deliver info: {:?}", deliver);
@@ -43,16 +38,16 @@ fn main() {
 
     let queue_name = "test_queue";
     //queue: &str, passive: bool, durable: bool, exclusive: bool, auto_delete: bool, nowait: bool, arguments: Table
-    let queue_declare = channel.queue_declare(queue_name, false, true, false, false, false, table::new());
+    let queue_declare = channel.queue_declare(queue_name, false, true, false, false, false, Table::new());
 
     println!("Queue declare: {:?}", queue_declare);
     channel.basic_prefetch(10).ok().expect("Failed to prefetch");
     //consumer, queue: &str, consumer_tag: &str, no_local: bool, no_ack: bool, exclusive: bool, nowait: bool, arguments: Table
     println!("Declaring consumer...");
-    let consumer_name = channel.basic_consume(consumer_function  as ConsumerCallBackFn, queue_name, "", false, false, false, false, table::new());
+    let consumer_name = channel.basic_consume(consumer_function  as ConsumerCallBackFn, queue_name, "", false, false, false, false, Table::new());
     println!("Starting consumer {:?}", consumer_name);
     let my_consumer = MyConsumer { deliveries_number: 0 };
-    let consumer_name = channel.basic_consume(my_consumer, queue_name, "", false, false, false, false, table::new());
+    let consumer_name = channel.basic_consume(my_consumer, queue_name, "", false, false, false, false, Table::new());
 
     println!("Starting consumer {:?}", consumer_name);
     channel.start_consuming();

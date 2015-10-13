@@ -28,8 +28,14 @@ pub enum TableEntry {
 
 pub type Table = HashMap<String, TableEntry>;
 
-pub fn new() -> Table {
-    HashMap::new()
+pub trait Init {
+    fn new() -> Self;
+}
+
+impl Init for Table {
+    fn new() -> Self {
+        HashMap::new()
+    }
 }
 
 fn read_table_entry(reader: &mut &[u8]) -> AMQPResult<TableEntry> {
@@ -121,7 +127,7 @@ fn write_table_entry(writer: &mut Vec<u8>, table_entry: &TableEntry) -> AMQPResu
 
 pub fn decode_table(reader: &mut &[u8]) -> AMQPResult<Table> {
     debug!("decoding table");
-    let mut table = new();
+    let mut table = Table::new();
     let size = try!(reader.read_u32::<BigEndian>()) as usize;
     let total_len = reader.len();
 

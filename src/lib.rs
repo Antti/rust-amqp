@@ -83,11 +83,17 @@ extern crate log;
 
 #[macro_use] extern crate enum_primitive;
 
-pub mod connection;
-pub mod channel;
-pub mod framing;
-pub mod table;
+mod connection;
+mod channel;
+mod framing;
+mod session;
+mod basic;
+mod amqp_error;
+
 pub mod protocol;
-pub mod session;
-pub mod basic;
-pub mod amqp_error;
+pub mod table;
+
+pub use session::{Session, Options};
+pub use channel::{Channel, ConsumerCallBackFn, Consumer};
+pub use table::Table;
+pub use basic::{Basic, GetResult};

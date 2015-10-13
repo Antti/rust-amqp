@@ -188,7 +188,7 @@ class SpecGenerator
     when TrueClass, FalseClass
       value
     when Hash
-      "table::new()"
+      "Table::new()"
     else
       raise "Cant convert value #{value}"
     end

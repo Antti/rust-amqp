@@ -1,7 +1,7 @@
 use channel;
 use connection::Connection;
 use protocol::{self, MethodFrame};
-use table;
+use table::Table;
 use table::TableEntry::{FieldTable, Bool, LongString};
 use framing::Frame;
 use amqp_error::{AMQPResult, AMQPError};
@@ -103,7 +103,7 @@ impl Session {
     /// # Example
     /// ```no_run
     /// use std::default::Default;
-    /// use amqp::session::{Options, Session};
+    /// use amqp::{Options, Session};
     /// let session = match Session::new(Options { .. Default::default() }){
     ///     Ok(session) => session,
     ///     Err(error) => panic!("Failed openning an amqp session: {:?}", error)
@@ -144,8 +144,8 @@ impl Session {
         // the response consist of a login name and password.
         // * The server repeats the challenge (Secure) or moves to negotiation, sending a set of parameters such as
 
-        let mut client_properties = table::new();
-        let mut capabilities = table::new();
+        let mut client_properties = Table::new();
+        let mut capabilities = Table::new();
         capabilities.insert("publisher_confirms".to_string(), Bool(true));
         capabilities.insert("consumer_cancel_notify".to_string(), Bool(true));
         capabilities.insert("exchange_exchange_bindings".to_string(), Bool(true));
@@ -199,7 +199,7 @@ impl Session {
     /// # Exmaple
     /// ```no_run
     /// use std::default::Default;
-    /// use amqp::session::{Options, Session};
+    /// use amqp::{Options, Session};
     /// let mut session =  Session::new(Options { .. Default::default() }).ok().unwrap();
     /// let channel = match session.open_channel(1){
     ///     Ok(channel) => channel,

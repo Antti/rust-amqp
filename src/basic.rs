@@ -112,8 +112,7 @@ impl <'a> Basic<'a> for Channel {
     /// # Example
     /// ```no_run
     /// use std::default::Default;
-    /// use amqp::session::{Options, Session};
-    /// use amqp::basic::Basic;
+    /// use amqp::{Options, Session, Basic};
     /// let mut session = match Session::new(Options { .. Default::default() }){
     ///     Ok(session) => session,
     ///     Err(error) => panic!("Failed openning an amqp session: {:?}", error)

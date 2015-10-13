@@ -1,11 +1,7 @@
 extern crate amqp;
 extern crate env_logger;
 
-use amqp::session::Session;
-use amqp::protocol;
-use amqp::table;
-use amqp::basic::Basic;
-use amqp::channel::{Channel, ConsumerCallBackFn};
+use amqp::{Basic, Session, Channel, ConsumerCallBackFn, Table, protocol};
 use std::default::Default;
 use std::thread;
 
@@ -22,6 +18,7 @@ fn consumer_function(channel: &mut Channel, deliver: protocol::basic::Deliver, h
 
 fn main() {
     env_logger::init().unwrap();
+    let amqp_url = "amqp://xbisgjql:CmWhamjl6jasNNM6OVJOxiiy0yGdDjt2@bunny.cloudamqp.com/xbisgjql";
     let amqp_url = "amqp://guest:guest@127.0.0.1//";
     let mut session = match Session::open_url(amqp_url) {
         Ok(session) => session,
@@ -32,7 +29,7 @@ fn main() {
 
     let queue_name = "test_queue";
     //queue: &str, passive: bool, durable: bool, exclusive: bool, auto_delete: bool, nowait: bool, arguments: Table
-    let queue_declare = channel.queue_declare(queue_name, false, true, false, false, false, table::new());
+    let queue_declare = channel.queue_declare(queue_name, false, true, false, false, false, Table::new());
     println!("Queue declare: {:?}", queue_declare);
     for get_result in channel.basic_get(queue_name, false) {
         println!("Headers: {:?}", get_result.headers);
@@ -43,7 +40,7 @@ fn main() {
 
     //queue: &str, consumer_tag: &str, no_local: bool, no_ack: bool, exclusive: bool, nowait: bool, arguments: Table
     println!("Declaring consumer...");
-    let consumer_name = channel.basic_consume(consumer_function as ConsumerCallBackFn, queue_name, "", false, false, false, false, table::new());
+    let consumer_name = channel.basic_consume(consumer_function as ConsumerCallBackFn, queue_name, "", false, false, false, false, Table::new());
     println!("Starting consumer {:?}", consumer_name);
 
     let consumers_thread = thread::spawn(move || {

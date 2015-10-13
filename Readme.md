@@ -20,8 +20,7 @@ Have a look at the examples in `examples/` folder.
 
 ```rust
 extern crate amqp;
-use amqp::session::Session;
-use amqp::table;
+use amqp::Session;
 
 let mut session = Session::open_url("amqp://localhost/").unwrap();
 let mut channel = session.open_channel(1).unwrap();
@@ -34,7 +33,7 @@ let mut channel = session.open_channel(1).unwrap();
 ```rust
 //The arguments come in following order:
 //queue: &str, passive: bool, durable: bool, exclusive: bool, auto_delete: bool, nowait: bool, arguments: Table
-let queue_declare = channel.queue_declare("my_queue_name", false, true, false, false, false, table::new());
+let queue_declare = channel.queue_declare("my_queue_name", false, true, false, false, false, Table::new());
 ```
 
 ### Publishing message:

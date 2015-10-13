@@ -1,9 +1,7 @@
 extern crate amqp;
 extern crate env_logger;
 
-use amqp::session::Options;
-use amqp::session::Session;
-use amqp::table;
+use amqp::{Session, Options, Table};
 use std::default::Default;
 
 
@@ -19,14 +17,14 @@ fn main() {
 
     //queue: &str, passive: bool, durable: bool, exclusive: bool, auto_delete: bool, nowait: bool, arguments: Table
     let exchange_declare1 = channel.exchange_declare(exchange1, exchange_type,
-                                                     false, true, false, false, false, table::new());
+                                                     false, true, false, false, false, Table::new());
 
     println!("Exchange declare: {:?}", exchange_declare1);
     let exchange_declare2 = channel.exchange_declare(exchange2, exchange_type,
-                                                     false, true, false, false, false, table::new());
+                                                     false, true, false, false, false, Table::new());
     println!("Exchange declare: {:?}", exchange_declare2);
 
-    let bind_reply = channel.exchange_bind(exchange1, exchange2, "#", table::new());
+    let bind_reply = channel.exchange_bind(exchange1, exchange2, "#", Table::new());
     println!("Exchange bind: {:?}", bind_reply);
 
 

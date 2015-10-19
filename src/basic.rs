@@ -23,12 +23,12 @@ pub struct GetIterator <'a> {
 
 pub trait Basic <'a> {
     fn basic_get(&'a mut self, queue: &'a str, no_ack: bool) -> GetIterator<'a>;
-    fn basic_consume<T>(&mut self, callback: T,
-    queue: &str, consumer_tag: &str, no_local: bool, no_ack: bool,
-    exclusive: bool, nowait: bool, arguments: Table) -> AMQPResult<String> where T: Consumer;
+    fn basic_consume<T, S>(&mut self, callback: T,
+        queue: S, consumer_tag: S, no_local: bool, no_ack: bool,
+        exclusive: bool, nowait: bool, arguments: Table) -> AMQPResult<String> where T: Consumer + 'static, S: Into<String>;
     fn start_consuming(&mut self);
-    fn basic_publish(&mut self, exchange: &str, routing_key: &str, mandatory: bool, immediate: bool,
-                         properties: BasicProperties, content: Vec<u8>) -> AMQPResult<()>;
+    fn basic_publish<S>(&mut self, exchange: S, routing_key: S, mandatory: bool, immediate: bool,
+                         properties: BasicProperties, content: Vec<u8>) -> AMQPResult<()> where S: Into<String> ;
     fn basic_ack(&mut self, delivery_tag: u64, multiple: bool) -> AMQPResult<()>;
     fn basic_nack(&mut self, delivery_tag: u64, multiple: bool, requeue: bool) -> AMQPResult<()>;
     fn basic_reject(&mut self, delivery_tag: u64, requeue: bool) -> AMQPResult<()>;
@@ -51,7 +51,7 @@ impl <'a> Iterator for GetIterator<'a > {
     #[allow(unused_must_use)]
     fn next(&mut self) -> Option<Self::Item> {
         self.ack_message();
-        let get = &basic::Get{ ticket: 0, queue: self.queue.to_string(), no_ack: self.no_ack };
+        let get = &basic::Get{ ticket: 0, queue: self.queue.to_owned(), no_ack: self.no_ack };
         let method_frame_result = self.channel.raw_rpc(get);
         let method_frame = match method_frame_result {
             Ok(m) => m,
@@ -66,7 +66,7 @@ impl <'a> Iterator for GetIterator<'a > {
                 Some(GetResult {headers: properties, reply: reply, body: body, ack_sender: self.ack_sender.clone()})
             }
             "basic.get-empty" => None,
-            method => { debug!("Unexpected method: {}", method); return None }
+            method => { debug!("Unexpected method: {}", method); None }
         }
     }
 }
@@ -131,11 +131,11 @@ impl <'a> Basic<'a> for Channel {
         GetIterator { channel: self, queue: queue, no_ack: no_ack, ack_receiver: rx, ack_sender: tx }
     }
 
-    fn basic_consume<T>(&mut self, callback: T,
-        queue: &str, consumer_tag: &str, no_local: bool, no_ack: bool,
-        exclusive: bool, nowait: bool, arguments: Table) -> AMQPResult<String> where T: Consumer + 'static {
+    fn basic_consume<T, S>(&mut self, callback: T,
+        queue: S, consumer_tag: S, no_local: bool, no_ack: bool,
+        exclusive: bool, nowait: bool, arguments: Table) -> AMQPResult<String> where T: Consumer + 'static, S: Into<String> {
         let consume = &Consume {
-            ticket: 0, queue: queue.to_string(), consumer_tag: consumer_tag.to_string(),
+            ticket: 0, queue: queue.into(), consumer_tag: consumer_tag.into(),
             no_local: no_local, no_ack: no_ack, exclusive: exclusive, nowait: nowait, arguments: arguments
         };
         let reply: ConsumeOk = try!(self.rpc(consume, "basic.consume-ok"));
@@ -153,11 +153,11 @@ impl <'a> Basic<'a> for Channel {
         }
     }
 
-    fn basic_publish(&mut self, exchange: &str, routing_key: &str, mandatory: bool, immediate: bool,
-                         properties: BasicProperties, content: Vec<u8>) -> AMQPResult<()> {
+    fn basic_publish<S>(&mut self, exchange: S, routing_key: S, mandatory: bool, immediate: bool,
+                         properties: BasicProperties, content: Vec<u8>) -> AMQPResult<()> where S: Into<String> {
         let publish = &Publish {
-            ticket: 0, exchange: exchange.to_string(),
-            routing_key: routing_key.to_string(), mandatory: mandatory, immediate: immediate};
+            ticket: 0, exchange: exchange.into(),
+            routing_key: routing_key.into(), mandatory: mandatory, immediate: immediate};
         let properties_flags = properties.flags();
         let content_header = ContentHeaderFrame { content_class: 60, weight: 0, body_size: content.len() as u64,
             properties_flags: properties_flags, properties: try!(properties.encode()) };

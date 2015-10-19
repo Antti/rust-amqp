@@ -38,11 +38,11 @@ impl Channel {
     }
 
     pub fn open(&mut self) -> AMQPResult<protocol::channel::OpenOk> {
-        let meth = protocol::channel::Open {out_of_band: "".to_string()};
+        let meth = protocol::channel::Open {out_of_band: "".to_owned()};
         self.rpc(&meth, "channel.open-ok")
     }
-    pub fn close(&mut self, reply_code: u16, reply_text: String) -> AMQPResult<channel::CloseOk> {
-        let close = &channel::Close {reply_code: reply_code, reply_text: reply_text, class_id: 0, method_id: 0};
+    pub fn close<T>(&mut self, reply_code: u16, reply_text: T) -> AMQPResult<channel::CloseOk> where T: Into<String> {
+        let close = &channel::Close {reply_code: reply_code, reply_text: reply_text.into(), class_id: 0, method_id: 0};
         self.rpc(close, "channel.close-ok")
     }
 
@@ -87,37 +87,37 @@ impl Channel {
         Ok(body)
     }
 
-    pub fn exchange_declare(&mut self, exchange: &str, _type: &str, passive: bool, durable: bool,
-        auto_delete: bool, internal: bool, nowait: bool, arguments: Table) -> AMQPResult<protocol::exchange::DeclareOk> {
+    pub fn exchange_declare<S>(&mut self, exchange: S, _type: S, passive: bool, durable: bool,
+        auto_delete: bool, internal: bool, nowait: bool, arguments: Table) -> AMQPResult<protocol::exchange::DeclareOk> where S: Into<String> {
         let declare = protocol::exchange::Declare {
-            ticket: 0, exchange: exchange.to_string(), _type: _type.to_string(), passive: passive, durable: durable,
+            ticket: 0, exchange: exchange.into(), _type: _type.into(), passive: passive, durable: durable,
             auto_delete: auto_delete, internal: internal, nowait: nowait, arguments: arguments
         };
         self.rpc(&declare,"exchange.declare-ok")
     }
 
-    pub fn exchange_bind(&mut self, destination: &str, source: &str,
-                         routing_key: &str, arguments: Table) -> AMQPResult<protocol::exchange::BindOk> {
+    pub fn exchange_bind<S>(&mut self, destination: S, source: S,
+                         routing_key: S, arguments: Table) -> AMQPResult<protocol::exchange::BindOk>  where S: Into<String> {
         let bind = protocol::exchange::Bind {
-            ticket: 0, destination: destination.to_string(), source: source.to_string(),
-            routing_key:routing_key.to_string(), nowait: false, arguments: arguments
+            ticket: 0, destination: destination.into(), source: source.into(),
+            routing_key: routing_key.into(), nowait: false, arguments: arguments
         };
         self.rpc(&bind, "exchange.bind-ok")
     }
 
-    pub fn queue_declare(&mut self, queue: &str, passive: bool, durable: bool, exclusive: bool,
-        auto_delete: bool, nowait: bool, arguments: Table) -> AMQPResult<protocol::queue::DeclareOk> {
+    pub fn queue_declare<S>(&mut self, queue: S, passive: bool, durable: bool, exclusive: bool,
+        auto_delete: bool, nowait: bool, arguments: Table) -> AMQPResult<protocol::queue::DeclareOk>  where S: Into<String>{
         let declare = protocol::queue::Declare {
-            ticket: 0, queue: queue.to_string(), passive: passive, durable: durable, exclusive: exclusive,
+            ticket: 0, queue: queue.into(), passive: passive, durable: durable, exclusive: exclusive,
             auto_delete: auto_delete, nowait: nowait, arguments: arguments
         };
         self.rpc(&declare, "queue.declare-ok")
     }
 
-    pub fn queue_bind(&mut self, queue: &str, exchange: &str, routing_key: &str, nowait: bool, arguments: Table) -> AMQPResult<protocol::queue::BindOk> {
+    pub fn queue_bind<S>(&mut self, queue: S, exchange: S, routing_key: S, nowait: bool, arguments: Table) -> AMQPResult<protocol::queue::BindOk>  where S: Into<String>{
         let bind = protocol::queue::Bind {
-            ticket: 0, queue: queue.to_string(), exchange: exchange.to_string(),
-            routing_key: routing_key.to_string(), nowait: nowait, arguments: arguments
+            ticket: 0, queue: queue.into(), exchange: exchange.into(),
+            routing_key: routing_key.into(), nowait: nowait, arguments: arguments
         };
         self.rpc(&bind, "queue.bind-ok")
     }

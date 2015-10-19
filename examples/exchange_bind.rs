@@ -28,6 +28,6 @@ fn main() {
     println!("Exchange bind: {:?}", bind_reply);
 
 
-    channel.close(200, "Bye".to_string());
-    session.close(200, "Good Bye".to_string());
+    channel.close(200, "Bye");
+    session.close(200, "Good Bye");
 }

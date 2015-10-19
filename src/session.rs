@@ -81,13 +81,12 @@ impl Session {
         let mut url_parser = UrlParser::new();
         url_parser.scheme_type_mapper(scheme_type_mapper);
         let url = try!(url_parser.parse(url_string));
-        match url.scheme_data {
-            SchemeData::NonRelative(_) => { return Err(AMQPError::UrlParseError(ParseError::InvalidScheme)) },
-            _ => {},
+        if let SchemeData::NonRelative(_) = url.scheme_data {
+             return Err(AMQPError::UrlParseError(ParseError::InvalidScheme))
         }
         let tls = { url.scheme == "amqps" };
         let default_port = if tls { AMQPS_PORT } else { default.port };
-        let vhost = url.serialize_path().map(|vh| clean_vhost(vh)).unwrap_or(String::from(default.vhost.to_string()));
+        let vhost = url.serialize_path().map(clean_vhost).unwrap_or(String::from(default.vhost.to_owned()));
         let host  = url.domain().unwrap_or(default.host);
         let port = url.port().unwrap_or(default_port);
         let login = url.username().and_then(|u| match u { "" => None, _ => Some(decode(u))} ).unwrap_or(String::from(default.login));
@@ -215,7 +214,8 @@ impl Session {
         Ok(channel)
     }
 
-    pub fn close(&mut self, reply_code: u16, reply_text: String) {
+    pub fn close<T>(&mut self, reply_code: u16, reply_text: T) where T: Into<String> {
+        let reply_text = reply_text.into();
         debug!("Closing session: reply_code: {}, reply_text: {}", reply_code, reply_text);
         let close = protocol::connection::Close {reply_code: reply_code, reply_text: reply_text, class_id: 0, method_id: 0};
         let _ : protocol::connection::CloseOk = self.channel_zero.rpc(&close, "connection.close-ok").ok().unwrap();

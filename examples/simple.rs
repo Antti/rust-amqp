@@ -8,7 +8,7 @@ use std::thread;
 //table types:
 //use table::{FieldTable, Table, Bool, ShortShortInt, ShortShortUint, ShortInt, ShortUint, LongInt, LongUint, LongLongInt, LongLongUint, Float, Double, DecimalValue, LongString, FieldArray, Timestamp};
 
-fn consumer_function(channel: &mut Channel, deliver: protocol::basic::Deliver, headers: protocol::basic::BasicProperties, body: Vec<u8>){
+fn consumer_function(channel: &mut Channel, deliver: protocol::basic::Deliver, headers: protocol::basic::BasicProperties, body: Vec<u8>) {
     println!("Got a delivery:");
     println!("Deliver info: {:?}", deliver);
     println!("Content headers: {:?}", headers);
@@ -53,6 +53,6 @@ fn main() {
     channel.basic_publish("", queue_name, true, false,
         protocol::basic::BasicProperties{ content_type: Some("text".to_string()), ..Default::default()},
         (b"Hello from rust!").to_vec());
-    channel.close(200, "Bye".to_string());
-    session.close(200, "Good Bye".to_string());
+    channel.close(200, "Bye");
+    session.close(200, "Good Bye");
 }

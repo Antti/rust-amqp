@@ -40,7 +40,7 @@ impl Init for Table {
 
 fn read_table_entry(reader: &mut &[u8]) -> AMQPResult<TableEntry> {
     let entry = match try!(reader.read_u8()) {
-        b't' => TableEntry::Bool(if try!(reader.read_u8()) == 0 {false}else{true} ),
+        b't' => TableEntry::Bool(!try!(reader.read_u8()) == 0),
         b'b' => TableEntry::ShortShortInt(try!(reader.read_i8())),
         b'B' => TableEntry::ShortShortUint(try!(reader.read_u8())),
         b'U' => TableEntry::ShortInt(try!(reader.read_i16::<BigEndian>())),
@@ -81,19 +81,19 @@ fn read_table_entry(reader: &mut &[u8]) -> AMQPResult<TableEntry> {
 }
 
 fn write_table_entry(writer: &mut Vec<u8>, table_entry: &TableEntry) -> AMQPResult<()> {
-    match table_entry {
-        &TableEntry::Bool(val) => { try!(writer.write_u8(b't')); try!(writer.write_u8(val as u8)); },
-        &TableEntry::ShortShortInt(val) => { try!(writer.write_u8(b'b')); try!(writer.write_i8(val)); },
-        &TableEntry::ShortShortUint(val) => { try!(writer.write_u8(b'B')); try!(writer.write_u8(val)); },
-        &TableEntry::ShortInt(val) => { try!(writer.write_u8(b'U')); try!(writer.write_i16::<BigEndian>(val)); },
-        &TableEntry::ShortUint(val) => { try!(writer.write_u8(b'u')); try!(writer.write_u16::<BigEndian>(val)); },
-        &TableEntry::LongInt(val) => { try!(writer.write_u8(b'I')); try!(writer.write_i32::<BigEndian>(val)); },
-        &TableEntry::LongUint(val) => { try!(writer.write_u8(b'i')); try!(writer.write_u32::<BigEndian>(val)); },
-        &TableEntry::LongLongInt(val) => { try!(writer.write_u8(b'L')); try!(writer.write_i64::<BigEndian>(val)); },
-        &TableEntry::LongLongUint(val) => { try!(writer.write_u8(b'l')); try!(writer.write_u64::<BigEndian>(val)); },
-        &TableEntry::Float(val) => { try!(writer.write_u8(b'f')); try!(writer.write_f32::<BigEndian>(val)); },
-        &TableEntry::Double(val) => { try!(writer.write_u8(b'd')); try!(writer.write_f64::<BigEndian>(val)); },
-        &TableEntry::DecimalValue(scale, value) => {
+    match *table_entry {
+        TableEntry::Bool(val) => { try!(writer.write_u8(b't')); try!(writer.write_u8(val as u8)); },
+        TableEntry::ShortShortInt(val) => { try!(writer.write_u8(b'b')); try!(writer.write_i8(val)); },
+        TableEntry::ShortShortUint(val) => { try!(writer.write_u8(b'B')); try!(writer.write_u8(val)); },
+        TableEntry::ShortInt(val) => { try!(writer.write_u8(b'U')); try!(writer.write_i16::<BigEndian>(val)); },
+        TableEntry::ShortUint(val) => { try!(writer.write_u8(b'u')); try!(writer.write_u16::<BigEndian>(val)); },
+        TableEntry::LongInt(val) => { try!(writer.write_u8(b'I')); try!(writer.write_i32::<BigEndian>(val)); },
+        TableEntry::LongUint(val) => { try!(writer.write_u8(b'i')); try!(writer.write_u32::<BigEndian>(val)); },
+        TableEntry::LongLongInt(val) => { try!(writer.write_u8(b'L')); try!(writer.write_i64::<BigEndian>(val)); },
+        TableEntry::LongLongUint(val) => { try!(writer.write_u8(b'l')); try!(writer.write_u64::<BigEndian>(val)); },
+        TableEntry::Float(val) => { try!(writer.write_u8(b'f')); try!(writer.write_f32::<BigEndian>(val)); },
+        TableEntry::Double(val) => { try!(writer.write_u8(b'd')); try!(writer.write_f64::<BigEndian>(val)); },
+        TableEntry::DecimalValue(scale, value) => {
             try!(writer.write_u8(b'D'));
             try!(writer.write_u8(scale));
             try!(writer.write_u32::<BigEndian>(value));
@@ -103,24 +103,24 @@ fn write_table_entry(writer: &mut Vec<u8>, table_entry: &TableEntry) -> AMQPResu
         //  try!(writer.write_u8(str.len() as u8));
         //  try!(writer.write_all(str.as_bytes()));
         // },
-        &TableEntry::LongString(ref str) => {
+        TableEntry::LongString(ref str) => {
             try!(writer.write_u8(b'S'));
             try!(writer.write_u32::<BigEndian>(str.len() as u32));
             try!(writer.write_all(str.as_bytes()));
         },
-        &TableEntry::FieldArray(ref arr) => {
+        TableEntry::FieldArray(ref arr) => {
             try!(writer.write_u8(b'A'));
             try!(writer.write_u32::<BigEndian>(arr.len() as u32));
             for item in arr.iter(){
                 try!(write_table_entry(writer, item));
             }
         },
-        &TableEntry::Timestamp(val) => { try!(writer.write_u8(b'T')); try!(writer.write_u64::<BigEndian>(val)) },
-        &TableEntry::FieldTable(ref table) => {
+        TableEntry::Timestamp(val) => { try!(writer.write_u8(b'T')); try!(writer.write_u64::<BigEndian>(val)) },
+        TableEntry::FieldTable(ref table) => {
             try!(writer.write_u8(b'F'));
             try!(encode_table(writer, table));
         },
-        &TableEntry::Void => { try!(writer.write_u8(b'V')) }
+        TableEntry::Void => { try!(writer.write_u8(b'V')) }
     }
     Ok(())
 }

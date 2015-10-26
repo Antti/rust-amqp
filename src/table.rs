@@ -65,10 +65,13 @@ fn read_table_entry(reader: &mut &[u8]) -> AMQPResult<TableEntry> {
             TableEntry::LongString(str)
         },
         b'A' => {
-            let number = try!(reader.read_u32::<BigEndian>());
-            let mut arr = Vec::with_capacity(number as usize);
-            for _ in (0..number) {
-                arr.push(try!(read_table_entry(reader)))
+            let size = try!(reader.read_u32::<BigEndian>()) as usize;
+            let len_after = reader.len() - size;
+
+            let mut arr = Vec::new();
+            while reader.len() > len_after {
+                let entry = try!(read_table_entry(reader));
+                arr.push(entry)
             }
             TableEntry::FieldArray(arr)
         },

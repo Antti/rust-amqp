@@ -15,7 +15,6 @@ AMQ protocol implementation in pure rust.
 
 Have a look at the examples in `examples/` folder.
 
-
 ### Connecting to the server & openning channel:
 
 ```rust
@@ -45,6 +44,20 @@ channel.basic_publish("", "my_queue_name", true, false,
 This will send message: "Hello from rust!" to the queue named "my_queue_name".
 
 The messages have type of `Vec<u8>`, so if you want to send string, first you must convert it to `Vec<u8>`.
+
+
+## Known issues:
+
+* We don't handle frames sent to channel 0 after the session was established.
+* Asynchronous methods are not handled properly see #18.
+* There are still few places where we call `unwrap`, not handling error responses properly.
+
+## Missing things:
+
+* There's no facility to re-establish connection
+* No heartbeats support
+* Not all the amqp methods are implemented in a rust interface. You can still call them manually.
+
 
 ## Development notes:
 

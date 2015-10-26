@@ -1,7 +1,7 @@
 extern crate amqp;
 extern crate env_logger;
 
-use amqp::{Session, Options, Table, Basic, protocol};
+use amqp::{Session, Options, Table, Basic, TableEntry, protocol};
 use std::default::Default;
 
 extern "C" {
@@ -31,9 +31,14 @@ fn main() {
     }
 
     loop {
+        let mut headers = Table::new();
+        let field_array = vec![TableEntry::LongString("Foo".to_owned()), TableEntry::LongString("Bar".to_owned())];
+        headers.insert("foo".to_owned(), TableEntry::LongString("Foo".to_owned()));
+        headers.insert("field array test".to_owned(), TableEntry::FieldArray(field_array));
+        let properties = protocol::basic::BasicProperties { content_type: Some("text".to_owned()), headers: Some(headers), ..Default::default() };
         channel.basic_publish("", queue_name, true, false,
-            protocol::basic::BasicProperties{ content_type: Some("text".to_string()), ..Default::default()},
-            (b"Hello from rust!").to_vec());
+            properties,
+            (b"Hello from rust!").to_vec()).ok().expect("Failed publishing");
         unsafe {
             if stop_loop {
                 break;

@@ -89,11 +89,11 @@ mod framing;
 mod session;
 mod basic;
 mod amqp_error;
+mod table;
 
 pub mod protocol;
-pub mod table;
 
 pub use session::{Session, Options};
 pub use channel::{Channel, ConsumerCallBackFn, Consumer};
-pub use table::Table;
+pub use table::{Table, TableEntry};
 pub use basic::{Basic, GetResult};

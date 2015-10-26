@@ -113,10 +113,12 @@ fn write_table_entry(writer: &mut Vec<u8>, table_entry: &TableEntry) -> AMQPResu
         },
         TableEntry::FieldArray(ref arr) => {
             try!(writer.write_u8(b'A'));
-            try!(writer.write_u32::<BigEndian>(arr.len() as u32));
+            let mut tmp_buffer = vec![];
             for item in arr.iter(){
-                try!(write_table_entry(writer, item));
+                try!(write_table_entry(&mut tmp_buffer, item));
             }
+            try!(writer.write_u32::<BigEndian>(tmp_buffer.len() as u32));
+            try!(writer.write(&tmp_buffer));
         },
         TableEntry::Timestamp(val) => { try!(writer.write_u8(b'T')); try!(writer.write_u64::<BigEndian>(val)) },
         TableEntry::FieldTable(ref table) => {

@@ -62,6 +62,7 @@ impl Channel {
         self.write(Frame {frame_type: FrameType::METHOD, channel: id, payload: try!(MethodFrame::encode_method(method)) })
     }
 
+    // Send method frame, receive method frame, try to return expected method frame or return error.
     pub fn rpc<T, U>(&mut self, method: &U, expected_reply: &str) -> AMQPResult<T> where T: protocol::Method, U: protocol::Method {
         let method_frame = try!(self.raw_rpc(method));
         match method_frame.method_name() {
@@ -70,6 +71,7 @@ impl Channel {
         }
     }
 
+    // Send method frame, receive and return method frame.
     pub fn raw_rpc<T>(&mut self, method: &T) -> AMQPResult<MethodFrame>  where T: protocol::Method {
         try!(self.send_method_frame(method));
         MethodFrame::decode(try!(self.read()))

@@ -1,5 +1,5 @@
 use std::convert::From;
-use std::io;
+use std::{io, error, fmt};
 use byteorder;
 use url;
 
@@ -10,21 +10,42 @@ use std::error::Error;
 
 #[derive(Debug, Clone)]
 pub enum AMQPError {
-    AMQPIoError(io::ErrorKind),
-    ByteOrderError,
+    IoError(io::ErrorKind),
     DecodeError(&'static str),
-    QueueEmpty,
     Protocol(String),
-    SyncError,
+    SchemeError(String),
     UrlParseError(url::ParseError),
-    SchemeError(String)
+    ByteOrderError,
+    QueueEmpty,
+    SyncError,
+}
+
+impl fmt::Display for AMQPError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "AMQP Error: {}", error::Error::description(self))
+    }
+}
+
+impl error::Error for AMQPError {
+    fn description(&self) -> &str {
+        match self {
+            &AMQPError::IoError(_) => "IoError",
+            &AMQPError::DecodeError(_) => "Protocol decoding error",
+            &AMQPError::Protocol(_) => "Protocol level error",
+            &AMQPError::SchemeError(_) => "Invalid scheme",
+            &AMQPError::UrlParseError(_) => "URL parsing error",
+            &AMQPError::ByteOrderError => "ByteOrderError",
+            &AMQPError::QueueEmpty => "Queue is empty",
+            &AMQPError::SyncError => "Synchronisation error"
+        }
+    }
 }
 
 pub type AMQPResult<T> = Result<T, AMQPError>;
 
 impl From<io::Error> for AMQPError {
     fn from(err: io::Error) -> AMQPError {
-        AMQPError::AMQPIoError(err.kind())
+        AMQPError::IoError(err.kind())
     }
 }
 

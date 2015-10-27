@@ -23,7 +23,7 @@ pub enum TableEntry {
     FieldArray(Vec<TableEntry>),
     Timestamp(u64),
     FieldTable(Table),
-    Void
+    Void,
 }
 
 pub type Table = HashMap<String, TableEntry>;
@@ -51,10 +51,12 @@ fn read_table_entry(reader: &mut &[u8]) -> AMQPResult<TableEntry> {
         b'l' => TableEntry::LongLongUint(try!(reader.read_u64::<BigEndian>())),
         b'f' => TableEntry::Float(try!(reader.read_f32::<BigEndian>())),
         b'd' => TableEntry::Double(try!(reader.read_f64::<BigEndian>())),
-        b'D' => TableEntry::DecimalValue(try!(reader.read_u8()), try!(reader.read_u32::<BigEndian>())),
+        b'D' =>
+            TableEntry::DecimalValue(try!(reader.read_u8()), try!(reader.read_u32::<BigEndian>())),
         // b's' => {
         //  let size = try!(reader.read_u8()) as usize;
-        //  let str = String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string();
+        // let str =
+        // String::from_utf8_lossy(try!(reader.read_exact(size)).as_slice()).to_string();
         //  ShortString(str)
         // },
         b'S' => {
@@ -63,7 +65,7 @@ fn read_table_entry(reader: &mut &[u8]) -> AMQPResult<TableEntry> {
             try!(reader.read(&mut buffer[..]));
             let str = String::from_utf8_lossy(&buffer).to_string();
             TableEntry::LongString(str)
-        },
+        }
         b'A' => {
             let size = try!(reader.read_u32::<BigEndian>()) as usize;
             let len_after = reader.len() - size;
@@ -74,33 +76,69 @@ fn read_table_entry(reader: &mut &[u8]) -> AMQPResult<TableEntry> {
                 arr.push(entry)
             }
             TableEntry::FieldArray(arr)
-        },
+        }
         b'T' => TableEntry::Timestamp(try!(reader.read_u64::<BigEndian>())),
         b'F' => TableEntry::FieldTable(try!(decode_table(reader))),
         b'V' => TableEntry::Void,
-        x => { debug!("Unknown type: {}", x); return Err(AMQPError::DecodeError("Unknown type")) },
+        x => {
+            debug!("Unknown type: {}", x);
+            return Err(AMQPError::DecodeError("Unknown type"));
+        }
     };
     Ok(entry)
 }
 
 fn write_table_entry(writer: &mut Vec<u8>, table_entry: &TableEntry) -> AMQPResult<()> {
     match *table_entry {
-        TableEntry::Bool(val) => { try!(writer.write_u8(b't')); try!(writer.write_u8(val as u8)); },
-        TableEntry::ShortShortInt(val) => { try!(writer.write_u8(b'b')); try!(writer.write_i8(val)); },
-        TableEntry::ShortShortUint(val) => { try!(writer.write_u8(b'B')); try!(writer.write_u8(val)); },
-        TableEntry::ShortInt(val) => { try!(writer.write_u8(b'U')); try!(writer.write_i16::<BigEndian>(val)); },
-        TableEntry::ShortUint(val) => { try!(writer.write_u8(b'u')); try!(writer.write_u16::<BigEndian>(val)); },
-        TableEntry::LongInt(val) => { try!(writer.write_u8(b'I')); try!(writer.write_i32::<BigEndian>(val)); },
-        TableEntry::LongUint(val) => { try!(writer.write_u8(b'i')); try!(writer.write_u32::<BigEndian>(val)); },
-        TableEntry::LongLongInt(val) => { try!(writer.write_u8(b'L')); try!(writer.write_i64::<BigEndian>(val)); },
-        TableEntry::LongLongUint(val) => { try!(writer.write_u8(b'l')); try!(writer.write_u64::<BigEndian>(val)); },
-        TableEntry::Float(val) => { try!(writer.write_u8(b'f')); try!(writer.write_f32::<BigEndian>(val)); },
-        TableEntry::Double(val) => { try!(writer.write_u8(b'd')); try!(writer.write_f64::<BigEndian>(val)); },
+        TableEntry::Bool(val) => {
+            try!(writer.write_u8(b't'));
+            try!(writer.write_u8(val as u8));
+        }
+        TableEntry::ShortShortInt(val) => {
+            try!(writer.write_u8(b'b'));
+            try!(writer.write_i8(val));
+        }
+        TableEntry::ShortShortUint(val) => {
+            try!(writer.write_u8(b'B'));
+            try!(writer.write_u8(val));
+        }
+        TableEntry::ShortInt(val) => {
+            try!(writer.write_u8(b'U'));
+            try!(writer.write_i16::<BigEndian>(val));
+        }
+        TableEntry::ShortUint(val) => {
+            try!(writer.write_u8(b'u'));
+            try!(writer.write_u16::<BigEndian>(val));
+        }
+        TableEntry::LongInt(val) => {
+            try!(writer.write_u8(b'I'));
+            try!(writer.write_i32::<BigEndian>(val));
+        }
+        TableEntry::LongUint(val) => {
+            try!(writer.write_u8(b'i'));
+            try!(writer.write_u32::<BigEndian>(val));
+        }
+        TableEntry::LongLongInt(val) => {
+            try!(writer.write_u8(b'L'));
+            try!(writer.write_i64::<BigEndian>(val));
+        }
+        TableEntry::LongLongUint(val) => {
+            try!(writer.write_u8(b'l'));
+            try!(writer.write_u64::<BigEndian>(val));
+        }
+        TableEntry::Float(val) => {
+            try!(writer.write_u8(b'f'));
+            try!(writer.write_f32::<BigEndian>(val));
+        }
+        TableEntry::Double(val) => {
+            try!(writer.write_u8(b'd'));
+            try!(writer.write_f64::<BigEndian>(val));
+        }
         TableEntry::DecimalValue(scale, value) => {
             try!(writer.write_u8(b'D'));
             try!(writer.write_u8(scale));
             try!(writer.write_u32::<BigEndian>(value));
-        },
+        }
         // ShortString(str) => {
         //  try!(writer.write_u8(b's'));
         //  try!(writer.write_u8(str.len() as u8));
@@ -110,22 +148,27 @@ fn write_table_entry(writer: &mut Vec<u8>, table_entry: &TableEntry) -> AMQPResu
             try!(writer.write_u8(b'S'));
             try!(writer.write_u32::<BigEndian>(str.len() as u32));
             try!(writer.write_all(str.as_bytes()));
-        },
+        }
         TableEntry::FieldArray(ref arr) => {
             try!(writer.write_u8(b'A'));
             let mut tmp_buffer = vec![];
-            for item in arr.iter(){
+            for item in arr.iter() {
                 try!(write_table_entry(&mut tmp_buffer, item));
             }
             try!(writer.write_u32::<BigEndian>(tmp_buffer.len() as u32));
             try!(writer.write(&tmp_buffer));
-        },
-        TableEntry::Timestamp(val) => { try!(writer.write_u8(b'T')); try!(writer.write_u64::<BigEndian>(val)) },
+        }
+        TableEntry::Timestamp(val) => {
+            try!(writer.write_u8(b'T'));
+            try!(writer.write_u64::<BigEndian>(val))
+        }
         TableEntry::FieldTable(ref table) => {
             try!(writer.write_u8(b'F'));
             try!(encode_table(writer, table));
-        },
-        TableEntry::Void => { try!(writer.write_u8(b'V')) }
+        }
+        TableEntry::Void => {
+            try!(writer.write_u8(b'V'))
+        }
     }
     Ok(())
 }
@@ -142,13 +185,14 @@ pub fn decode_table(reader: &mut &[u8]) -> AMQPResult<Table> {
         try!(reader.read(&mut field_name[..]));
         let table_entry = try!(read_table_entry(reader));
         debug!("Read table entry: {:?} = {:?}", field_name, table_entry);
-        table.insert(String::from_utf8_lossy(&field_name).to_string(), table_entry);
+        table.insert(String::from_utf8_lossy(&field_name).to_string(),
+                     table_entry);
     }
     Ok(table)
 }
 
 pub fn encode_table<T: Write>(writer: &mut T, table: &Table) -> AMQPResult<()> {
-    let mut tmp_buffer = vec!();
+    let mut tmp_buffer = vec![];
     for (field_name, table_entry) in table.iter() {
         try!(tmp_buffer.write_u8(field_name.len() as u8));
         try!(tmp_buffer.write_all(field_name.as_bytes()));

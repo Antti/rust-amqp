@@ -17,7 +17,7 @@ pub enum AMQPError {
     QueueEmpty,
     Protocol(String),
     SyncError,
-    UrlParseError(url::ParseError)
+    UrlParseError(url::ParseError),
 }
 
 pub type AMQPResult<T> = Result<T, AMQPError>;

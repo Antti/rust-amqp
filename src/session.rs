@@ -20,18 +20,24 @@ pub const AMQP_PORT: u16 = 5672;
 
 const CHANNEL_BUFFER_SIZE: usize = 100;
 
+#[derive(Debug)]
+pub enum AMQPScheme {
+    AMQP,
+    #[cfg(feature = "tls")]
+    AMQPS,
+}
 
 #[derive(Debug)]
 pub struct Options<'a> {
     pub host: &'a str,
     pub port: u16,
-    pub tls: bool,
     pub login: &'a str,
     pub password: &'a str,
     pub vhost: &'a str,
     pub frame_max_limit: u32,
     pub channel_max_limit: u16,
     pub locale: &'a str,
+    pub scheme: AMQPScheme,
 }
 
 impl <'a>  Default for Options <'a>  {
@@ -39,13 +45,13 @@ impl <'a>  Default for Options <'a>  {
         Options {
             host: "127.0.0.1",
             port: AMQP_PORT,
-            tls: false,
             vhost: "",
             login: "guest",
             password: "guest",
             frame_max_limit: 131072,
             channel_max_limit: 65535,
             locale: "en_US",
+            scheme: AMQPScheme::AMQP,
         }
     }
 }
@@ -58,7 +64,7 @@ pub struct Session {
 }
 
 impl Session {
-    /// Use `open_url` to create new amqp session from a `amqp url`
+    /// Use `open_url` to create new amqp session from a "amqp url"
     ///
     /// # Arguments
     /// * `url_string`: The format is: `amqp://username:password@host:port/virtual_host`
@@ -90,10 +96,13 @@ impl Session {
         if let SchemeData::NonRelative(_) = url.scheme_data {
             return Err(AMQPError::UrlParseError(ParseError::InvalidScheme));
         }
-        let tls = {
-            url.scheme == "amqps"
+        let scheme = match &url.scheme as &str {
+            "amqp" => AMQPScheme::AMQP,
+            #[cfg(feature = "tls")]
+            "amqps" => AMQPScheme::AMQPS,
+            unknown_scheme => return Err(AMQPError::SchemeError(format!("Unknown scheme: {:?}", unknown_scheme)))
         };
-        let default_port = if tls {
+        let default_port = if url.scheme == "amqps" {
             AMQPS_PORT
         } else {
             default.port
@@ -115,7 +124,7 @@ impl Session {
         let opts = Options {
             host: host,
             port: port,
-            tls: tls,
+            scheme: scheme,
             login: &login,
             password: &password,
             vhost: &vhost,
@@ -136,7 +145,7 @@ impl Session {
     /// };
     /// ```
     pub fn new(options: Options) -> AMQPResult<Session> {
-        let connection = try!(Connection::open(options.host, options.port, options.tls));
+        let connection = try!(get_connection(&options));
         let channels = Arc::new(Mutex::new(HashMap::new()));
         let (channel_zero_sender, channel_receiver) = sync_channel(CHANNEL_BUFFER_SIZE); //channel0
         let channel_zero = channel::Channel::new(0, channel_receiver, connection.clone());
@@ -318,6 +327,13 @@ impl Session {
 
 }
 
+fn get_connection(options: &Options) -> AMQPResult<Connection> {
+    match options.scheme {
+        #[cfg(feature = "tls")]
+        AMQPScheme::AMQPS => Connection::open_tls(options.host, options.port).map_err(|e| From::from(e)),
+        AMQPScheme::AMQP => Connection::open(options.host, options.port).map_err(|e| From::from(e))
+    }
+}
 fn negotiate<T: cmp::Ord>(their_value: T, our_value: T) -> T {
     cmp::min(their_value, our_value)
 }

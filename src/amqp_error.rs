@@ -13,11 +13,11 @@ pub enum AMQPError {
     AMQPIoError(io::ErrorKind),
     ByteOrderError,
     DecodeError(&'static str),
-    EncodeError,
     QueueEmpty,
     Protocol(String),
     SyncError,
     UrlParseError(url::ParseError),
+    SchemeError(String)
 }
 
 pub type AMQPResult<T> = Result<T, AMQPError>;

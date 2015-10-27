@@ -5,12 +5,6 @@ use std::cmp;
 #[cfg(feature = "tls")]
 use openssl::ssl::{SslContext, SslMethod, SslStream};
 
-#[cfg(not(feature = "tls"))]
-use url;
-
-#[cfg(not(feature = "tls"))]
-use amqp_error::AMQPError;
-
 use amqp_error::AMQPResult;
 use framing::{Frame, FrameType};
 
@@ -43,39 +37,24 @@ impl Clone for Connection {
 
 impl Connection {
     #[cfg(feature = "tls")]
-    pub fn open(host: &str, port: u16, use_tls: bool) -> AMQPResult<Connection> {
-        let connection;
-        let mut socket = try!(TcpStream::connect((host, port)));
-        if use_tls {
-            let ctx = try!(SslContext::new(SslMethod::Sslv23));
-            let mut tls_socket = try!(SslStream::connect(&ctx, socket));
-            try!(tls_socket.write_all(&[b'A', b'M', b'Q', b'P', 0, 0, 9, 1]));
-            connection = Connection {
-                socket: AMQPStream::Tls(tls_socket),
-                frame_max_limit: 131072,
-            };
-        } else {
-            try!(socket.write_all(&[b'A', b'M', b'Q', b'P', 0, 0, 9, 1]));
-            connection = Connection {
-                socket: AMQPStream::Cleartext(socket),
-                frame_max_limit: 131072,
-            };
-        }
-        Ok(connection)
+    pub fn open_tls(host: &str, port: u16) -> AMQPResult<Connection> {
+        let socket = try!(TcpStream::connect((host, port)));
+        let ctx = try!(SslContext::new(SslMethod::Sslv23));
+        let mut tls_socket = try!(SslStream::connect(&ctx, socket));
+        try!(init_connection(&mut tls_socket));
+        Ok(Connection {
+            socket: AMQPStream::Tls(tls_socket),
+            frame_max_limit: 131072,
+        })
     }
 
-    #[cfg(not(feature = "tls"))]
-    pub fn open(host: &str, port: u16, use_tls: bool) -> AMQPResult<Connection> {
-        if use_tls {
-            return Err(AMQPError::UrlParseError(url::ParseError::InvalidScheme));
-        }
+    pub fn open(host: &str, port: u16) -> AMQPResult<Connection> {
         let mut socket = try!(TcpStream::connect((host, port)));
-        try!(socket.write_all(&[b'A', b'M', b'Q', b'P', 0, 0, 9, 1]));
-        let connection = Connection {
+        try!(init_connection(&mut socket));
+        Ok(Connection {
             socket: AMQPStream::Cleartext(socket),
             frame_max_limit: 131072,
-        };
-        Ok(connection)
+        })
     }
 
 
@@ -118,6 +97,9 @@ impl Connection {
 
 }
 
+fn init_connection<T>(stream: &mut T) -> AMQPResult<()> where T: Write {
+    stream.write_all(&[b'A', b'M', b'Q', b'P', 0, 0, 9, 1]).map_err(|e| From::from(e))
+}
 
 fn split_content_into_frames(content: Vec<u8>, frame_limit: u32) -> Vec<Vec<u8>> {
     assert!(frame_limit > 0, "Can't have frame_max_limit == 0");

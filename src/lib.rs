@@ -107,3 +107,4 @@ pub use session::{Session, Options};
 pub use channel::{Channel, ConsumerCallBackFn, Consumer};
 pub use table::{Table, TableEntry};
 pub use basic::{Basic, GetResult};
+pub use session::AMQPScheme;

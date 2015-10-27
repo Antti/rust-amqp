@@ -58,7 +58,7 @@ pub struct Session {
 }
 
 impl Session {
-    /// Use `open_url` to create new amqp session from a "amqp url"
+    /// Use `open_url` to create new amqp session from a `amqp url`
     ///
     /// # Arguments
     /// * `url_string`: The format is: `amqp://username:password@host:port/virtual_host`
@@ -243,7 +243,7 @@ impl Session {
     /// ```no_run
     /// use std::default::Default;
     /// use amqp::{Options, Session};
-    /// let mut session =  Session::new(Options { .. Default::default() }).ok().unwrap();
+    /// let mut session = Session::new(Options { .. Default::default() }).ok().unwrap();
     /// let channel = match session.open_channel(1){
     ///     Ok(channel) => channel,
     ///     Err(error) => panic!("Failed openning channel: {:?}", error)
@@ -279,7 +279,7 @@ impl Session {
 
     // Receives and dispatches frames from the connection to the corresponding
     // channels.
-    pub fn reading_loop(mut connection: Connection,
+    fn reading_loop(mut connection: Connection,
                         channels: Arc<Mutex<HashMap<u16, SyncSender<AMQPResult<Frame>>>>>)
                         -> () {
         debug!("Starting reading loop");

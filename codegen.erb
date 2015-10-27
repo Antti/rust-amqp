@@ -28,7 +28,7 @@ impl MethodFrame {
         frame.encode()
     }
     pub fn encode(&self) -> AMQPResult<Vec<u8>> {
-        let mut writer = vec!();
+        let mut writer = vec![];
         try!(writer.write_u16::<BigEndian>(self.class_id));
         try!(writer.write_u16::<BigEndian>(self.method_id));
         try!(writer.write_all(&self.arguments));
@@ -43,7 +43,7 @@ impl MethodFrame {
         let reader = &mut &frame.payload[..];
         let class_id = try!(reader.read_u16::<BigEndian>());
         let method_id = try!(reader.read_u16::<BigEndian>());
-        let mut arguments = vec!();
+        let mut arguments = vec![];
         try!(reader.read_to_end(&mut arguments));
         Ok(MethodFrame { class_id: class_id, method_id: method_id, arguments: arguments})
     }
@@ -98,7 +98,7 @@ pub mod <%= klass["name"] %> {
         }
 
         pub fn encode(self) -> AMQPResult<Vec<u8>> {
-            let mut writer = vec!();
+            let mut writer = vec![];
 <% klass["properties"].each.with_index do |prop, idx| -%>
               match self.<%= prop["prop_name"] %> {
                   Some(prop) => {
@@ -169,7 +169,7 @@ pub mod <%= klass["name"] %> {
             <%= writer %>
 <% end -%>
 <% else -%>
-            Ok(vec!())
+            Ok(vec![])
 <% end -%>
         }
     }

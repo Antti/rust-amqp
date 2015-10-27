@@ -97,7 +97,7 @@ end
 
 def generate_writer_body(arguments)
     body = []
-    body << "let mut writer = vec!();"
+    body << "let mut writer = vec![];"
     n_bits = 0
     arguments.each do |argument|
       type = argument["domain"] ? map_domain(argument["domain"]) : argument["type"]

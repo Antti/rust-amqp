@@ -63,6 +63,7 @@ The messages have type of `Vec<u8>`, so if you want to send string, first you mu
 
 The methods encoding/decoding code is generated using codegen.rb & amqp-rabbitmq-0.9.1.json spec.
 
+You need to have rustfmt installed to generate protocol.rs
 To generate a new spec, run:
 
 ```sh

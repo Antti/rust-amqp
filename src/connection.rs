@@ -97,7 +97,9 @@ impl Connection {
 
 }
 
-fn init_connection<T>(stream: &mut T) -> AMQPResult<()> where T: Write {
+fn init_connection<T>(stream: &mut T) -> AMQPResult<()>
+    where T: Write
+{
     stream.write_all(&[b'A', b'M', b'Q', b'P', 0, 0, 9, 1]).map_err(|e| From::from(e))
 }
 

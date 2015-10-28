@@ -36,7 +36,7 @@ impl error::Error for AMQPError {
             &AMQPError::UrlParseError(_) => "URL parsing error",
             &AMQPError::ByteOrderError => "ByteOrderError",
             &AMQPError::QueueEmpty => "Queue is empty",
-            &AMQPError::SyncError => "Synchronisation error"
+            &AMQPError::SyncError => "Synchronisation error",
         }
     }
 }

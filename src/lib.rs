@@ -101,6 +101,7 @@ mod basic;
 mod amqp_error;
 mod table;
 
+pub const VERSION: &'static str = "0.1.13";
 pub mod protocol;
 
 pub use session::{Session, Options};

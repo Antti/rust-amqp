@@ -5,6 +5,7 @@ use table::Table;
 use table::TableEntry::{FieldTable, Bool, LongString};
 use framing::Frame;
 use amqp_error::{AMQPResult, AMQPError};
+use super::VERSION;
 
 use std::sync::{Arc, Mutex};
 use std::default::Default;
@@ -100,7 +101,8 @@ impl Session {
             "amqp" => AMQPScheme::AMQP,
             #[cfg(feature = "tls")]
             "amqps" => AMQPScheme::AMQPS,
-            unknown_scheme => return Err(AMQPError::SchemeError(format!("Unknown scheme: {:?}", unknown_scheme)))
+            unknown_scheme =>
+                return Err(AMQPError::SchemeError(format!("Unknown scheme: {:?}", unknown_scheme))),
         };
         let default_port = if url.scheme == "amqps" {
             AMQPS_PORT
@@ -166,7 +168,7 @@ impl Session {
     fn init(&mut self, options: Options) -> AMQPResult<()> {
         debug!("Starting init session");
         let frame = try!(self.channel_zero.read()); //Start
-        let method_frame = try!(MethodFrame::decode(frame));
+        let method_frame = try!(MethodFrame::decode(&frame));
         let start: protocol::connection::Start = match method_frame.method_name() {
             "connection.start" => try!(protocol::Method::decode(method_frame)),
             meth => return Err(AMQPError::Protocol(format!("Unexpected method frame: {:?}", meth))),
@@ -193,7 +195,7 @@ impl Session {
         client_properties.insert("capabilities".to_string(), FieldTable(capabilities));
         client_properties.insert("product".to_string(), LongString("rust-amqp".to_string()));
         client_properties.insert("platform".to_string(), LongString("rust".to_string()));
-        client_properties.insert("version".to_string(), LongString("0.1.8".to_string()));
+        client_properties.insert("version".to_string(), LongString(VERSION.to_string()));
         client_properties.insert("information".to_string(),
                                  LongString("https://github.com/Antti/rust-amqp".to_string()));
 
@@ -220,7 +222,7 @@ impl Session {
 
         self.channel_max_limit = negotiate(tune.channel_max, self.channel_max_limit);
         self.connection.frame_max_limit = negotiate(tune.frame_max, options.frame_max_limit);
-        self.channel_zero.connection.frame_max_limit = self.connection.frame_max_limit;
+        self.channel_zero.set_frame_max_limit(self.connection.frame_max_limit);
         let frame_max_limit = self.connection.frame_max_limit;
         let tune_ok = protocol::connection::TuneOk {
             channel_max: self.channel_max_limit,
@@ -289,8 +291,8 @@ impl Session {
     // Receives and dispatches frames from the connection to the corresponding
     // channels.
     fn reading_loop(mut connection: Connection,
-                        channels: Arc<Mutex<HashMap<u16, SyncSender<AMQPResult<Frame>>>>>)
-                        -> () {
+                    channels: Arc<Mutex<HashMap<u16, SyncSender<AMQPResult<Frame>>>>>)
+                    -> () {
         debug!("Starting reading loop");
         loop {
             match connection.read() {
@@ -330,8 +332,9 @@ impl Session {
 fn get_connection(options: &Options) -> AMQPResult<Connection> {
     match options.scheme {
         #[cfg(feature = "tls")]
-        AMQPScheme::AMQPS => Connection::open_tls(options.host, options.port).map_err(|e| From::from(e)),
-        AMQPScheme::AMQP => Connection::open(options.host, options.port).map_err(|e| From::from(e))
+        AMQPScheme::AMQPS =>
+            Connection::open_tls(options.host, options.port).map_err(|e| From::from(e)),
+        AMQPScheme::AMQP => Connection::open(options.host, options.port).map_err(|e| From::from(e)),
     }
 }
 fn negotiate<T: cmp::Ord>(their_value: T, our_value: T) -> T {

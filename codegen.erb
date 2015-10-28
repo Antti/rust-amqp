@@ -36,7 +36,7 @@ impl MethodFrame {
     }
 
     // We need this method, so we can match on class_id & method_id
-    pub fn decode(frame: Frame) -> AMQPResult<MethodFrame> {
+    pub fn decode(frame: &Frame) -> AMQPResult<MethodFrame> {
         if frame.frame_type != FrameType::METHOD {
             return Err(AMQPError::DecodeError("Not a method frame"))
         }

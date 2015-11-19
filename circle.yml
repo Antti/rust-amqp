@@ -1,0 +1,17 @@
+machine:
+  pre:
+    - curl -sS https://static.rust-lang.org/rustup.sh > rustup.sh
+    - chmod +x ./rustup.sh
+    - ./rustup.sh --yes
+    - sudo apt-get install openssl
+  environment:
+    FOO: BAR
+
+test:
+  override:
+    - cargo build --verbose -j 2
+
+general:
+  branches:
+    ignore:
+      - gh-pages

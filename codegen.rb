@@ -182,7 +182,7 @@ class SpecGenerator
   def value_to_rust_value(value)
     case value
     when String
-      "\"#{value}\".to_string()"
+      "\"#{value}\".to_owned()"
     when Fixnum
       value
     when TrueClass, FalseClass

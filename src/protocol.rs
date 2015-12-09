@@ -172,9 +172,9 @@ pub mod connection {
             match (method_frame.class_id, method_frame.method_id) {
                 (10, 10) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             let reader = &mut &method_frame.arguments[..];
             let version_major = try!(reader.read_u8());
             let version_minor = try!(reader.read_u8());
@@ -218,8 +218,8 @@ pub mod connection {
             Start {
                 version_major: 0,
                 version_minor: 9,
-                mechanisms: "PLAIN".to_string(),
-                locales: "en_US".to_string(),
+                mechanisms: "PLAIN".to_owned(),
+                locales: "en_US".to_owned(),
                 server_properties: server_properties,
             }
         }
@@ -251,9 +251,9 @@ pub mod connection {
             match (method_frame.class_id, method_frame.method_id) {
                 (10, 11) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             let reader = &mut &method_frame.arguments[..];
             let client_properties = try!(decode_table(reader));
             let mechanism = {
@@ -298,8 +298,8 @@ pub mod connection {
     impl StartOk {
         pub fn with_default_values(client_properties: Table, response: String) -> StartOk {
             StartOk {
-                mechanism: "PLAIN".to_string(),
-                locale: "en_US".to_string(),
+                mechanism: "PLAIN".to_owned(),
+                locale: "en_US".to_owned(),
                 client_properties: client_properties,
                 response: response,
             }
@@ -329,9 +329,9 @@ pub mod connection {
             match (method_frame.class_id, method_frame.method_id) {
                 (10, 20) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             let reader = &mut &method_frame.arguments[..];
             let challenge = {
                 let size = try!(reader.read_u32::<BigEndian>()) as usize;
@@ -374,9 +374,9 @@ pub mod connection {
             match (method_frame.class_id, method_frame.method_id) {
                 (10, 21) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             let reader = &mut &method_frame.arguments[..];
             let response = {
                 let size = try!(reader.read_u32::<BigEndian>()) as usize;
@@ -421,9 +421,9 @@ pub mod connection {
             match (method_frame.class_id, method_frame.method_id) {
                 (10, 30) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             let reader = &mut &method_frame.arguments[..];
             let channel_max = try!(reader.read_u16::<BigEndian>());
             let frame_max = try!(reader.read_u32::<BigEndian>());
@@ -479,9 +479,9 @@ pub mod connection {
             match (method_frame.class_id, method_frame.method_id) {
                 (10, 31) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             let reader = &mut &method_frame.arguments[..];
             let channel_max = try!(reader.read_u16::<BigEndian>());
             let frame_max = try!(reader.read_u32::<BigEndian>());
@@ -537,9 +537,9 @@ pub mod connection {
             match (method_frame.class_id, method_frame.method_id) {
                 (10, 40) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             let reader = &mut &method_frame.arguments[..];
             let virtual_host = {
                 let size = try!(reader.read_u8()) as usize;
@@ -582,8 +582,8 @@ pub mod connection {
     impl Open {
         pub fn with_default_values(insist: bool) -> Open {
             Open {
-                virtual_host: "/".to_string(),
-                capabilities: "".to_string(),
+                virtual_host: "/".to_owned(),
+                capabilities: "".to_owned(),
                 insist: insist,
             }
         }
@@ -612,9 +612,9 @@ pub mod connection {
             match (method_frame.class_id, method_frame.method_id) {
                 (10, 41) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             let reader = &mut &method_frame.arguments[..];
             let known_hosts = {
                 let size = try!(reader.read_u8()) as usize;
@@ -635,7 +635,7 @@ pub mod connection {
 
     impl OpenOk {
         pub fn with_default_values() -> OpenOk {
-            OpenOk { known_hosts: "".to_string() }
+            OpenOk { known_hosts: "".to_owned() }
         }
     }
 
@@ -665,9 +665,9 @@ pub mod connection {
             match (method_frame.class_id, method_frame.method_id) {
                 (10, 50) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             let reader = &mut &method_frame.arguments[..];
             let reply_code = try!(reader.read_u16::<BigEndian>());
             let reply_text = {
@@ -700,7 +700,7 @@ pub mod connection {
     impl Close {
         pub fn with_default_values(reply_code: u16, class_id: u16, method_id: u16) -> Close {
             Close {
-                reply_text: "".to_string(),
+                reply_text: "".to_owned(),
                 reply_code: reply_code,
                 class_id: class_id,
                 method_id: method_id,
@@ -729,9 +729,9 @@ pub mod connection {
             match (method_frame.class_id, method_frame.method_id) {
                 (10, 51) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             Ok(CloseOk)
         }
 
@@ -764,9 +764,9 @@ pub mod connection {
             match (method_frame.class_id, method_frame.method_id) {
                 (10, 60) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             let reader = &mut &method_frame.arguments[..];
             let reason = {
                 let size = try!(reader.read_u8()) as usize;
@@ -787,7 +787,7 @@ pub mod connection {
 
     impl Blocked {
         pub fn with_default_values() -> Blocked {
-            Blocked { reason: "".to_string() }
+            Blocked { reason: "".to_owned() }
         }
     }
 
@@ -812,9 +812,9 @@ pub mod connection {
             match (method_frame.class_id, method_frame.method_id) {
                 (10, 61) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             Ok(Unblocked)
         }
 
@@ -863,9 +863,9 @@ pub mod channel {
             match (method_frame.class_id, method_frame.method_id) {
                 (20, 10) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             let reader = &mut &method_frame.arguments[..];
             let out_of_band = {
                 let size = try!(reader.read_u8()) as usize;
@@ -886,7 +886,7 @@ pub mod channel {
 
     impl Open {
         pub fn with_default_values() -> Open {
-            Open { out_of_band: "".to_string() }
+            Open { out_of_band: "".to_owned() }
         }
     }
 
@@ -913,9 +913,9 @@ pub mod channel {
             match (method_frame.class_id, method_frame.method_id) {
                 (20, 11) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             let reader = &mut &method_frame.arguments[..];
             let channel_id = {
                 let size = try!(reader.read_u32::<BigEndian>()) as usize;
@@ -936,7 +936,7 @@ pub mod channel {
 
     impl OpenOk {
         pub fn with_default_values() -> OpenOk {
-            OpenOk { channel_id: "".to_string() }
+            OpenOk { channel_id: "".to_owned() }
         }
     }
 
@@ -963,9 +963,9 @@ pub mod channel {
             match (method_frame.class_id, method_frame.method_id) {
                 (20, 20) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             let reader = &mut &method_frame.arguments[..];
             let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
@@ -1009,9 +1009,9 @@ pub mod channel {
             match (method_frame.class_id, method_frame.method_id) {
                 (20, 21) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             let reader = &mut &method_frame.arguments[..];
             let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
@@ -1058,9 +1058,9 @@ pub mod channel {
             match (method_frame.class_id, method_frame.method_id) {
                 (20, 40) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             let reader = &mut &method_frame.arguments[..];
             let reply_code = try!(reader.read_u16::<BigEndian>());
             let reply_text = {
@@ -1093,7 +1093,7 @@ pub mod channel {
     impl Close {
         pub fn with_default_values(reply_code: u16, class_id: u16, method_id: u16) -> Close {
             Close {
-                reply_text: "".to_string(),
+                reply_text: "".to_owned(),
                 reply_code: reply_code,
                 class_id: class_id,
                 method_id: method_id,
@@ -1122,9 +1122,9 @@ pub mod channel {
             match (method_frame.class_id, method_frame.method_id) {
                 (20, 41) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             Ok(CloseOk)
         }
 
@@ -1178,9 +1178,9 @@ pub mod access {
             match (method_frame.class_id, method_frame.method_id) {
                 (30, 10) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             let reader = &mut &method_frame.arguments[..];
             let realm = {
                 let size = try!(reader.read_u8()) as usize;
@@ -1238,7 +1238,7 @@ pub mod access {
     impl Request {
         pub fn with_default_values(exclusive: bool) -> Request {
             Request {
-                realm: "/data".to_string(),
+                realm: "/data".to_owned(),
                 passive: true,
                 active: true,
                 write: true,
@@ -1271,9 +1271,9 @@ pub mod access {
             match (method_frame.class_id, method_frame.method_id) {
                 (30, 11) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             let reader = &mut &method_frame.arguments[..];
             let ticket = try!(reader.read_u16::<BigEndian>());
             Ok(RequestOk { ticket: ticket })
@@ -1339,9 +1339,9 @@ pub mod exchange {
             match (method_frame.class_id, method_frame.method_id) {
                 (40, 10) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             let reader = &mut &method_frame.arguments[..];
             let ticket = try!(reader.read_u16::<BigEndian>());
             let exchange = {
@@ -1421,7 +1421,7 @@ pub mod exchange {
                                    -> Declare {
             Declare {
                 ticket: 0,
-                _type: "direct".to_string(),
+                _type: "direct".to_owned(),
                 arguments: Table::new(),
                 exchange: exchange,
                 passive: passive,
@@ -1454,9 +1454,9 @@ pub mod exchange {
             match (method_frame.class_id, method_frame.method_id) {
                 (40, 11) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             Ok(DeclareOk)
         }
 
@@ -1492,9 +1492,9 @@ pub mod exchange {
             match (method_frame.class_id, method_frame.method_id) {
                 (40, 20) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             let reader = &mut &method_frame.arguments[..];
             let ticket = try!(reader.read_u16::<BigEndian>());
             let exchange = {
@@ -1566,9 +1566,9 @@ pub mod exchange {
             match (method_frame.class_id, method_frame.method_id) {
                 (40, 21) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             Ok(DeleteOk)
         }
 
@@ -1606,9 +1606,9 @@ pub mod exchange {
             match (method_frame.class_id, method_frame.method_id) {
                 (40, 30) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             let reader = &mut &method_frame.arguments[..];
             let ticket = try!(reader.read_u16::<BigEndian>());
             let destination = {
@@ -1667,7 +1667,7 @@ pub mod exchange {
         pub fn with_default_values(destination: String, source: String, nowait: bool) -> Bind {
             Bind {
                 ticket: 0,
-                routing_key: "".to_string(),
+                routing_key: "".to_owned(),
                 arguments: Table::new(),
                 destination: destination,
                 source: source,
@@ -1697,9 +1697,9 @@ pub mod exchange {
             match (method_frame.class_id, method_frame.method_id) {
                 (40, 31) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             Ok(BindOk)
         }
 
@@ -1737,9 +1737,9 @@ pub mod exchange {
             match (method_frame.class_id, method_frame.method_id) {
                 (40, 40) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             let reader = &mut &method_frame.arguments[..];
             let ticket = try!(reader.read_u16::<BigEndian>());
             let destination = {
@@ -1798,7 +1798,7 @@ pub mod exchange {
         pub fn with_default_values(destination: String, source: String, nowait: bool) -> Unbind {
             Unbind {
                 ticket: 0,
-                routing_key: "".to_string(),
+                routing_key: "".to_owned(),
                 arguments: Table::new(),
                 destination: destination,
                 source: source,
@@ -1828,9 +1828,9 @@ pub mod exchange {
             match (method_frame.class_id, method_frame.method_id) {
                 (40, 51) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             Ok(UnbindOk)
         }
 
@@ -1886,9 +1886,9 @@ pub mod queue {
             match (method_frame.class_id, method_frame.method_id) {
                 (50, 10) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             let reader = &mut &method_frame.arguments[..];
             let ticket = try!(reader.read_u16::<BigEndian>());
             let queue = {
@@ -1958,7 +1958,7 @@ pub mod queue {
                                    -> Declare {
             Declare {
                 ticket: 0,
-                queue: "".to_string(),
+                queue: "".to_owned(),
                 arguments: Table::new(),
                 passive: passive,
                 durable: durable,
@@ -1994,9 +1994,9 @@ pub mod queue {
             match (method_frame.class_id, method_frame.method_id) {
                 (50, 11) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             let reader = &mut &method_frame.arguments[..];
             let queue = {
                 let size = try!(reader.read_u8()) as usize;
@@ -2052,9 +2052,9 @@ pub mod queue {
             match (method_frame.class_id, method_frame.method_id) {
                 (50, 20) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             let reader = &mut &method_frame.arguments[..];
             let ticket = try!(reader.read_u16::<BigEndian>());
             let queue = {
@@ -2113,8 +2113,8 @@ pub mod queue {
         pub fn with_default_values(exchange: String, nowait: bool) -> Bind {
             Bind {
                 ticket: 0,
-                queue: "".to_string(),
-                routing_key: "".to_string(),
+                queue: "".to_owned(),
+                routing_key: "".to_owned(),
                 arguments: Table::new(),
                 exchange: exchange,
                 nowait: nowait,
@@ -2143,9 +2143,9 @@ pub mod queue {
             match (method_frame.class_id, method_frame.method_id) {
                 (50, 21) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             Ok(BindOk)
         }
 
@@ -2180,9 +2180,9 @@ pub mod queue {
             match (method_frame.class_id, method_frame.method_id) {
                 (50, 30) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             let reader = &mut &method_frame.arguments[..];
             let ticket = try!(reader.read_u16::<BigEndian>());
             let queue = {
@@ -2220,7 +2220,7 @@ pub mod queue {
         pub fn with_default_values(nowait: bool) -> Purge {
             Purge {
                 ticket: 0,
-                queue: "".to_string(),
+                queue: "".to_owned(),
                 nowait: nowait,
             }
         }
@@ -2249,9 +2249,9 @@ pub mod queue {
             match (method_frame.class_id, method_frame.method_id) {
                 (50, 31) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             let reader = &mut &method_frame.arguments[..];
             let message_count = try!(reader.read_u32::<BigEndian>());
             Ok(PurgeOk { message_count: message_count })
@@ -2292,9 +2292,9 @@ pub mod queue {
             match (method_frame.class_id, method_frame.method_id) {
                 (50, 40) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             let reader = &mut &method_frame.arguments[..];
             let ticket = try!(reader.read_u16::<BigEndian>());
             let queue = {
@@ -2344,7 +2344,7 @@ pub mod queue {
         pub fn with_default_values(if_unused: bool, if_empty: bool, nowait: bool) -> Delete {
             Delete {
                 ticket: 0,
-                queue: "".to_string(),
+                queue: "".to_owned(),
                 if_unused: if_unused,
                 if_empty: if_empty,
                 nowait: nowait,
@@ -2375,9 +2375,9 @@ pub mod queue {
             match (method_frame.class_id, method_frame.method_id) {
                 (50, 41) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             let reader = &mut &method_frame.arguments[..];
             let message_count = try!(reader.read_u32::<BigEndian>());
             Ok(DeleteOk { message_count: message_count })
@@ -2418,9 +2418,9 @@ pub mod queue {
             match (method_frame.class_id, method_frame.method_id) {
                 (50, 50) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             let reader = &mut &method_frame.arguments[..];
             let ticket = try!(reader.read_u16::<BigEndian>());
             let queue = {
@@ -2469,8 +2469,8 @@ pub mod queue {
         pub fn with_default_values(exchange: String) -> Unbind {
             Unbind {
                 ticket: 0,
-                queue: "".to_string(),
-                routing_key: "".to_string(),
+                queue: "".to_owned(),
+                routing_key: "".to_owned(),
                 arguments: Table::new(),
                 exchange: exchange,
             }
@@ -2498,9 +2498,9 @@ pub mod queue {
             match (method_frame.class_id, method_frame.method_id) {
                 (50, 51) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             Ok(UnbindOk)
         }
 
@@ -2551,137 +2551,171 @@ pub mod basic {
                 BitVec::from_bytes(&[((content_header_frame.properties_flags >> 8) & 0xff) as u8,
                                      (content_header_frame.properties_flags & 0xff) as u8]);
             let content_type = match properties_flags.get(0) {
-                Some(flag) if flag => Some({
-                    let size = try!(reader.read_u8()) as usize;
-                    let mut buffer: Vec<u8> = vec![0u8; size];
-                    try!(reader.read(&mut buffer[..]));
-                    String::from_utf8_lossy(&buffer[..]).to_string()
-                }),
-                None =>
-                    return Err(AMQPError::Protocol("Properties flags are not correct".to_owned())),
+                Some(flag) if flag => {
+                    Some({
+                        let size = try!(reader.read_u8()) as usize;
+                        let mut buffer: Vec<u8> = vec![0u8; size];
+                        try!(reader.read(&mut buffer[..]));
+                        String::from_utf8_lossy(&buffer[..]).to_string()
+                    })
+                }
+                None => {
+                    return Err(AMQPError::Protocol("Properties flags are not correct".to_owned()))
+                }
                 _ => None,
             };
             let content_encoding = match properties_flags.get(1) {
-                Some(flag) if flag => Some({
-                    let size = try!(reader.read_u8()) as usize;
-                    let mut buffer: Vec<u8> = vec![0u8; size];
-                    try!(reader.read(&mut buffer[..]));
-                    String::from_utf8_lossy(&buffer[..]).to_string()
-                }),
-                None =>
-                    return Err(AMQPError::Protocol("Properties flags are not correct".to_owned())),
+                Some(flag) if flag => {
+                    Some({
+                        let size = try!(reader.read_u8()) as usize;
+                        let mut buffer: Vec<u8> = vec![0u8; size];
+                        try!(reader.read(&mut buffer[..]));
+                        String::from_utf8_lossy(&buffer[..]).to_string()
+                    })
+                }
+                None => {
+                    return Err(AMQPError::Protocol("Properties flags are not correct".to_owned()))
+                }
                 _ => None,
             };
             let headers = match properties_flags.get(2) {
                 Some(flag) if flag => Some(try!(decode_table(reader))),
-                None =>
-                    return Err(AMQPError::Protocol("Properties flags are not correct".to_owned())),
+                None => {
+                    return Err(AMQPError::Protocol("Properties flags are not correct".to_owned()))
+                }
                 _ => None,
             };
             let delivery_mode = match properties_flags.get(3) {
                 Some(flag) if flag => Some(try!(reader.read_u8())),
-                None =>
-                    return Err(AMQPError::Protocol("Properties flags are not correct".to_owned())),
+                None => {
+                    return Err(AMQPError::Protocol("Properties flags are not correct".to_owned()))
+                }
                 _ => None,
             };
             let priority = match properties_flags.get(4) {
                 Some(flag) if flag => Some(try!(reader.read_u8())),
-                None =>
-                    return Err(AMQPError::Protocol("Properties flags are not correct".to_owned())),
+                None => {
+                    return Err(AMQPError::Protocol("Properties flags are not correct".to_owned()))
+                }
                 _ => None,
             };
             let correlation_id = match properties_flags.get(5) {
-                Some(flag) if flag => Some({
-                    let size = try!(reader.read_u8()) as usize;
-                    let mut buffer: Vec<u8> = vec![0u8; size];
-                    try!(reader.read(&mut buffer[..]));
-                    String::from_utf8_lossy(&buffer[..]).to_string()
-                }),
-                None =>
-                    return Err(AMQPError::Protocol("Properties flags are not correct".to_owned())),
+                Some(flag) if flag => {
+                    Some({
+                        let size = try!(reader.read_u8()) as usize;
+                        let mut buffer: Vec<u8> = vec![0u8; size];
+                        try!(reader.read(&mut buffer[..]));
+                        String::from_utf8_lossy(&buffer[..]).to_string()
+                    })
+                }
+                None => {
+                    return Err(AMQPError::Protocol("Properties flags are not correct".to_owned()))
+                }
                 _ => None,
             };
             let reply_to = match properties_flags.get(6) {
-                Some(flag) if flag => Some({
-                    let size = try!(reader.read_u8()) as usize;
-                    let mut buffer: Vec<u8> = vec![0u8; size];
-                    try!(reader.read(&mut buffer[..]));
-                    String::from_utf8_lossy(&buffer[..]).to_string()
-                }),
-                None =>
-                    return Err(AMQPError::Protocol("Properties flags are not correct".to_owned())),
+                Some(flag) if flag => {
+                    Some({
+                        let size = try!(reader.read_u8()) as usize;
+                        let mut buffer: Vec<u8> = vec![0u8; size];
+                        try!(reader.read(&mut buffer[..]));
+                        String::from_utf8_lossy(&buffer[..]).to_string()
+                    })
+                }
+                None => {
+                    return Err(AMQPError::Protocol("Properties flags are not correct".to_owned()))
+                }
                 _ => None,
             };
             let expiration = match properties_flags.get(7) {
-                Some(flag) if flag => Some({
-                    let size = try!(reader.read_u8()) as usize;
-                    let mut buffer: Vec<u8> = vec![0u8; size];
-                    try!(reader.read(&mut buffer[..]));
-                    String::from_utf8_lossy(&buffer[..]).to_string()
-                }),
-                None =>
-                    return Err(AMQPError::Protocol("Properties flags are not correct".to_owned())),
+                Some(flag) if flag => {
+                    Some({
+                        let size = try!(reader.read_u8()) as usize;
+                        let mut buffer: Vec<u8> = vec![0u8; size];
+                        try!(reader.read(&mut buffer[..]));
+                        String::from_utf8_lossy(&buffer[..]).to_string()
+                    })
+                }
+                None => {
+                    return Err(AMQPError::Protocol("Properties flags are not correct".to_owned()))
+                }
                 _ => None,
             };
             let message_id = match properties_flags.get(8) {
-                Some(flag) if flag => Some({
-                    let size = try!(reader.read_u8()) as usize;
-                    let mut buffer: Vec<u8> = vec![0u8; size];
-                    try!(reader.read(&mut buffer[..]));
-                    String::from_utf8_lossy(&buffer[..]).to_string()
-                }),
-                None =>
-                    return Err(AMQPError::Protocol("Properties flags are not correct".to_owned())),
+                Some(flag) if flag => {
+                    Some({
+                        let size = try!(reader.read_u8()) as usize;
+                        let mut buffer: Vec<u8> = vec![0u8; size];
+                        try!(reader.read(&mut buffer[..]));
+                        String::from_utf8_lossy(&buffer[..]).to_string()
+                    })
+                }
+                None => {
+                    return Err(AMQPError::Protocol("Properties flags are not correct".to_owned()))
+                }
                 _ => None,
             };
             let timestamp = match properties_flags.get(9) {
                 Some(flag) if flag => Some(try!(reader.read_u64::<BigEndian>())),
-                None =>
-                    return Err(AMQPError::Protocol("Properties flags are not correct".to_owned())),
+                None => {
+                    return Err(AMQPError::Protocol("Properties flags are not correct".to_owned()))
+                }
                 _ => None,
             };
             let _type = match properties_flags.get(10) {
-                Some(flag) if flag => Some({
-                    let size = try!(reader.read_u8()) as usize;
-                    let mut buffer: Vec<u8> = vec![0u8; size];
-                    try!(reader.read(&mut buffer[..]));
-                    String::from_utf8_lossy(&buffer[..]).to_string()
-                }),
-                None =>
-                    return Err(AMQPError::Protocol("Properties flags are not correct".to_owned())),
+                Some(flag) if flag => {
+                    Some({
+                        let size = try!(reader.read_u8()) as usize;
+                        let mut buffer: Vec<u8> = vec![0u8; size];
+                        try!(reader.read(&mut buffer[..]));
+                        String::from_utf8_lossy(&buffer[..]).to_string()
+                    })
+                }
+                None => {
+                    return Err(AMQPError::Protocol("Properties flags are not correct".to_owned()))
+                }
                 _ => None,
             };
             let user_id = match properties_flags.get(11) {
-                Some(flag) if flag => Some({
-                    let size = try!(reader.read_u8()) as usize;
-                    let mut buffer: Vec<u8> = vec![0u8; size];
-                    try!(reader.read(&mut buffer[..]));
-                    String::from_utf8_lossy(&buffer[..]).to_string()
-                }),
-                None =>
-                    return Err(AMQPError::Protocol("Properties flags are not correct".to_owned())),
+                Some(flag) if flag => {
+                    Some({
+                        let size = try!(reader.read_u8()) as usize;
+                        let mut buffer: Vec<u8> = vec![0u8; size];
+                        try!(reader.read(&mut buffer[..]));
+                        String::from_utf8_lossy(&buffer[..]).to_string()
+                    })
+                }
+                None => {
+                    return Err(AMQPError::Protocol("Properties flags are not correct".to_owned()))
+                }
                 _ => None,
             };
             let app_id = match properties_flags.get(12) {
-                Some(flag) if flag => Some({
-                    let size = try!(reader.read_u8()) as usize;
-                    let mut buffer: Vec<u8> = vec![0u8; size];
-                    try!(reader.read(&mut buffer[..]));
-                    String::from_utf8_lossy(&buffer[..]).to_string()
-                }),
-                None =>
-                    return Err(AMQPError::Protocol("Properties flags are not correct".to_owned())),
+                Some(flag) if flag => {
+                    Some({
+                        let size = try!(reader.read_u8()) as usize;
+                        let mut buffer: Vec<u8> = vec![0u8; size];
+                        try!(reader.read(&mut buffer[..]));
+                        String::from_utf8_lossy(&buffer[..]).to_string()
+                    })
+                }
+                None => {
+                    return Err(AMQPError::Protocol("Properties flags are not correct".to_owned()))
+                }
                 _ => None,
             };
             let cluster_id = match properties_flags.get(13) {
-                Some(flag) if flag => Some({
-                    let size = try!(reader.read_u8()) as usize;
-                    let mut buffer: Vec<u8> = vec![0u8; size];
-                    try!(reader.read(&mut buffer[..]));
-                    String::from_utf8_lossy(&buffer[..]).to_string()
-                }),
-                None =>
-                    return Err(AMQPError::Protocol("Properties flags are not correct".to_owned())),
+                Some(flag) if flag => {
+                    Some({
+                        let size = try!(reader.read_u8()) as usize;
+                        let mut buffer: Vec<u8> = vec![0u8; size];
+                        try!(reader.read(&mut buffer[..]));
+                        String::from_utf8_lossy(&buffer[..]).to_string()
+                    })
+                }
+                None => {
+                    return Err(AMQPError::Protocol("Properties flags are not correct".to_owned()))
+                }
                 _ => None,
             };
             Ok(BasicProperties {
@@ -2711,7 +2745,7 @@ pub mod basic {
                     try!(writer.write_all(content_type.as_bytes()));
                 }
                 None => {}
-            }
+            };
             match self.content_encoding {
                 Some(prop) => {
                     let content_encoding = prop;
@@ -2719,28 +2753,28 @@ pub mod basic {
                     try!(writer.write_all(content_encoding.as_bytes()));
                 }
                 None => {}
-            }
+            };
             match self.headers {
                 Some(prop) => {
                     let headers = prop;
                     try!(encode_table(&mut writer, &headers));
                 }
                 None => {}
-            }
+            };
             match self.delivery_mode {
                 Some(prop) => {
                     let delivery_mode = prop;
                     try!(writer.write_u8(delivery_mode));
                 }
                 None => {}
-            }
+            };
             match self.priority {
                 Some(prop) => {
                     let priority = prop;
                     try!(writer.write_u8(priority));
                 }
                 None => {}
-            }
+            };
             match self.correlation_id {
                 Some(prop) => {
                     let correlation_id = prop;
@@ -2748,7 +2782,7 @@ pub mod basic {
                     try!(writer.write_all(correlation_id.as_bytes()));
                 }
                 None => {}
-            }
+            };
             match self.reply_to {
                 Some(prop) => {
                     let reply_to = prop;
@@ -2756,7 +2790,7 @@ pub mod basic {
                     try!(writer.write_all(reply_to.as_bytes()));
                 }
                 None => {}
-            }
+            };
             match self.expiration {
                 Some(prop) => {
                     let expiration = prop;
@@ -2764,7 +2798,7 @@ pub mod basic {
                     try!(writer.write_all(expiration.as_bytes()));
                 }
                 None => {}
-            }
+            };
             match self.message_id {
                 Some(prop) => {
                     let message_id = prop;
@@ -2772,14 +2806,14 @@ pub mod basic {
                     try!(writer.write_all(message_id.as_bytes()));
                 }
                 None => {}
-            }
+            };
             match self.timestamp {
                 Some(prop) => {
                     let timestamp = prop;
                     try!(writer.write_u64::<BigEndian>(timestamp));
                 }
                 None => {}
-            }
+            };
             match self._type {
                 Some(prop) => {
                     let _type = prop;
@@ -2787,7 +2821,7 @@ pub mod basic {
                     try!(writer.write_all(_type.as_bytes()));
                 }
                 None => {}
-            }
+            };
             match self.user_id {
                 Some(prop) => {
                     let user_id = prop;
@@ -2795,7 +2829,7 @@ pub mod basic {
                     try!(writer.write_all(user_id.as_bytes()));
                 }
                 None => {}
-            }
+            };
             match self.app_id {
                 Some(prop) => {
                     let app_id = prop;
@@ -2803,7 +2837,7 @@ pub mod basic {
                     try!(writer.write_all(app_id.as_bytes()));
                 }
                 None => {}
-            }
+            };
             match self.cluster_id {
                 Some(prop) => {
                     let cluster_id = prop;
@@ -2811,7 +2845,7 @@ pub mod basic {
                     try!(writer.write_all(cluster_id.as_bytes()));
                 }
                 None => {}
-            }
+            };
             Ok(writer)
         }
 
@@ -2861,9 +2895,9 @@ pub mod basic {
             match (method_frame.class_id, method_frame.method_id) {
                 (60, 10) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             let reader = &mut &method_frame.arguments[..];
             let prefetch_size = try!(reader.read_u32::<BigEndian>());
             let prefetch_count = try!(reader.read_u16::<BigEndian>());
@@ -2922,9 +2956,9 @@ pub mod basic {
             match (method_frame.class_id, method_frame.method_id) {
                 (60, 11) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             Ok(QosOk)
         }
 
@@ -2964,9 +2998,9 @@ pub mod basic {
             match (method_frame.class_id, method_frame.method_id) {
                 (60, 20) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             let reader = &mut &method_frame.arguments[..];
             let ticket = try!(reader.read_u16::<BigEndian>());
             let queue = {
@@ -3038,8 +3072,8 @@ pub mod basic {
                                    -> Consume {
             Consume {
                 ticket: 0,
-                queue: "".to_string(),
-                consumer_tag: "".to_string(),
+                queue: "".to_owned(),
+                consumer_tag: "".to_owned(),
                 arguments: Table::new(),
                 no_local: no_local,
                 no_ack: no_ack,
@@ -3072,9 +3106,9 @@ pub mod basic {
             match (method_frame.class_id, method_frame.method_id) {
                 (60, 21) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             let reader = &mut &method_frame.arguments[..];
             let consumer_tag = {
                 let size = try!(reader.read_u8()) as usize;
@@ -3118,9 +3152,9 @@ pub mod basic {
             match (method_frame.class_id, method_frame.method_id) {
                 (60, 30) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             let reader = &mut &method_frame.arguments[..];
             let consumer_tag = {
                 let size = try!(reader.read_u8()) as usize;
@@ -3175,9 +3209,9 @@ pub mod basic {
             match (method_frame.class_id, method_frame.method_id) {
                 (60, 31) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             let reader = &mut &method_frame.arguments[..];
             let consumer_tag = {
                 let size = try!(reader.read_u8()) as usize;
@@ -3224,9 +3258,9 @@ pub mod basic {
             match (method_frame.class_id, method_frame.method_id) {
                 (60, 40) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             let reader = &mut &method_frame.arguments[..];
             let ticket = try!(reader.read_u16::<BigEndian>());
             let exchange = {
@@ -3279,8 +3313,8 @@ pub mod basic {
         pub fn with_default_values(mandatory: bool, immediate: bool) -> Publish {
             Publish {
                 ticket: 0,
-                exchange: "".to_string(),
-                routing_key: "".to_string(),
+                exchange: "".to_owned(),
+                routing_key: "".to_owned(),
                 mandatory: mandatory,
                 immediate: immediate,
             }
@@ -3313,9 +3347,9 @@ pub mod basic {
             match (method_frame.class_id, method_frame.method_id) {
                 (60, 50) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             let reader = &mut &method_frame.arguments[..];
             let reply_code = try!(reader.read_u16::<BigEndian>());
             let reply_text = {
@@ -3363,7 +3397,7 @@ pub mod basic {
                                    routing_key: String)
                                    -> Return {
             Return {
-                reply_text: "".to_string(),
+                reply_text: "".to_owned(),
                 reply_code: reply_code,
                 exchange: exchange,
                 routing_key: routing_key,
@@ -3398,9 +3432,9 @@ pub mod basic {
             match (method_frame.class_id, method_frame.method_id) {
                 (60, 60) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             let reader = &mut &method_frame.arguments[..];
             let consumer_tag = {
                 let size = try!(reader.read_u8()) as usize;
@@ -3478,9 +3512,9 @@ pub mod basic {
             match (method_frame.class_id, method_frame.method_id) {
                 (60, 70) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             let reader = &mut &method_frame.arguments[..];
             let ticket = try!(reader.read_u16::<BigEndian>());
             let queue = {
@@ -3518,7 +3552,7 @@ pub mod basic {
         pub fn with_default_values(no_ack: bool) -> Get {
             Get {
                 ticket: 0,
-                queue: "".to_string(),
+                queue: "".to_owned(),
                 no_ack: no_ack,
             }
         }
@@ -3551,9 +3585,9 @@ pub mod basic {
             match (method_frame.class_id, method_frame.method_id) {
                 (60, 71) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             let reader = &mut &method_frame.arguments[..];
             let delivery_tag = try!(reader.read_u64::<BigEndian>());
             let byte = try!(reader.read_u8());
@@ -3623,9 +3657,9 @@ pub mod basic {
             match (method_frame.class_id, method_frame.method_id) {
                 (60, 72) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             let reader = &mut &method_frame.arguments[..];
             let cluster_id = {
                 let size = try!(reader.read_u8()) as usize;
@@ -3646,7 +3680,7 @@ pub mod basic {
 
     impl GetEmpty {
         pub fn with_default_values() -> GetEmpty {
-            GetEmpty { cluster_id: "".to_string() }
+            GetEmpty { cluster_id: "".to_owned() }
         }
     }
 
@@ -3674,9 +3708,9 @@ pub mod basic {
             match (method_frame.class_id, method_frame.method_id) {
                 (60, 80) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             let reader = &mut &method_frame.arguments[..];
             let delivery_tag = try!(reader.read_u64::<BigEndian>());
             let byte = try!(reader.read_u8());
@@ -3734,9 +3768,9 @@ pub mod basic {
             match (method_frame.class_id, method_frame.method_id) {
                 (60, 90) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             let reader = &mut &method_frame.arguments[..];
             let delivery_tag = try!(reader.read_u64::<BigEndian>());
             let byte = try!(reader.read_u8());
@@ -3793,9 +3827,9 @@ pub mod basic {
             match (method_frame.class_id, method_frame.method_id) {
                 (60, 100) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             let reader = &mut &method_frame.arguments[..];
             let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
@@ -3839,9 +3873,9 @@ pub mod basic {
             match (method_frame.class_id, method_frame.method_id) {
                 (60, 110) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             let reader = &mut &method_frame.arguments[..];
             let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
@@ -3883,9 +3917,9 @@ pub mod basic {
             match (method_frame.class_id, method_frame.method_id) {
                 (60, 111) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             Ok(RecoverOk)
         }
 
@@ -3920,9 +3954,9 @@ pub mod basic {
             match (method_frame.class_id, method_frame.method_id) {
                 (60, 120) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             let reader = &mut &method_frame.arguments[..];
             let delivery_tag = try!(reader.read_u64::<BigEndian>());
             let byte = try!(reader.read_u8());
@@ -4000,9 +4034,9 @@ pub mod tx {
             match (method_frame.class_id, method_frame.method_id) {
                 (90, 10) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             Ok(Select)
         }
 
@@ -4033,9 +4067,9 @@ pub mod tx {
             match (method_frame.class_id, method_frame.method_id) {
                 (90, 11) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             Ok(SelectOk)
         }
 
@@ -4066,9 +4100,9 @@ pub mod tx {
             match (method_frame.class_id, method_frame.method_id) {
                 (90, 20) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             Ok(Commit)
         }
 
@@ -4099,9 +4133,9 @@ pub mod tx {
             match (method_frame.class_id, method_frame.method_id) {
                 (90, 21) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             Ok(CommitOk)
         }
 
@@ -4132,9 +4166,9 @@ pub mod tx {
             match (method_frame.class_id, method_frame.method_id) {
                 (90, 30) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             Ok(Rollback)
         }
 
@@ -4165,9 +4199,9 @@ pub mod tx {
             match (method_frame.class_id, method_frame.method_id) {
                 (90, 31) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             Ok(RollbackOk)
         }
 
@@ -4216,9 +4250,9 @@ pub mod confirm {
             match (method_frame.class_id, method_frame.method_id) {
                 (85, 10) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             let reader = &mut &method_frame.arguments[..];
             let byte = try!(reader.read_u8());
             let bits = BitVec::from_bytes(&[byte]);
@@ -4260,9 +4294,9 @@ pub mod confirm {
             match (method_frame.class_id, method_frame.method_id) {
                 (85, 11) => {}
                 (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"));
+                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
                 }
-            }
+            };
             Ok(SelectOk)
         }
 

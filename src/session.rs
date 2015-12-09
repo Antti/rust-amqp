@@ -110,8 +110,7 @@ impl Session {
             default.port
         };
         let vhost = url.serialize_path()
-                       .map(clean_vhost)
-                       .unwrap_or(String::from(default.vhost.to_owned()));
+                       .map_or(String::from(default.vhost.to_owned()), clean_vhost);
         let host = url.domain().unwrap_or(default.host);
         let port = url.port().unwrap_or(default_port);
         let login = url.username()
@@ -122,7 +121,7 @@ impl Session {
                            }
                        })
                        .unwrap_or(String::from(default.login));
-        let password = url.password().map(|p| decode(p)).unwrap_or(String::from(default.password));
+        let password = url.password().map_or(String::from(default.password), decode);
         let opts = Options {
             host: host,
             port: port,
@@ -186,25 +185,25 @@ impl Session {
 
         let mut client_properties = Table::new();
         let mut capabilities = Table::new();
-        capabilities.insert("publisher_confirms".to_string(), Bool(true));
-        capabilities.insert("consumer_cancel_notify".to_string(), Bool(true));
-        capabilities.insert("exchange_exchange_bindings".to_string(), Bool(true));
-        capabilities.insert("basic.nack".to_string(), Bool(true));
-        capabilities.insert("connection.blocked".to_string(), Bool(true));
-        capabilities.insert("authentication_failure_close".to_string(), Bool(true));
-        client_properties.insert("capabilities".to_string(), FieldTable(capabilities));
-        client_properties.insert("product".to_string(), LongString("rust-amqp".to_string()));
-        client_properties.insert("platform".to_string(), LongString("rust".to_string()));
-        client_properties.insert("version".to_string(), LongString(VERSION.to_string()));
-        client_properties.insert("information".to_string(),
-                                 LongString("https://github.com/Antti/rust-amqp".to_string()));
+        capabilities.insert("publisher_confirms".to_owned(), Bool(true));
+        capabilities.insert("consumer_cancel_notify".to_owned(), Bool(true));
+        capabilities.insert("exchange_exchange_bindings".to_owned(), Bool(true));
+        capabilities.insert("basic.nack".to_owned(), Bool(true));
+        capabilities.insert("connection.blocked".to_owned(), Bool(true));
+        capabilities.insert("authentication_failure_close".to_owned(), Bool(true));
+        client_properties.insert("capabilities".to_owned(), FieldTable(capabilities));
+        client_properties.insert("product".to_owned(), LongString("rust-amqp".to_owned()));
+        client_properties.insert("platform".to_owned(), LongString("rust".to_owned()));
+        client_properties.insert("version".to_owned(), LongString(VERSION.to_owned()));
+        client_properties.insert("information".to_owned(),
+                                 LongString("https://github.com/Antti/rust-amqp".to_owned()));
 
         debug!("Sending connection.start-ok");
         let start_ok = protocol::connection::StartOk {
             client_properties: client_properties,
-            mechanism: "PLAIN".to_string(),
+            mechanism: "PLAIN".to_owned(),
             response: format!("\0{}\0{}", options.login, options.password),
-            locale: options.locale.to_string(),
+            locale: options.locale.to_owned(),
         };
         let response = try!(self.channel_zero.raw_rpc(&start_ok));
         let tune: protocol::connection::Tune = match response.method_name() {
@@ -233,8 +232,8 @@ impl Session {
         try!(self.channel_zero.send_method_frame(&tune_ok));
 
         let open = protocol::connection::Open {
-            virtual_host: options.vhost.to_string(),
-            capabilities: "".to_string(),
+            virtual_host: options.vhost.to_owned(),
+            capabilities: "".to_owned(),
             insist: false,
         };
         debug!("Sending connection.open: {:?}", open);
@@ -333,8 +332,8 @@ fn get_connection(options: &Options) -> AMQPResult<Connection> {
     match options.scheme {
         #[cfg(feature = "tls")]
         AMQPScheme::AMQPS =>
-            Connection::open_tls(options.host, options.port).map_err(|e| From::from(e)),
-        AMQPScheme::AMQP => Connection::open(options.host, options.port).map_err(|e| From::from(e)),
+            Connection::open_tls(options.host, options.port).map_err(From::from),
+        AMQPScheme::AMQP => Connection::open(options.host, options.port).map_err(From::from),
     }
 }
 fn negotiate<T: cmp::Ord>(their_value: T, our_value: T) -> T {

@@ -23,7 +23,10 @@ pub trait Consumer : Send {
                        body: Vec<u8>);
 }
 
-pub type ConsumerCallBackFn = fn(channel: &mut Channel, method: basic::Deliver, headers: BasicProperties, body: Vec<u8>);
+pub type ConsumerCallBackFn = fn(channel: &mut Channel,
+                                 method: basic::Deliver,
+                                 headers: BasicProperties,
+                                 body: Vec<u8>);
 
 impl Consumer for ConsumerCallBackFn {
     fn handle_delivery(&mut self,
@@ -111,10 +114,11 @@ impl Channel {
         let method_frame = try!(self.raw_rpc(method));
         match method_frame.method_name() {
             m_name if m_name == expected_reply => protocol::Method::decode(method_frame),
-            m_name =>
+            m_name => {
                 Err(AMQPError::Protocol(format!("Unexpected method frame: {}, expected: {}",
                                                 m_name,
-                                                expected_reply))),
+                                                expected_reply)))
+            }
         }
     }
 
@@ -270,9 +274,7 @@ impl Channel {
                     // connection:blocked
                     // connection:unblocked
                     // TODO: Handle other methods as well (basic.ack, basic.nack)
-                    _ => {
-                        Ok(Some(frame))
-                    }
+                    _ => Ok(Some(frame)),
                 }
             }
             _ => {
@@ -284,8 +286,7 @@ impl Channel {
 }
 
 
-impl <'a> Basic<'a> for Channel {
-
+impl<'a> Basic<'a> for Channel {
     /// Returns a basic iterator.
     /// # Example
     /// ```no_run

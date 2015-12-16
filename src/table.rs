@@ -50,8 +50,9 @@ fn read_table_entry(reader: &mut &[u8]) -> AMQPResult<TableEntry> {
         b'l' => TableEntry::LongLongUint(try!(reader.read_u64::<BigEndian>())),
         b'f' => TableEntry::Float(try!(reader.read_f32::<BigEndian>())),
         b'd' => TableEntry::Double(try!(reader.read_f64::<BigEndian>())),
-        b'D' =>
-            TableEntry::DecimalValue(try!(reader.read_u8()), try!(reader.read_u32::<BigEndian>())),
+        b'D' => {
+            TableEntry::DecimalValue(try!(reader.read_u8()), try!(reader.read_u32::<BigEndian>()))
+        }
         // b's' => {
         //  let size = try!(reader.read_u8()) as usize;
         // let str =
@@ -165,9 +166,7 @@ fn write_table_entry(writer: &mut Vec<u8>, table_entry: &TableEntry) -> AMQPResu
             try!(writer.write_u8(b'F'));
             try!(encode_table(writer, table));
         }
-        TableEntry::Void => {
-            try!(writer.write_u8(b'V'))
-        }
+        TableEntry::Void => try!(writer.write_u8(b'V')),
     }
     Ok(())
 }

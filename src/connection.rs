@@ -22,15 +22,19 @@ pub struct Connection {
 impl Clone for Connection {
     fn clone(&self) -> Connection {
         match self.socket {
-            AMQPStream::Cleartext(ref stream) => Connection {
-                socket: AMQPStream::Cleartext(stream.try_clone().unwrap()),
-                frame_max_limit: self.frame_max_limit,
-            },
+            AMQPStream::Cleartext(ref stream) => {
+                Connection {
+                    socket: AMQPStream::Cleartext(stream.try_clone().unwrap()),
+                    frame_max_limit: self.frame_max_limit,
+                }
+            }
             #[cfg(feature = "tls")]
-            AMQPStream::Tls(ref stream) => Connection {
-                socket: AMQPStream::Tls(stream.try_clone().unwrap()),
-                frame_max_limit: self.frame_max_limit,
-            },
+            AMQPStream::Tls(ref stream) => {
+                Connection {
+                    socket: AMQPStream::Tls(stream.try_clone().unwrap()),
+                    frame_max_limit: self.frame_max_limit,
+                }
+            }
         }
     }
 }
@@ -88,13 +92,13 @@ impl Connection {
 
     fn write_frame(&mut self, frame: Frame) -> AMQPResult<()> {
         match self.socket {
-            AMQPStream::Cleartext(ref mut stream) =>
-                Ok(try!(stream.write_all(&try!(frame.encode())))),
+            AMQPStream::Cleartext(ref mut stream) => {
+                Ok(try!(stream.write_all(&try!(frame.encode()))))
+            }
             #[cfg(feature = "tls")]
             AMQPStream::Tls(ref mut stream) => Ok(try!(stream.write_all(&try!(frame.encode())))),
         }
     }
-
 }
 
 fn init_connection<T>(stream: &mut T) -> AMQPResult<()>

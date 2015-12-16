@@ -62,7 +62,7 @@ pub struct GetResult {
     ack_sender: SyncSender<AckAction>,
 }
 
-impl <'a> Iterator for GetIterator<'a > {
+impl<'a> Iterator for GetIterator<'a> {
     type Item = GetResult;
 
     #[allow(unused_must_use)]
@@ -105,14 +105,14 @@ impl <'a> Iterator for GetIterator<'a > {
 
 /// Will acknowledge
 
-impl <'a> Drop for GetIterator <'a> {
+impl<'a> Drop for GetIterator<'a> {
     #[allow(unused_must_use)]
     fn drop(&mut self) {
         self.ack_message();
     }
 }
 
-impl <'a> GetIterator <'a> {
+impl<'a> GetIterator<'a> {
     pub fn new(channel: &'a mut Channel, queue: &'a str, no_ack: bool) -> Self {
         let (tx, rx) = sync_channel::<AckAction>(1);
         GetIterator {
@@ -125,13 +125,19 @@ impl <'a> GetIterator <'a> {
     }
     fn ack_message(&mut self) -> AMQPResult<()> {
         match self.ack_receiver.try_recv() {
-            Ok(ack_action) => match ack_action {
-                AckAction::Ack(delivery_tag) => try!(self.channel.basic_ack(delivery_tag, false)),
-                AckAction::Nack(delivery_tag, requeue) =>
-                    try!(self.channel.basic_nack(delivery_tag, false, requeue)),
-                AckAction::Reject(delivery_tag, requeue) =>
-                    try!(self.channel.basic_reject(delivery_tag, requeue)),
-            },
+            Ok(ack_action) => {
+                match ack_action {
+                    AckAction::Ack(delivery_tag) => {
+                        try!(self.channel.basic_ack(delivery_tag, false))
+                    }
+                    AckAction::Nack(delivery_tag, requeue) => {
+                        try!(self.channel.basic_nack(delivery_tag, false, requeue))
+                    }
+                    AckAction::Reject(delivery_tag, requeue) => {
+                        try!(self.channel.basic_reject(delivery_tag, requeue))
+                    }
+                }
+            }
             Err(_) => return Err(AMQPError::QueueEmpty),
         }
         Ok(())

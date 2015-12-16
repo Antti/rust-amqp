@@ -1,4 +1,3 @@
-//!
 //! #rust-amqp
 //! [![Build Status](https://travis-ci.org/Antti/rust-amqp.svg)](https:
 //! //travis-ci.org/Antti/rust-amqp)

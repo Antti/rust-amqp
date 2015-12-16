@@ -41,7 +41,7 @@ pub struct Options<'a> {
     pub scheme: AMQPScheme,
 }
 
-impl <'a>  Default for Options <'a>  {
+impl<'a> Default for Options<'a> {
     fn default() -> Options<'a> {
         Options {
             host: "127.0.0.1",
@@ -71,7 +71,8 @@ impl Session {
     /// * `url_string`: The format is: `amqp://username:password@host:port/virtual_host`
     ///
     /// Most of the params have their default, so you can just pass this:
-    /// `"amqp://localhost//"` and it will connect to rabbitmq server, running on `localhost` on port `5672`,
+    /// `"amqp://localhost//"` and it will connect to rabbitmq server,
+    /// running on `localhost` on port `5672`,
     /// with login `"guest"`, password: `"guest"` to vhost `"/"`
     pub fn open_url(url_string: &str) -> AMQPResult<Session> {
         fn decode(string: &str) -> String {
@@ -101,8 +102,9 @@ impl Session {
             "amqp" => AMQPScheme::AMQP,
             #[cfg(feature = "tls")]
             "amqps" => AMQPScheme::AMQPS,
-            unknown_scheme =>
-                return Err(AMQPError::SchemeError(format!("Unknown scheme: {:?}", unknown_scheme))),
+            unknown_scheme => {
+                return Err(AMQPError::SchemeError(format!("Unknown scheme: {:?}", unknown_scheme)))
+            }
         };
         let default_port = if url.scheme == "amqps" {
             AMQPS_PORT
@@ -214,8 +216,9 @@ impl Session {
                 return Err(AMQPError::Protocol(format!("Connection was closed: {:?}",
                                                        close_frame)));
             }
-            response_method =>
-                return Err(AMQPError::Protocol(format!("Unexpected response: {}", response_method))),
+            response_method => {
+                return Err(AMQPError::Protocol(format!("Unexpected response: {}", response_method)))
+            }
         };
         debug!("Received tune request: {:?}", tune);
 
@@ -303,9 +306,11 @@ impl Session {
                     let chan_id = frame.channel;
                     let target = chans.get(&chan_id);
                     let dispatch = match target {
-                        Some(target_channel) => target_channel.send(Ok(frame)).map_err(|_| {
-                            format!("Error dispatching packet to channel {}", chan_id)
-                        }),
+                        Some(target_channel) => {
+                            target_channel.send(Ok(frame)).map_err(|_| {
+                                format!("Error dispatching packet to channel {}", chan_id)
+                            })
+                        }
                         None => Err(format!("Received frame for an unknown channel: {}", chan_id)),
                     };
                     dispatch.map_err(|e| error!("{}", e)).ok();
@@ -325,14 +330,12 @@ impl Session {
         }
         debug!("Exiting reading loop");
     }
-
 }
 
 fn get_connection(options: &Options) -> AMQPResult<Connection> {
     match options.scheme {
         #[cfg(feature = "tls")]
-        AMQPScheme::AMQPS =>
-            Connection::open_tls(options.host, options.port).map_err(From::from),
+        AMQPScheme::AMQPS => Connection::open_tls(options.host, options.port).map_err(From::from),
         AMQPScheme::AMQP => Connection::open(options.host, options.port).map_err(From::from),
     }
 }

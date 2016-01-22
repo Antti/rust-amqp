@@ -4,6 +4,13 @@ machine:
     - chmod +x ./rustup.sh
     - ./rustup.sh --yes
     - sudo apt-get install openssl
+    - git clone --bare https://github.com/rust-lang/crates.io-index.git
+    - mkdir ${HOME}/.cargo
+    - |
+      cat >> ${HOME}/.cargo/config <<EOF
+      [registry]
+      index = "file://${HOME}/crates.io-index.git"
+      EOF
   environment:
     FOO: BAR
 

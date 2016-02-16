@@ -38,6 +38,16 @@ impl Consumer for ConsumerCallBackFn {
     }
 }
 
+impl <T> Consumer for Box<T> where T: FnMut(&mut Channel, basic::Deliver, BasicProperties, Vec<u8>) + Send {
+   fn handle_delivery(&mut self,
+                      channel: &mut Channel,
+                      method: basic::Deliver,
+                      headers: BasicProperties,
+                      body: Vec<u8>) {
+       self(channel, method, headers, body);
+   }
+}
+
 pub struct Channel {
     pub id: u16,
     consumers: Rc<RefCell<HashMap<String, Box<Consumer>>>>,

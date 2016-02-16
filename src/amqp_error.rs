@@ -5,8 +5,6 @@ use url;
 
 #[cfg(feature = "tls")]
 use openssl;
-#[cfg(feature = "tls")]
-use std::error::Error;
 
 #[derive(Debug, Clone)]
 pub enum AMQPError {

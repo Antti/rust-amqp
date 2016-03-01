@@ -83,7 +83,7 @@ impl Session {
             if &string.chars().next() == &Some('/') {
                 String::from(decode(&string[1..]))
             } else {
-                String::from(decode(&string[..]))
+                String::from(decode(&string))
             }
         }
 

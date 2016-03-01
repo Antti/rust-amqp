@@ -248,7 +248,7 @@ impl Session {
                 info!("Session initialized");
                 Ok(())
             }
-            Err(AMQPError::FramingError) => Err(AMQPError::VHostError),
+            Err(AMQPError::FramingError(_)) => Err(AMQPError::VHostError),
             Err(other_error) => Err(other_error),
         }
     }

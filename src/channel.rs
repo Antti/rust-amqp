@@ -26,7 +26,8 @@ pub trait Consumer : Send {
 pub type ConsumerCallBackFn = fn(channel: &mut Channel,
                                  method: basic::Deliver,
                                  headers: BasicProperties,
-                                 body: Vec<u8>);
+                                 body: Vec<u8>)
+                                ;
 
 impl Consumer for ConsumerCallBackFn {
     fn handle_delivery(&mut self,
@@ -38,14 +39,16 @@ impl Consumer for ConsumerCallBackFn {
     }
 }
 
-impl <T> Consumer for Box<T> where T: FnMut(&mut Channel, basic::Deliver, BasicProperties, Vec<u8>) + Send {
-   fn handle_delivery(&mut self,
-                      channel: &mut Channel,
-                      method: basic::Deliver,
-                      headers: BasicProperties,
-                      body: Vec<u8>) {
-       self(channel, method, headers, body);
-   }
+impl<T> Consumer for Box<T>
+    where T: FnMut(&mut Channel, basic::Deliver, BasicProperties, Vec<u8>) + Send
+{
+    fn handle_delivery(&mut self,
+                       channel: &mut Channel,
+                       method: basic::Deliver,
+                       headers: BasicProperties,
+                       body: Vec<u8>) {
+        self(channel, method, headers, body);
+    }
 }
 
 pub struct Channel {
@@ -117,9 +120,9 @@ impl Channel {
 
     // Send method frame, receive method frame, try to return expected method frame
     // or return error.
-    pub fn rpc<T, U>(&mut self, method: &U, expected_reply: &str) -> AMQPResult<T>
-        where T: protocol::Method,
-              U: protocol::Method
+    pub fn rpc<I, O>(&mut self, method: &I, expected_reply: &str) -> AMQPResult<O>
+        where I: protocol::Method,
+              O: protocol::Method
     {
         let method_frame = try!(self.raw_rpc(method));
         match method_frame.method_name() {

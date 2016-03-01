@@ -16,7 +16,8 @@ pub enum AMQPError {
     ByteOrderError,
     QueueEmpty,
     SyncError,
-    FramingError(String)
+    FramingError(String),
+    VHostError,
 }
 
 impl fmt::Display for AMQPError {
@@ -36,7 +37,8 @@ impl error::Error for AMQPError {
             AMQPError::ByteOrderError => "ByteOrderError",
             AMQPError::QueueEmpty => "Queue is empty",
             AMQPError::SyncError => "Synchronisation error",
-            AMQPError::FramingError(ref err) => err
+            AMQPError::FramingError(ref err) => err,
+            AMQPError::VHostError => "Access to vhost is denied for a current user",
         }
     }
 }

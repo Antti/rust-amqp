@@ -240,11 +240,17 @@ impl Session {
             insist: false,
         };
         debug!("Sending connection.open: {:?}", open);
-        let _: protocol::connection::OpenOk = try!(self.channel_zero
-                                                       .rpc(&open, "connection.open-ok"));
-        debug!("Connection initialized. conneciton.open-ok recieved");
-        info!("Session initialized");
-        Ok(())
+        let open_ok = self.channel_zero
+                          .rpc::<_, protocol::connection::OpenOk>(&open, "connection.open-ok");
+        match open_ok {
+            Ok(open_ok) => {
+                debug!("Connection initialized. conneciton.open-ok recieved");
+                info!("Session initialized");
+                Ok(())
+            }
+            Err(AMQPError::FramingError) => Err(AMQPError::VHostError),
+            Err(other_error) => Err(other_error),
+        }
     }
 
     /// `open_channel` will open a new amqp channel:

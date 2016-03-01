@@ -27,7 +27,9 @@ impl Frame {
         let mut header = [0u8; 7];
         let read_len = try!(reader.read(&mut header));
         if read_len != 7 {
-            return Err(AMQPError::FramingError(format!("Error reading frame header. Expected to read 7 bytes, but read {}", read_len)));
+            return Err(AMQPError::FramingError(format!("Error reading frame header. Expected \
+                                                        to read 7 bytes, but read {}",
+                                                       read_len)));
         }
         // Make a &mut to &[u8]. &mut &[u8] implements `Read` trait.
         // `Read` works by changing a mutable reference to immutable slice,
@@ -40,7 +42,10 @@ impl Frame {
         let mut payload: Vec<u8> = vec![0u8; size];
         let read_len = try!(reader.read(&mut payload));
         if read_len != size {
-            return Err(AMQPError::FramingError(format!("Error reading frame body. Expected to read {} bytes, but read {}", size, read_len)));
+            return Err(AMQPError::FramingError(format!("Error reading frame body. Expected to \
+                                                        read {} bytes, but read {}",
+                                                       size,
+                                                       read_len)));
         }
         let frame_end = try!(reader.read_u8());
         if frame_end != 0xCE {

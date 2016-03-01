@@ -16,6 +16,7 @@ pub enum AMQPError {
     ByteOrderError,
     QueueEmpty,
     SyncError,
+    FramingError(String)
 }
 
 impl fmt::Display for AMQPError {
@@ -25,16 +26,17 @@ impl fmt::Display for AMQPError {
 }
 
 impl error::Error for AMQPError {
-    fn description(&self) -> &str {
+    fn description<'a>(&'a self) -> &'a str {
         match *self {
             AMQPError::IoError(_) => "IoError",
-            AMQPError::DecodeError(_) => "Protocol decoding error",
-            AMQPError::Protocol(_) => "Protocol level error",
-            AMQPError::SchemeError(_) => "Invalid scheme",
+            AMQPError::DecodeError(err) => err,
+            AMQPError::Protocol(ref err) => err,
+            AMQPError::SchemeError(ref err) => err,
             AMQPError::UrlParseError(_) => "URL parsing error",
             AMQPError::ByteOrderError => "ByteOrderError",
             AMQPError::QueueEmpty => "Queue is empty",
             AMQPError::SyncError => "Synchronisation error",
+            AMQPError::FramingError(ref err) => err
         }
     }
 }

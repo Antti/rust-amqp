@@ -243,7 +243,7 @@ impl Session {
         let open_ok = self.channel_zero
                           .rpc::<_, protocol::connection::OpenOk>(&open, "connection.open-ok");
         match open_ok {
-            Ok(open_ok) => {
+            Ok(_) => {
                 debug!("Connection initialized. conneciton.open-ok recieved");
                 info!("Session initialized");
                 Ok(())

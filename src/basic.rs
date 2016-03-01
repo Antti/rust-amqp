@@ -41,7 +41,8 @@ pub trait Basic <'a> {
                         immediate: bool,
                         properties: BasicProperties,
                         content: Vec<u8>)
-                        -> AMQPResult<()> where S: Into<String>;
+                        -> AMQPResult<()>
+        where S: Into<String>;
     fn basic_ack(&mut self, delivery_tag: u64, multiple: bool) -> AMQPResult<()>;
     fn basic_nack(&mut self, delivery_tag: u64, multiple: bool, requeue: bool) -> AMQPResult<()>;
     fn basic_reject(&mut self, delivery_tag: u64, requeue: bool) -> AMQPResult<()>;

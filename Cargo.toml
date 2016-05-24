@@ -25,9 +25,11 @@ enum_primitive = "0.1"
 env_logger = "0.3"
 log = "0.3"
 url = "0.2"
-clippy = {version = "0.0.41", optional = true}
 
 [dependencies.openssl]
 version = "0.7.*"
 optional = true
 features = ["tlsv1_1", "tlsv1_2"]
+
+[dev-dependencies]
+# clippy  = "*"

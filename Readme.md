@@ -84,6 +84,20 @@ They can be run directly from cargo:
 cargo run --example interactive
 ```
 
+## OpenSSL
+
+On MacOS X If you have problems with OpenSSL during complication, regarding missing headers or linkage, try:
+
+```
+export OPENSSL_INCLUDE_DIR=/usr/local/opt/openssl/include
+export OPENSSL_LIB_DIR=/usr/local/opt/openssl/lib
+export DEP_OPENSSL_INCLUDE=/usr/local/opt/openssl/include
+export DEP_OPENSSL_LIB=/usr/local/opt/openssl/lib
+
+cargo clean
+cargo test
+```
+
 ## License
 
 Licensed under either of

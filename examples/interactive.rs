@@ -26,7 +26,7 @@ fn main() {
     println!("Sending data...\n");
     channel.basic_publish("", queue_name, true, false,
         protocol::basic::BasicProperties{ content_type: Some("text".to_string()), ..Default::default()},
-        input_data.trim_right().to_string().into_bytes());
+        input_data.trim_right().to_string().into_bytes()).unwrap();
 
      for get_result in channel.basic_get(queue_name, false) {
         println!("Received: {:?}", String::from_utf8_lossy(&get_result.body));

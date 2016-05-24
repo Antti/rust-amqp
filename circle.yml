@@ -3,7 +3,7 @@ machine:
     - curl -sS https://static.rust-lang.org/rustup.sh > rustup.sh
     - chmod +x ./rustup.sh
     - ./rustup.sh --yes
-    - sudo apt-get install openssl
+    - sudo apt-get update; sudo apt-get install openssl
     - git clone --bare https://github.com/rust-lang/crates.io-index.git
     - mkdir ${HOME}/.cargo
     - |

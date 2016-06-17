@@ -20,7 +20,7 @@ pub struct GetIterator<'a> {
     ack_sender: SyncSender<AckAction>,
 }
 
-pub trait Basic <'a> {
+pub trait Basic<'a> {
     fn basic_get(&'a mut self, queue: &'a str, no_ack: bool) -> GetIterator<'a>;
     fn basic_consume<T, S>(&mut self,
                            callback: T,

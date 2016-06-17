@@ -69,7 +69,7 @@ impl Connection {
                 // bytes extra)
                 for content_frame in split_content_into_frames(frame.payload,
                                                                self.frame_max_limit)
-                                         .into_iter() {
+                    .into_iter() {
                     try!(self.write_frame(Frame {
                         frame_type: frame.frame_type,
                         channel: frame.channel,

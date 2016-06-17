@@ -112,17 +112,17 @@ impl Session {
             default.port
         };
         let vhost = url.serialize_path()
-                       .map_or(String::from(default.vhost.to_owned()), clean_vhost);
+            .map_or(String::from(default.vhost.to_owned()), clean_vhost);
         let host = url.domain().unwrap_or(default.host);
         let port = url.port().unwrap_or(default_port);
         let login = url.username()
-                       .and_then(|u| {
-                           match u {
-                               "" => None,
-                               _ => Some(decode(u)),
-                           }
-                       })
-                       .unwrap_or(String::from(default.login));
+            .and_then(|u| {
+                match u {
+                    "" => None,
+                    _ => Some(decode(u)),
+                }
+            })
+            .unwrap_or(String::from(default.login));
         let password = url.password().map_or(String::from(default.password), decode);
         let opts = Options {
             host: host,
@@ -241,7 +241,7 @@ impl Session {
         };
         debug!("Sending connection.open: {:?}", open);
         let open_ok = self.channel_zero
-                          .rpc::<_, protocol::connection::OpenOk>(&open, "connection.open-ok");
+            .rpc::<_, protocol::connection::OpenOk>(&open, "connection.open-ok");
         match open_ok {
             Ok(_) => {
                 debug!("Connection initialized. conneciton.open-ok recieved");
@@ -291,9 +291,9 @@ impl Session {
             method_id: 0,
         };
         let _: protocol::connection::CloseOk = self.channel_zero
-                                                   .rpc(&close, "connection.close-ok")
-                                                   .ok()
-                                                   .unwrap();
+            .rpc(&close, "connection.close-ok")
+            .ok()
+            .unwrap();
     }
 
     // Receives and dispatches frames from the connection to the corresponding

@@ -6,7 +6,7 @@ use amqp_error::{AMQPError, AMQPResult};
 use std::io::{Read, Write};
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 
-pub trait Method : Sized {
+pub trait Method: Sized {
     fn decode(method_frame: MethodFrame) -> AMQPResult<Self>;
     fn encode(&self) -> AMQPResult<Vec<u8>>;
     fn name(&self) -> &'static str;

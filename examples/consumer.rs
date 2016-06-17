@@ -1,7 +1,7 @@
 extern crate amqp;
 extern crate env_logger;
 
-use amqp::{Session, Options, Table, Basic, protocol, Channel, ConsumerCallBackFn, Consumer};
+use amqp::{Session, Options, Table, Basic, protocol, Channel, ConsumerCallBackFn};
 use amqp::protocol::basic;
 use std::default::Default;
 
@@ -11,7 +11,7 @@ fn consumer_function(channel: &mut Channel, deliver: protocol::basic::Deliver, h
     println!("[function] Content headers: {:?}", headers);
     println!("[function] Content body: {:?}", body);
     println!("[function] Content body(as string): {:?}", String::from_utf8(body));
-    channel.basic_ack(deliver.delivery_tag, false);
+    channel.basic_ack(deliver.delivery_tag, false).unwrap();
 }
 
 struct MyConsumer {
@@ -27,7 +27,7 @@ impl amqp::Consumer for MyConsumer {
         println!("[struct] Content body(as string): {:?}", String::from_utf8(body));
         // DO SOME JOB:
         self.deliveries_number += 1;
-        channel.basic_ack(deliver.delivery_tag, false);
+        channel.basic_ack(deliver.delivery_tag, false).unwrap();
     }
 }
 
@@ -54,7 +54,7 @@ fn main() {
     println!("Starting consumer {:?}", consumer_name);
 
     let mut delivery_log = vec![];
-    let closureConsumer = Box::new(move |chan: &mut Channel, deliver: basic::Deliver, headers: basic::BasicProperties, data: Vec<u8>|
+    let closure_consumer = Box::new(move |_chan: &mut Channel, deliver: basic::Deliver, headers: basic::BasicProperties, data: Vec<u8>|
         {
             println!("[closure] Deliver info: {:?}", deliver);
             println!("[closure] Content headers: {:?}", headers);
@@ -62,11 +62,11 @@ fn main() {
             delivery_log.push(deliver);
         }
     );
-    let consumer_name = channel.basic_consume(closureConsumer, queue_name, "", false, false, false, false, Table::new());
+    let consumer_name = channel.basic_consume(closure_consumer, queue_name, "", false, false, false, false, Table::new());
     println!("Starting consumer {:?}", consumer_name);
 
     channel.start_consuming();
 
-    channel.close(200, "Bye");
+    channel.close(200, "Bye").unwrap();
     session.close(200, "Good Bye");
 }

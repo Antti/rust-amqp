@@ -15,7 +15,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use protocol::Method;
 
-pub trait Consumer : Send {
+pub trait Consumer: Send {
     fn handle_delivery(&mut self,
                        channel: &mut Channel,
                        method: basic::Deliver,
@@ -26,8 +26,7 @@ pub trait Consumer : Send {
 pub type ConsumerCallBackFn = fn(channel: &mut Channel,
                                  method: basic::Deliver,
                                  headers: BasicProperties,
-                                 body: Vec<u8>)
-                                ;
+                                 body: Vec<u8>);
 
 impl Consumer for ConsumerCallBackFn {
     fn handle_delivery(&mut self,
@@ -91,12 +90,9 @@ impl Channel {
         let mut unprocessed_frame = None;
         while unprocessed_frame.is_none() {
             let frame = try!(self.receiver
-                                 .recv()
-                                 .map_err(|_| {
-                                     AMQPError::Protocol("Error reading packet from channel"
-                                                             .to_owned())
-                                 })
-                                 .and_then(|frame| frame));
+                .recv()
+                .map_err(|_| AMQPError::Protocol("Error reading packet from channel".to_owned()))
+                .and_then(|frame| frame));
             unprocessed_frame = try!(self.try_consume(frame));
         }
         Ok(unprocessed_frame.unwrap())

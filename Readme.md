@@ -21,7 +21,7 @@ Have a look at the examples in `examples/` folder.
 extern crate amqp;
 use amqp::Session;
 
-let mut session = Session::open_url("amqp://localhost/").unwrap();
+let mut session = Session::open_url("amqp://localhost//").unwrap();
 let mut channel = session.open_channel(1).unwrap();
 ```
 

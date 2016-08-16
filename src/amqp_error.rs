@@ -1,6 +1,5 @@
 use std::convert::From;
 use std::{io, error, fmt};
-use byteorder;
 use url;
 
 #[cfg(feature = "tls")]
@@ -13,7 +12,6 @@ pub enum AMQPError {
     Protocol(String),
     SchemeError(String),
     UrlParseError(url::ParseError),
-    ByteOrderError,
     QueueEmpty,
     SyncError,
     FramingError(String),
@@ -34,7 +32,6 @@ impl error::Error for AMQPError {
             AMQPError::Protocol(ref err) => err,
             AMQPError::SchemeError(ref err) => err,
             AMQPError::UrlParseError(_) => "URL parsing error",
-            AMQPError::ByteOrderError => "ByteOrderError",
             AMQPError::QueueEmpty => "Queue is empty",
             AMQPError::SyncError => "Synchronisation error",
             AMQPError::FramingError(ref err) => err,
@@ -51,9 +48,9 @@ impl From<io::Error> for AMQPError {
     }
 }
 
-impl From<byteorder::Error> for AMQPError {
-    fn from(_err: byteorder::Error) -> AMQPError {
-        AMQPError::ByteOrderError
+impl <T> From<::std::sync::PoisonError<T>> for AMQPError {
+    fn from(err: ::std::sync::PoisonError<T>) -> AMQPError {
+        AMQPError::SyncError
     }
 }
 

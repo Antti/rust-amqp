@@ -33,7 +33,7 @@ impl amqp::Consumer for MyConsumer {
 
 fn main() {
     env_logger::init().unwrap();
-    let mut session = Session::new(Options{vhost: "/", .. Default::default()}).ok().expect("Can't create session");
+    let mut session = Session::new(Options{ vhost: "/".to_string(), .. Default::default()}).ok().expect("Can't create session");
     let mut channel = session.open_channel(1).ok().expect("Error openning channel 1");
     println!("Openned channel: {:?}", channel.id);
 

@@ -78,7 +78,6 @@ impl MethodFrame {
 }
 include!("method_frame_methods.rs");
 
-
 unsafe impl Send for Frame {}
 
 impl Frame {

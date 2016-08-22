@@ -1,5 +1,5 @@
 use amqp_error::{AMQPResult, AMQPError};
-use std::sync::mpsc::Receiver;
+use std::sync::mpsc::{SyncSender, Receiver};
 
 use framing::{MethodFrame, ContentHeaderFrame, Frame, FrameType};
 use table::Table;
@@ -9,7 +9,6 @@ use protocol::{channel, basic};
 use protocol::basic::BasicProperties;
 use protocol::basic::{Consume, ConsumeOk, Deliver, Publish, Ack, Nack, Reject, Qos, QosOk, Cancel,
                       CancelOk};
-use connection::Connection;
 use std::collections::HashMap;
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -54,18 +53,16 @@ pub struct Channel {
     pub id: u16,
     consumers: Rc<RefCell<HashMap<String, Box<Consumer>>>>,
     receiver: Receiver<AMQPResult<Frame>>,
-    connection: Connection,
+    sender: SyncSender<Frame>
 }
 
-unsafe impl Send for Channel {}
-
 impl Channel {
-    pub fn new(id: u16, receiver: Receiver<AMQPResult<Frame>>, connection: Connection) -> Channel {
+    pub fn new(id: u16, receiver: Receiver<AMQPResult<Frame>>, sender: SyncSender<Frame>) -> Channel {
         Channel {
             id: id,
             receiver: receiver,
             consumers: Rc::new(RefCell::new(HashMap::new())),
-            connection: connection,
+            sender: sender,
         }
     }
 
@@ -99,7 +96,7 @@ impl Channel {
     }
 
     pub fn write(&mut self, frame: Frame) -> AMQPResult<()> {
-        self.connection.write(frame)
+        self.sender.send(frame).map_err(From::from)
     }
 
     pub fn send_method_frame<T>(&mut self, method: &T) -> AMQPResult<()>
@@ -241,7 +238,7 @@ impl Channel {
     }
 
     pub fn set_frame_max_limit(&mut self, size: u32) {
-        self.connection.frame_max_limit = size;
+        // self.connection.frame_max_limit = size;
     }
 
     // Will run the infinite loop, which will receive frames on the given channel &

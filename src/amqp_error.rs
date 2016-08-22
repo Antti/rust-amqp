@@ -66,3 +66,9 @@ impl From<openssl::ssl::error::SslError> for AMQPError {
         AMQPError::Protocol(format!("{}", err))
     }
 }
+
+impl <T> From<::std::sync::mpsc::SendError<T>> for AMQPError {
+    fn from(_err: ::std::sync::mpsc::SendError<T>) -> AMQPError {
+        AMQPError::SyncError
+    }
+}

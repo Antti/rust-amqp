@@ -1,20 +1,23 @@
 use channel;
-use connection::Connection;
 use protocol;
 use table::Table;
 use table::TableEntry::{FieldTable, Bool, LongString};
 use framing::{Frame, MethodFrame};
-use method;
-
 use amqp_error::{AMQPResult, AMQPError};
+use protocol::Method;
 use super::VERSION;
 
-use std::sync::{Arc, Mutex};
-use std::default::Default;
-use std::collections::HashMap;
-use std::sync::mpsc::{SyncSender, sync_channel};
-use std::thread;
 use std::cmp;
+use std::io;
+use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
+use enum_primitive::FromPrimitive;
+
+use futures::{Future, BoxFuture, finished, done};
+use futures_io::{read_exact, write_all};
+use futures_io::{TaskIo, TaskIoRead, TaskIoWrite};
+use futures_mio::{LoopHandle, TcpStream};
+
+use std::net::SocketAddr;
 
 
 use url::{Url, percent_encoding};
@@ -61,10 +64,10 @@ impl Default for Options {
 }
 
 pub struct Session {
-    connection: Connection,
-    channels: Arc<Mutex<HashMap<u16, SyncSender<AMQPResult<Frame>>>>>,
+    pub reader: TaskIoRead<TcpStream>,
+    pub writer: TaskIoWrite<TcpStream>,
     channel_max_limit: u16,
-    channel_zero: channel::Channel,
+    frame_max_limit: u32
 }
 
 impl Session {
@@ -77,9 +80,9 @@ impl Session {
     /// `"amqp://localhost//"` and it will connect to rabbitmq server,
     /// running on `localhost` on port `5672`,
     /// with login `"guest"`, password: `"guest"` to vhost `"/"`
-    pub fn open_url(url_string: &str) -> AMQPResult<Session> {
-        let options = try!(parse_url(url_string));
-        Session::new(options)
+    pub fn open_url(handle: LoopHandle, url_string: &str) -> Box<Future<Item=Session, Error=AMQPError>> {
+        let options = parse_url(url_string).unwrap();
+        Session::new(handle, options)
     }
 
     /// Initialize new rabbitmq session.
@@ -93,204 +96,194 @@ impl Session {
     ///     Err(error) => panic!("Failed openning an amqp session: {:?}", error)
     /// };
     /// ```
-    pub fn new(options: Options) -> AMQPResult<Session> {
-        let connection = try!(get_connection(&options));
-        let channels = Arc::new(Mutex::new(HashMap::new()));
-        let (channel_zero_sender, channel_receiver) = sync_channel(CHANNEL_BUFFER_SIZE); //channel0
-        let channel_zero = channel::Channel::new(0, channel_receiver, connection.clone());
-        try!(channels.lock().map_err(|_| AMQPError::SyncError)).insert(0, channel_zero_sender);
-        let con1 = connection.clone();
-        let channels_clone = channels.clone();
-        thread::spawn(|| Session::reading_loop(con1, channels_clone));
-        let mut session = Session {
-            connection: connection,
-            channels: channels,
-            channel_max_limit: 65535,
-            channel_zero: channel_zero,
-        };
-        try!(session.init(options));
-        Ok(session)
+    pub fn new(handle: LoopHandle, options: Options) -> BoxFuture<Session, AMQPError> {
+        let frame_max_limit = options.frame_max_limit;
+        let address = resolve(&options.host, options.port);
+        let stream = handle.tcp_connect(&address);
+        let pair = stream.map(move |tcp_stream| {
+            debug!("Connected to: {:?}", address);
+            let io = TaskIo::new(tcp_stream);
+            io.split()
+        });
+        let inited_connection = pair.and_then(|(reader, writer)|{
+            debug!("Initializing connection...");
+            finished(reader).join(write_all(writer, [b'A', b'M', b'Q', b'P', 0, 0, 9, 1]))
+        });
+        inited_connection.map(move |(reader, (writer, _))| {
+            Session {
+                channel_max_limit: 65535,
+                reader: reader,
+                writer: writer,
+                frame_max_limit: frame_max_limit
+            }
+        }).map_err(From::from).and_then(move |session| session.init(options)).boxed()
     }
 
-    fn init(&mut self, options: Options) -> AMQPResult<()> {
+    fn read_frame(self) -> BoxFuture<(Self, Frame), AMQPError> {
+        let Session { reader, writer, channel_max_limit, frame_max_limit } =  self;
+        read_frame(reader).map(move |(reader, frame)|
+            (Session{ reader: reader, writer: writer, channel_max_limit: channel_max_limit, frame_max_limit: frame_max_limit }, frame)
+        ).boxed()
+    }
+
+    fn write_frame(self, frame: Frame) -> BoxFuture<Self, AMQPError> {
+        let Session { reader, writer, channel_max_limit, frame_max_limit } =  self;
+        write_frame(writer, frame).map(move |writer|
+            Session{ reader: reader, writer: writer, channel_max_limit: channel_max_limit, frame_max_limit: frame_max_limit }
+        ).boxed()
+    }
+
+    fn init(self, options: Options) -> BoxFuture<Session, AMQPError> {
         debug!("Starting init session");
-        let frame = try!(self.channel_zero.read()); //Start
-        let method_frame = try!(MethodFrame::decode(&frame));
-        let start: protocol::connection::Start = match method_frame.method_name() {
-            "connection.start" => try!(method::Method::decode(method_frame)),
-            meth => return Err(AMQPError::Protocol(format!("Unexpected method frame: {:?}", meth))),
-        };
-        debug!("Received connection.start: {:?}", start);
-        // * The client selects a security mechanism (Start-Ok).
-        // * The server starts the authentication process, which uses the SASL
-        // challenge-response model. It sends
-        // the client a challenge (Secure).
-        // * The client sends an authentication response (Secure-Ok). For example using
-        // the "plain" mechanism,
-        // the response consist of a login name and password.
-        // * The server repeats the challenge (Secure) or moves to negotiation, sending
-        // a set of parameters such as
+        let Options{ login, password, locale, vhost, .. } = options;
+        let start_frame = self.read_frame().and_then(|(session, frame)| {
+            let method_frame = MethodFrame::decode(&frame).unwrap();
+            let start : AMQPResult<protocol::connection::Start> = protocol::Method::decode(method_frame);
+            finished(session).join(done(start))
+        });
+        let session = start_frame.and_then(move |(session, start_frame)|{
+            debug!("Received connection.start: {:?}", start_frame);
+            let mut client_properties = Table::new();
+            let mut capabilities = Table::new();
+            capabilities.insert("publisher_confirms".to_owned(), Bool(true));
+            capabilities.insert("consumer_cancel_notify".to_owned(), Bool(true));
+            capabilities.insert("exchange_exchange_bindings".to_owned(), Bool(true));
+            capabilities.insert("basic.nack".to_owned(), Bool(true));
+            capabilities.insert("connection.blocked".to_owned(), Bool(true));
+            capabilities.insert("authentication_failure_close".to_owned(), Bool(true));
+            client_properties.insert("capabilities".to_owned(), FieldTable(capabilities));
+            client_properties.insert("product".to_owned(), LongString("rust-amqp".to_owned()));
+            client_properties.insert("platform".to_owned(), LongString("rust".to_owned()));
+            client_properties.insert("version".to_owned(), LongString("VERSION".to_owned()));
+            client_properties.insert("information".to_owned(),
+                                        LongString("https://github.com/Antti/rust-amqp".to_owned()));
 
-        let mut client_properties = Table::new();
-        let mut capabilities = Table::new();
-        capabilities.insert("publisher_confirms".to_owned(), Bool(true));
-        capabilities.insert("consumer_cancel_notify".to_owned(), Bool(true));
-        capabilities.insert("exchange_exchange_bindings".to_owned(), Bool(true));
-        capabilities.insert("basic.nack".to_owned(), Bool(true));
-        capabilities.insert("connection.blocked".to_owned(), Bool(true));
-        capabilities.insert("authentication_failure_close".to_owned(), Bool(true));
-        client_properties.insert("capabilities".to_owned(), FieldTable(capabilities));
-        client_properties.insert("product".to_owned(), LongString("rust-amqp".to_owned()));
-        client_properties.insert("platform".to_owned(), LongString("rust".to_owned()));
-        client_properties.insert("version".to_owned(), LongString(VERSION.to_owned()));
-        client_properties.insert("information".to_owned(),
-                                 LongString("https://github.com/Antti/rust-amqp".to_owned()));
+            let start_ok = protocol::connection::StartOk {
+                client_properties: client_properties,
+                mechanism: "PLAIN".to_owned(),
+                response: format!("\0{}\0{}", login, password),
+                locale: locale,
+            };
+            let start_ok_frame = Frame { frame_type: FrameType::METHOD, channel: 0, payload: start_ok.encode_method_frame().unwrap() };
+            session.write_frame(start_ok_frame)
+        });
 
-        debug!("Sending connection.start-ok");
-        let start_ok = protocol::connection::StartOk {
-            client_properties: client_properties,
-            mechanism: "PLAIN".to_owned(),
-            response: format!("\0{}\0{}", options.login, options.password),
-            locale: options.locale.to_owned(),
-        };
-        let response = try!(self.channel_zero.raw_rpc(&start_ok));
-        let tune: protocol::connection::Tune = match response.method_name() {
-            "connection.tune" => try!(method::Method::decode(response)),
-            "connection.close" => {
-                let close_frame: protocol::connection::Close =
-                    try!(method::Method::decode(response));
-                return Err(AMQPError::Protocol(format!("Connection was closed: {:?}",
-                                                       close_frame)));
-            }
-            response_method => {
-                return Err(AMQPError::Protocol(format!("Unexpected response: {}", response_method)))
-            }
-        };
-        debug!("Received tune request: {:?}", tune);
-
-        self.channel_max_limit = negotiate(tune.channel_max, self.channel_max_limit);
-        self.connection.frame_max_limit = negotiate(tune.frame_max, options.frame_max_limit);
-        self.channel_zero.set_frame_max_limit(self.connection.frame_max_limit);
-        let frame_max_limit = self.connection.frame_max_limit;
-        let tune_ok = protocol::connection::TuneOk {
-            channel_max: self.channel_max_limit,
-            frame_max: frame_max_limit,
-            heartbeat: 0,
-        };
-        debug!("Sending connection.tune-ok: {:?}", tune_ok);
-        try!(self.channel_zero.send_method_frame(&tune_ok));
-
-        let open = protocol::connection::Open {
-            virtual_host: percent_decode(&options.vhost),
-            capabilities: "".to_owned(),
-            insist: false,
-        };
-        debug!("Sending connection.open: {:?}", open);
-        let open_ok = self.channel_zero
-            .rpc::<_, protocol::connection::OpenOk>(&open, "connection.open-ok");
-        match open_ok {
-            Ok(_) => {
-                debug!("Connection initialized. conneciton.open-ok recieved");
-                info!("Session initialized");
-                Ok(())
-            }
-            Err(AMQPError::FramingError(_)) => Err(AMQPError::VHostError),
-            Err(other_error) => Err(other_error),
-        }
-    }
-
-    /// `open_channel` will open a new amqp channel:
-    /// # Arguments
-    ///
-    /// * `channel_id` - channel number
-    ///
-    /// # Exmaple
-    /// ```no_run
-    /// use std::default::Default;
-    /// use amqp::{Options, Session};
-    /// let mut session = Session::new(Options { .. Default::default() }).ok().unwrap();
-    /// let channel = match session.open_channel(1){
-    ///     Ok(channel) => channel,
-    ///     Err(error) => panic!("Failed openning channel: {:?}", error)
-    /// };
-    /// ```
-    pub fn open_channel(&mut self, channel_id: u16) -> AMQPResult<channel::Channel> {
-        debug!("Openning channel: {}", channel_id);
-        let (sender, receiver) = sync_channel(CHANNEL_BUFFER_SIZE);
-        let mut channel = channel::Channel::new(channel_id, receiver, self.connection.clone());
-        try!(self.channels.lock().map_err(|_| AMQPError::SyncError)).insert(channel_id, sender);
-        try!(channel.open());
-        Ok(channel)
-    }
-
-    pub fn close<T>(&mut self, reply_code: u16, reply_text: T)
-        where T: Into<String>
-    {
-        let reply_text = reply_text.into();
-        debug!("Closing session: reply_code: {}, reply_text: {}",
-               reply_code,
-               reply_text);
-        let close = protocol::connection::Close {
-            reply_code: reply_code,
-            reply_text: reply_text,
-            class_id: 0,
-            method_id: 0,
-        };
-        let _: protocol::connection::CloseOk = self.channel_zero
-            .rpc(&close, "connection.close-ok")
-            .ok()
-            .unwrap();
-    }
-
-    // Receives and dispatches frames from the connection to the corresponding
-    // channels.
-    fn reading_loop(mut connection: Connection,
-                    channels: Arc<Mutex<HashMap<u16, SyncSender<AMQPResult<Frame>>>>>)
-                    -> () {
-        debug!("Starting reading loop");
-        loop {
-            match connection.read() {
-                Ok(frame) => {
-                    // TODO: If channel 0 -> send to channel_zero_handler
-                    // If channel != 0 and FrameType == METHOD and method class =='connection',
-                    // then reply code 503 (command invalid).
-                    let chans = channels.lock().unwrap();
-                    let chan_id = frame.channel;
-                    let target = chans.get(&chan_id);
-                    let dispatch = match target {
-                        Some(target_channel) => {
-                            target_channel.send(Ok(frame)).map_err(|_| {
-                                format!("Error dispatching packet to channel {}", chan_id)
-                            })
-                        }
-                        None => Err(format!("Received frame for an unknown channel: {}", chan_id)),
-                    };
-                    dispatch.map_err(|e| error!("{}", e)).ok();
-                }
-                Err(read_err) => {
-                    error!("Error in reading loop: {:?}", read_err);
-                    let chans = channels.lock().unwrap();
-                    for chan in chans.values() {
-                        // Propagate error to every channel, so they can close
-                        if chan.send(Err(read_err.clone())).is_err() {
-                            error!("Error dispatching closing packet to a channel");
-                        }
+        let session = session.and_then(|session| {
+            session.read_frame().and_then(|(session, frame)| {
+                let connection_tune_or_close = MethodFrame::decode(&frame).unwrap();
+                let tune: AMQPResult<protocol::connection::Tune> = match connection_tune_or_close.method_name() {
+                    "connection.tune" => protocol::Method::decode(connection_tune_or_close),
+                    "connection.close" => {
+                        let close_frame: AMQPResult<protocol::connection::Close> = protocol::Method::decode(connection_tune_or_close);
+                        Err(AMQPError::Protocol(format!("Connection was closed: {:?}", close_frame)))
                     }
-                    break;
-                }
-            }
-        }
-        debug!("Exiting reading loop");
+                    response_method => Err(AMQPError::Protocol(format!("Unexpected response: {}", response_method)))
+                };
+                finished(session).join(done(tune))
+            }).and_then(|(mut session, tune)|{
+                debug!("Received tune request: {:?}", tune);
+                println!("Received tune request: {:?}", tune);
+                session.channel_max_limit = negotiate(tune.channel_max, session.channel_max_limit);
+                session.frame_max_limit = negotiate(tune.frame_max, session.frame_max_limit);
+                let tune_ok = protocol::connection::TuneOk {
+                    channel_max: session.channel_max_limit,
+                    frame_max: session.frame_max_limit,
+                    heartbeat: 0,
+                };
+                debug!("Sending connection.tune-ok: {:?}", tune_ok);
+                let tune_ok_frame = Frame { frame_type: FrameType::METHOD, channel: 0, payload: tune_ok.encode_method_frame().unwrap() };
+                session.write_frame(tune_ok_frame)
+            })
+        });
+
+        let session = session.and_then(move |session|{
+            let open = protocol::connection::Open {
+                virtual_host: percent_decode(&vhost),
+                capabilities: "".to_owned(),
+                insist: false,
+            };
+            debug!("Sending connection.open: {:?}", open);
+            let open_frame = Frame { frame_type: FrameType::METHOD, channel: 0, payload: open.encode_method_frame().unwrap() };
+            session.write_frame(open_frame).and_then(|session|{
+                session.read_frame().and_then(|(session, frame)|{
+                    let open_ok_or_close = MethodFrame::decode(&frame).unwrap();
+                    let frame_result = match open_ok_or_close.method_name() {
+                        "connection.open-ok" => {
+                            let open_ok_frame: AMQPResult<protocol::connection::OpenOk> = protocol::Method::decode(open_ok_or_close);
+                            debug!("Connection initialized. conneciton.open-ok recieved: {:?}", open_ok_frame);
+                            info!("Session initialized");
+                            Ok(())
+                        },
+                        something_else => {
+                            error!("Unexpected method received. Expected connection.open-ok, received: {:?}.", something_else);
+                            Err(AMQPError::Protocol("Unexpected frame".to_string()))
+                        }
+                    };
+                    finished(session).join(done(frame_result))
+                }).map(|(session, _)| session)
+            })
+        });
+
+        session.boxed()
+    }
+
+    pub fn close(self) -> BoxFuture<(), AMQPError> {
+        let close = protocol::connection::Close {
+                reply_code: 200,
+                reply_text: "Bye".to_string(),
+                class_id: 0,
+                method_id: 0
+        };
+        let close_frame = Frame { frame_type: FrameType::METHOD, channel: 0, payload: close.encode_method_frame().unwrap() };
+        self.write_frame(close_frame).map(|session| drop(session)).boxed()
     }
 }
 
-fn get_connection(options: &Options) -> AMQPResult<Connection> {
-    match options.scheme {
-        #[cfg(feature = "tls")]
-        AMQPScheme::AMQPS => Connection::open_tls(&options.host, options.port).map_err(From::from),
-        AMQPScheme::AMQP => Connection::open(&options.host, options.port).map_err(From::from),
-    }
+fn method_to_frame<M>(method: &M, channel: u16) -> Frame where M: Method {
+    Frame { frame_type: FrameType::METHOD, channel: channel, payload: method.encode_method_frame().unwrap() }
 }
+
+ fn read_frame(reader: TaskIoRead<TcpStream>) -> BoxFuture<(TaskIoRead<TcpStream>, Frame), AMQPError> {
+    let header = [0u8; 7];
+    let frame_header = read_exact(reader, header).map(|(reader, header)|{
+        let header = &mut &header[..];
+        let frame_type_id = header.read_u8().unwrap();
+        let channel = header.read_u16::<BigEndian>().unwrap();
+        let payload_size = header.read_u32::<BigEndian>().unwrap() as usize;
+        (reader, (frame_type_id, channel, payload_size))
+    });
+    let header_and_payload = frame_header.and_then(|(reader, header)|{
+        let payload_buf = vec![0u8; header.2+1];
+        finished(header).join(read_exact(reader, payload_buf))
+    });
+
+    let header_and_payload = header_and_payload.and_then(|(header, (reader, mut payload))|{
+        done(match payload[payload.len()-1] {
+            0xCE => {
+                let payload_len = payload.len()-1;
+                payload.truncate(payload_len);
+                Ok((reader, header, payload))
+            },
+            _ => Err(io::Error::new(io::ErrorKind::Other, "Frame end error"))
+        })
+    });
+    header_and_payload.and_then(|(reader, header, payload)|{
+        done(match FrameType::from_u8(header.0) {
+            Some(ft) => Ok((reader, Frame {
+                frame_type: ft,
+                channel: header.1,
+                payload: payload
+            })),
+            None => Err(io::Error::new(io::ErrorKind::Other, "Unknown Frame Type"))
+        })
+    }).map_err(From::from).boxed()
+}
+
+#[inline]
+fn write_frame(writer: TaskIoWrite<TcpStream>, frame: Frame) -> BoxFuture<TaskIoWrite<TcpStream>, AMQPError> {
+    write_all(writer, frame.encode().unwrap()).map(|(writer, _)| writer).map_err(From::from).boxed()
+}
+
 fn negotiate<T: cmp::Ord>(their_value: T, our_value: T) -> T {
     cmp::min(their_value, our_value)
 }
@@ -341,6 +334,14 @@ fn parse_url(url_string: &str) -> AMQPResult<Options> {
         ..Default::default()
     })
 }
+
+fn resolve(host: &str, port: u16) -> SocketAddr {
+    use std::net::ToSocketAddrs;
+    let mut addrs = (host, port).to_socket_addrs().unwrap();
+    println!("Resolving {}:{}", host, port);
+    addrs.next().unwrap()
+}
+
 
 #[cfg(test)]
 mod test {

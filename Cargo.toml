@@ -11,12 +11,7 @@ readme = "Readme.md"
 # build = "build.rs"
 
 [lib]
-
 name = "amqp"
-
-[features]
-tls = ["openssl"]
-default = ["tls"]
 
 [dependencies]
 bit-vec = "0.4"
@@ -25,11 +20,10 @@ enum_primitive = "0.1"
 env_logger = "0.3"
 log = "0.3"
 url = "1.2"
-
-[dependencies.openssl]
-version = "0.7.*"
-optional = true
-features = ["tlsv1_1", "tlsv1_2"]
+futures = { git = "https://github.com/alexcrichton/futures-rs" }
+futures-io = { git = "https://github.com/alexcrichton/futures-rs" }
+futures-mio = { git = "https://github.com/alexcrichton/futures-rs" }
+futures-tls = { git = "https://github.com/alexcrichton/futures-rs" }
 
 [dev-dependencies]
 # clippy  = "*"

@@ -236,37 +236,33 @@ impl Session {
 }
 
  fn read_frame(reader: TaskIoRead<TcpStream>) -> BoxFuture<(TaskIoRead<TcpStream>, Frame), AMQPError> {
-    let header = [0u8; 7];
-    let frame_header = read_exact(reader, header).map(|(reader, header)|{
+    read_exact(reader, [0u8; 7]).and_then(|(reader, header)|{
         let header = &mut &header[..];
         let frame_type_id = header.read_u8().unwrap();
         let channel = header.read_u16::<BigEndian>().unwrap();
         let payload_size = header.read_u32::<BigEndian>().unwrap() as usize;
-        (reader, (frame_type_id, channel, payload_size))
-    });
-    let header_and_payload = frame_header.and_then(|(reader, header)|{
-        let payload_buf = vec![0u8; header.2+1];
-        finished(header).join(read_exact(reader, payload_buf))
-    });
+        let payload_buf = vec![0u8; payload_size+1];
 
-    let header_and_payload = header_and_payload.and_then(|(header, (reader, mut payload))|{
-        done(match payload[payload.len()-1] {
-            0xCE => {
-                let payload_len = payload.len()-1;
-                payload.truncate(payload_len);
-                Ok((reader, header, payload))
-            },
-            _ => Err(io::Error::new(io::ErrorKind::Other, "Frame end error"))
-        })
-    });
-    header_and_payload.and_then(|(reader, header, payload)|{
-        done(match FrameType::from_u8(header.0) {
-            Some(ft) => Ok((reader, Frame {
-                frame_type: ft,
-                channel: header.1,
-                payload: payload
-            })),
+        let frame_type = done(match FrameType::from_u8(frame_type_id) {
+            Some(frame_type) => Ok(frame_type),
             None => Err(io::Error::new(io::ErrorKind::Other, "Unknown Frame Type"))
+        });
+        read_exact(reader, payload_buf).and_then(|(reader, mut payload)| {
+            let frame_end_validated = done(match payload[payload.len()-1] {
+                0xCE => {
+                    let payload_len = payload.len()-1;
+                    payload.truncate(payload_len);
+                    Ok(payload)
+                },
+                _ => Err(io::Error::new(io::ErrorKind::Other, "Frame end error"))
+            });
+            finished(reader).join3(frame_end_validated, frame_type)
+        }).map(move |(reader, payload, frame_type)| {
+            (reader, Frame {
+                    frame_type: frame_type,
+                    channel: channel,
+                    payload: payload
+            })
         })
     }).map_err(From::from).boxed()
 }

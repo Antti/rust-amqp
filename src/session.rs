@@ -164,8 +164,7 @@ impl Session {
                 response: format!("\0{}\0{}", login, password),
                 locale: locale,
             };
-            let start_ok_frame = Frame { frame_type: FrameType::METHOD, channel: 0, payload: start_ok.encode_method_frame().unwrap() };
-            session.write_frame(start_ok_frame)
+            session.write_frame(start_ok.to_frame(0).unwrap())
         });
 
         let session = session.and_then(|session| {
@@ -191,8 +190,7 @@ impl Session {
                     heartbeat: 0,
                 };
                 debug!("Sending connection.tune-ok: {:?}", tune_ok);
-                let tune_ok_frame = Frame { frame_type: FrameType::METHOD, channel: 0, payload: tune_ok.encode_method_frame().unwrap() };
-                session.write_frame(tune_ok_frame)
+                session.write_frame(tune_ok.to_frame(0).unwrap())
             })
         });
 
@@ -203,8 +201,7 @@ impl Session {
                 insist: false,
             };
             debug!("Sending connection.open: {:?}", open);
-            let open_frame = Frame { frame_type: FrameType::METHOD, channel: 0, payload: open.encode_method_frame().unwrap() };
-            session.write_frame(open_frame).and_then(|session|{
+            session.write_frame(open.to_frame(0).unwrap()).and_then(|session|{
                 session.read_frame().and_then(|(session, frame)|{
                     let open_ok_or_close = MethodFrame::decode(&frame).unwrap();
                     let frame_result = match open_ok_or_close.method_name() {
@@ -234,13 +231,8 @@ impl Session {
                 class_id: 0,
                 method_id: 0
         };
-        let close_frame = Frame { frame_type: FrameType::METHOD, channel: 0, payload: close.encode_method_frame().unwrap() };
-        self.write_frame(close_frame).map(|session| drop(session)).boxed()
+        self.write_frame(close.to_frame(0).unwrap()).map(|session| drop(session)).boxed()
     }
-}
-
-fn method_to_frame<M>(method: &M, channel: u16) -> Frame where M: Method {
-    Frame { frame_type: FrameType::METHOD, channel: channel, payload: method.encode_method_frame().unwrap() }
 }
 
  fn read_frame(reader: TaskIoRead<TcpStream>) -> BoxFuture<(TaskIoRead<TcpStream>, Frame), AMQPError> {

@@ -85,9 +85,7 @@ extern crate url;
 extern crate byteorder;
 extern crate bit_vec;
 extern crate futures;
-extern crate futures_tls;
-extern crate futures_io;
-extern crate futures_mio;
+extern crate tokio_core;
 
 #[cfg(feature = "tls")]
 extern crate openssl;
@@ -98,10 +96,10 @@ extern crate log;
 #[macro_use]
 extern crate enum_primitive;
 
-mod channel;
+// mod channel;
 mod framing;
 mod session;
-mod basic;
+// mod basic;
 mod amqp_error;
 pub mod table;
 mod method;
@@ -111,12 +109,12 @@ pub const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 pub mod protocol;
 
 pub use session::{Session, Options};
-pub use channel::{Channel, ConsumerCallBackFn, Consumer};
+//pub use channel::{Channel, ConsumerCallBackFn, Consumer};
 pub use table::{Table, TableEntry};
-pub use basic::{Basic, GetResult};
+// pub use basic::{Basic, GetResult};
 pub use session::AMQPScheme;
 pub use amqp_error::AMQPError;
 pub use futures::Future;
-pub use futures_mio::{Loop, LoopHandle};
+pub use tokio_core::{Loop, LoopHandle};
 pub use amqp_error::AMQPResult;
 pub use framing::{Frame, FrameType};

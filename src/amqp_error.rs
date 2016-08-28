@@ -1,6 +1,7 @@
 use std::convert::From;
 use std::{io, error, fmt};
 use url;
+use protocol;
 
 #[cfg(feature = "tls")]
 use openssl;
@@ -16,6 +17,7 @@ pub enum AMQPError {
     SyncError,
     FramingError(String),
     VHostError,
+    ConnectionClosed(protocol::connection::Close)
 }
 
 impl fmt::Display for AMQPError {
@@ -36,6 +38,7 @@ impl error::Error for AMQPError {
             AMQPError::SyncError => "Synchronisation error",
             AMQPError::FramingError(ref err) => err,
             AMQPError::VHostError => "Access to vhost is denied for a current user",
+            AMQPError::ConnectionClosed(_) => "Connection was closed"
         }
     }
 }

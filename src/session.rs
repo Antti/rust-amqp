@@ -12,10 +12,10 @@ use std::io;
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use enum_primitive::FromPrimitive;
 
-use futures::{Future, BoxFuture, finished, done};
-use futures_io::{read_exact, write_all};
-use futures_io::{TaskIo, TaskIoRead, TaskIoWrite};
-use futures_mio::{LoopHandle, TcpStream};
+use futures::{Future, BoxFuture, finished, done, failed};
+use tokio_core::io::{read_exact, write_all};
+use tokio_core::io::{TaskIo, TaskIoRead, TaskIoWrite};
+use tokio_core::{LoopHandle, TcpStream};
 
 use std::net::SocketAddr;
 
@@ -24,8 +24,6 @@ use url::{Url, percent_encoding};
 
 pub const AMQPS_PORT: u16 = 5671;
 pub const AMQP_PORT: u16 = 5672;
-
-const CHANNEL_BUFFER_SIZE: usize = 100;
 
 #[derive(Debug)]
 pub enum AMQPScheme {
@@ -45,6 +43,7 @@ pub struct Options {
     pub channel_max_limit: u16,
     pub locale: String,
     pub scheme: AMQPScheme,
+    pub heartbeat: u16
 }
 
 impl Default for Options {
@@ -52,11 +51,12 @@ impl Default for Options {
         Options {
             host: "127.0.0.1".to_string(),
             port: AMQP_PORT,
-            vhost: "".to_string(),
+            vhost: "/".to_string(),
             login: "guest".to_string(),
             password: "guest".to_string(),
             frame_max_limit: 131072,
             channel_max_limit: 65535,
+            heartbeat: 0,
             locale: "en_US".to_string(),
             scheme: AMQPScheme::AMQP,
         }
@@ -67,7 +67,8 @@ pub struct Session {
     pub reader: TaskIoRead<TcpStream>,
     pub writer: TaskIoWrite<TcpStream>,
     channel_max_limit: u16,
-    frame_max_limit: u32
+    frame_max_limit: u32,
+    heartbeat: u16
 }
 
 impl Session {
@@ -98,6 +99,7 @@ impl Session {
     /// ```
     pub fn new(handle: LoopHandle, options: Options) -> BoxFuture<Session, AMQPError> {
         let frame_max_limit = options.frame_max_limit;
+        let heartbeat = options.heartbeat;
         let address = resolve(&options.host, options.port);
         let stream = handle.tcp_connect(&address);
         let pair = stream.map(move |tcp_stream| {
@@ -114,23 +116,114 @@ impl Session {
                 channel_max_limit: 65535,
                 reader: reader,
                 writer: writer,
-                frame_max_limit: frame_max_limit
+                frame_max_limit: frame_max_limit,
+                heartbeat: heartbeat
             }
         }).map_err(From::from).and_then(move |session| session.init(options)).boxed()
     }
 
+    pub fn close(self) -> BoxFuture<(), AMQPError> {
+        let close = protocol::connection::Close {
+                reply_code: 200,
+                reply_text: "Bye".to_string(),
+                class_id: 0,
+                method_id: 0
+        };
+        self.write_method_rpc::<_, protocol::connection::CloseOk>(close, 0).map(|(session, _close_ok)| drop(session)).boxed()
+    }
+
+    pub fn open_channel(self, channel_id: u16) -> BoxFuture<(Self, u16), AMQPError> {
+        let open_channel = protocol::channel::Open::with_default_values();
+        self.write_method_rpc::<_, protocol::channel::OpenOk>(open_channel, channel_id).map(move |(session, _open_ok)| (session, channel_id)).boxed()
+    }
+
+    pub fn close_channel(self, channel_id: u16) -> BoxFuture<Self, AMQPError> {
+        let close_channel = protocol::channel::Close {
+            reply_code: 200,
+            reply_text: "Closing channel".into(),
+            class_id: 0,
+            method_id: 0,
+        };
+        self.write_method_rpc::<_, protocol::channel::CloseOk>(close_channel, channel_id).map(|(session, _)| session).boxed()
+    }
+
+    // Recursively read frame, dispatch, run itself again.
+    pub fn run(self) -> BoxFuture<Self, AMQPError> {
+        self.read_frame().and_then(|(session, frame)|{
+            session.dispatch_frame(frame).and_then(|session| session.run() )
+        }).boxed()
+    }
+
+    pub fn consume<S>(self, channel_id: u16, queue: S) -> BoxFuture<(Self, protocol::basic::ConsumeOk), AMQPError> where S: Into<String> {
+        let consume = protocol::basic::Consume {
+            ticket: 0,
+            queue: queue.into(),
+            consumer_tag: "".into(),
+            no_local: true,
+            no_ack: true,
+            exclusive: false,
+            nowait: false,
+            arguments: Table::new(),
+        };
+        self.write_method_rpc::<_, protocol::basic::ConsumeOk>(consume, channel_id).boxed()
+    }
+
+    fn dispatch_frame(self, frame: Frame) -> BoxFuture<Self, AMQPError> {
+        println!("Dispatching... {:?}", frame);
+        let result  = match frame.channel {
+            0 => {
+                match frame.frame_type {
+                    FrameType::METHOD => {
+                        let method_frame = done(MethodFrame::decode(&frame));
+                        method_frame.and_then(|mf|{
+                            match mf.method_name() {
+                                "connection.close" => {
+                                    done(protocol::connection::Close::decode(mf)).and_then(|close|{
+                                        debug!("Sending connection.close");
+                                        self.write_frame(protocol::connection::CloseOk.to_frame(0).unwrap()).map(|session| (session, close))
+                                    }).and_then(|(_session, close)|{
+                                        failed(AMQPError::ConnectionClosed(close))
+                                    }).boxed()
+                                },
+                                _ => finished(self).boxed()
+                            }
+                        }).boxed()
+                    },
+                    frame_type => failed(AMQPError::Protocol(format!("Unexpected frame type on channel 0: {:?}", frame_type))).boxed()
+                }
+            }, // handle connection methods
+            channel_id => { finished(self).boxed() } // push
+        };
+        result
+    }
+
     fn read_frame(self) -> BoxFuture<(Self, Frame), AMQPError> {
-        let Session { reader, writer, channel_max_limit, frame_max_limit } =  self;
+        let Session { reader, writer, channel_max_limit, frame_max_limit, heartbeat } =  self;
         read_frame(reader).map(move |(reader, frame)|
-            (Session{ reader: reader, writer: writer, channel_max_limit: channel_max_limit, frame_max_limit: frame_max_limit }, frame)
+            (Session{ reader: reader, writer: writer, channel_max_limit: channel_max_limit, frame_max_limit: frame_max_limit, heartbeat: heartbeat }, frame)
         ).boxed()
     }
 
     fn write_frame(self, frame: Frame) -> BoxFuture<Self, AMQPError> {
-        let Session { reader, writer, channel_max_limit, frame_max_limit } =  self;
+        let Session { reader, writer, channel_max_limit, frame_max_limit, heartbeat } =  self;
         write_frame(writer, frame).map(move |writer|
-            Session{ reader: reader, writer: writer, channel_max_limit: channel_max_limit, frame_max_limit: frame_max_limit }
+            Session{ reader: reader, writer: writer, channel_max_limit: channel_max_limit, frame_max_limit: frame_max_limit, heartbeat: heartbeat }
         ).boxed()
+    }
+
+    fn write_method_rpc<T, U>(self, method: T, channel_id: u16) -> BoxFuture<(Self, U), AMQPError> where T: protocol::Method, U: protocol::Method + Send + 'static {
+        let session = done(method.to_frame(channel_id)).and_then(|method_frame|{
+            self.write_frame(method_frame)
+        });
+        session.and_then(|session|{
+            session.read_frame().and_then(|(session, frame)|{
+                let method_frame = done(MethodFrame::decode(&frame));
+                let maybe_reply = method_frame.and_then(|method_frame|{
+                    done(protocol::Method::decode(method_frame) as AMQPResult<U>)
+                });
+                finished(session).join(maybe_reply)
+            })
+        }).boxed()
     }
 
     fn init(self, options: Options) -> BoxFuture<Session, AMQPError> {
@@ -154,7 +247,7 @@ impl Session {
             client_properties.insert("capabilities".to_owned(), FieldTable(capabilities));
             client_properties.insert("product".to_owned(), LongString("rust-amqp".to_owned()));
             client_properties.insert("platform".to_owned(), LongString("rust".to_owned()));
-            client_properties.insert("version".to_owned(), LongString("VERSION".to_owned()));
+            client_properties.insert("version".to_owned(), LongString(env!("CARGO_PKG_VERSION").to_owned()));
             client_properties.insert("information".to_owned(),
                                         LongString("https://github.com/Antti/rust-amqp".to_owned()));
 
@@ -181,13 +274,12 @@ impl Session {
                 finished(session).join(done(tune))
             }).and_then(|(mut session, tune)|{
                 debug!("Received tune request: {:?}", tune);
-                println!("Received tune request: {:?}", tune);
                 session.channel_max_limit = negotiate(tune.channel_max, session.channel_max_limit);
                 session.frame_max_limit = negotiate(tune.frame_max, session.frame_max_limit);
                 let tune_ok = protocol::connection::TuneOk {
                     channel_max: session.channel_max_limit,
                     frame_max: session.frame_max_limit,
-                    heartbeat: 0,
+                    heartbeat: session.heartbeat,
                 };
                 debug!("Sending connection.tune-ok: {:?}", tune_ok);
                 session.write_frame(tune_ok.to_frame(0).unwrap())
@@ -208,34 +300,34 @@ impl Session {
                         "connection.open-ok" => {
                             let open_ok_frame: AMQPResult<protocol::connection::OpenOk> = protocol::Method::decode(open_ok_or_close);
                             debug!("Connection initialized. conneciton.open-ok recieved: {:?}", open_ok_frame);
-                            info!("Session initialized");
                             Ok(())
                         },
                         something_else => {
-                            error!("Unexpected method received. Expected connection.open-ok, received: {:?}.", something_else);
-                            Err(AMQPError::Protocol("Unexpected frame".to_string()))
+                            let err_description = format!("Unexpected method received. Expected connection.open-ok, received: {:?}.", something_else);
+                            error!("{}", err_description);
+                            Err(AMQPError::Protocol(err_description))
                         }
                     };
                     finished(session).join(done(frame_result))
                 }).map(|(session, _)| session)
             })
         });
-
         session.boxed()
-    }
-
-    pub fn close(self) -> BoxFuture<(), AMQPError> {
-        let close = protocol::connection::Close {
-                reply_code: 200,
-                reply_text: "Bye".to_string(),
-                class_id: 0,
-                method_id: 0
-        };
-        self.write_frame(close.to_frame(0).unwrap()).map(|session| drop(session)).boxed()
     }
 }
 
- fn read_frame(reader: TaskIoRead<TcpStream>) -> BoxFuture<(TaskIoRead<TcpStream>, Frame), AMQPError> {
+#[derive(Debug)]
+enum ConsumeResult {
+    Ack { delivery_tag: u64, multiple: bool },
+    Nack { delivery_tag: u64, multiple: bool, requeue: bool },
+    Reject { delivery_tag: u64, requeue: bool }
+}
+
+fn test_consumer(frame: Frame) -> BoxFuture<ConsumeResult, AMQPError> {
+    done(Ok(ConsumeResult::Ack{delivery_tag: 25, multiple: false})).boxed()
+}
+
+fn read_frame(reader: TaskIoRead<TcpStream>) -> BoxFuture<(TaskIoRead<TcpStream>, Frame), AMQPError> {
     read_exact(reader, [0u8; 7]).and_then(|(reader, header)|{
         let header = &mut &header[..];
         let frame_type_id = header.read_u8().unwrap();
@@ -245,7 +337,7 @@ impl Session {
 
         let frame_type = done(match FrameType::from_u8(frame_type_id) {
             Some(frame_type) => Ok(frame_type),
-            None => Err(io::Error::new(io::ErrorKind::Other, "Unknown Frame Type"))
+            None => Err(io::Error::new(io::ErrorKind::Other, format!("Unknown Frame Type: {:X}", frame_type_id)))
         });
         read_exact(reader, payload_buf).and_then(|(reader, mut payload)| {
             let frame_end_validated = done(match payload[payload.len()-1] {
@@ -326,7 +418,6 @@ fn parse_url(url_string: &str) -> AMQPResult<Options> {
 fn resolve(host: &str, port: u16) -> SocketAddr {
     use std::net::ToSocketAddrs;
     let mut addrs = (host, port).to_socket_addrs().unwrap();
-    println!("Resolving {}:{}", host, port);
     addrs.next().unwrap()
 }
 
@@ -343,14 +434,14 @@ mod test {
         assert_eq!(options.password, "password");
         assert_eq!(options.port, 12345);
         assert_eq!(options.vhost, "vhost");
-        assert!(match options.scheme { AMQPScheme::AMQP => true, _ => false });
+        // assert!(match options.scheme { AMQPScheme::AMQP => true, _ => false });
     }
 
     #[test]
     fn test_full_parse_url_without_vhost() {
         let options = parse_url("amqp://host").expect("Failed parsing url");
         assert_eq!(options.host, "host");
-        assert_eq!(options.vhost, "");
+        assert_eq!(options.vhost, "/");
     }
 
     #[test]

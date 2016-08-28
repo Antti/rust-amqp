@@ -21,9 +21,7 @@ env_logger = "0.3"
 log = "0.3"
 url = "1.2"
 futures = { git = "https://github.com/alexcrichton/futures-rs" }
-futures-io = { git = "https://github.com/alexcrichton/futures-rs" }
-futures-mio = { git = "https://github.com/alexcrichton/futures-rs" }
-futures-tls = { git = "https://github.com/alexcrichton/futures-rs" }
+tokio-core = { git = "https://github.com/tokio-rs/tokio-core" }
 
 [dev-dependencies]
 # clippy  = "*"

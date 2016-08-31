@@ -6,7 +6,7 @@ use amqp::{Session, Future};
 fn main() {
     drop(env_logger::init().unwrap());
     let mut lp = amqp::Loop::new().unwrap();
-    let session = Session::open_url(lp.handle(), "amqp://localhost//");
+    let session = Session::open_url(lp.handle(), "amqp://127.0.0.1//");
     let session = session.map(|session| { println!("Session initialized!"); session } );
     let session = session.and_then(|session| {
         session.open_channel(1).and_then(|(session, channel)| {

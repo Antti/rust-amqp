@@ -22,6 +22,8 @@ log = "0.3"
 url = "1.2"
 futures = { git = "https://github.com/alexcrichton/futures-rs" }
 tokio-core = { git = "https://github.com/tokio-rs/tokio-core" }
+tokio-proto = { git = "https://github.com/tokio-rs/tokio-proto" }
+bytes = { git = "https://github.com/carllerche/bytes" }
 
 [dev-dependencies]
 # clippy  = "*"

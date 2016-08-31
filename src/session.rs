@@ -7,10 +7,11 @@ use super::VERSION;
 
 use std::cmp;
 use std::io;
+use std::collections::HashMap;
 use byteorder::{BigEndian, ReadBytesExt};
 use enum_primitive::FromPrimitive;
 
-use futures::{Future, BoxFuture, finished, done, failed};
+use futures::{self, Future, BoxFuture, Oneshot, Complete, finished, done, failed};
 use tokio_core::io::{read_exact, write_all};
 use tokio_core::io::{TaskIo, TaskIoRead, TaskIoWrite};
 use tokio_core::{LoopHandle, TcpStream};
@@ -61,12 +62,72 @@ impl Default for Options {
     }
 }
 
+pub struct Channel {
+    pub id: u16,
+    future_handlers: HashMap<String, Complete<MethodFrame>>,
+    content_body: Option<Vec<u8>>,
+    content_headers: Option<ContentHeaderFrame>
+}
+
+impl Channel {
+    pub fn new(channel_id: u16) -> Self {
+        Channel { id: channel_id, future_handlers: HashMap::new(), content_body: None, content_headers: None }
+    }
+    pub fn register_sync_future(&mut self, method_name: String, complete: Complete<MethodFrame>) {
+        self.future_handlers.insert(method_name, complete);
+    }
+
+    pub fn dispatch(&mut self, frame: Frame) {
+        match frame.frame_type {
+            FrameType::METHOD => {
+                let method_frame = MethodFrame::decode(&frame).unwrap();
+                let method_name = method_frame.method_name();
+                match method_name {
+                    "basic.deliver" => { println!("Received basic.deliver"); return; },
+                    _ => {}
+                }
+                match self.future_handlers.remove(method_name) {
+                    Some(complete) => complete.complete(method_frame),
+                    None => { panic!("Unexpected method frame: {} on channel {}", method_name, self.id) }
+                }
+            },
+            FrameType::HEADERS => {
+                let content_headers = ContentHeaderFrame::decode(&frame).unwrap();
+                self.content_body = Some(Vec::with_capacity(content_headers.body_size as usize));
+                self.content_headers = Some(content_headers);
+            },
+            FrameType::BODY => {
+                match self.content_body {
+                    Some(ref mut content_body) => {
+                        content_body.extend_from_slice(&frame.payload);
+                        if let Some(ref content_headers) = self.content_headers {
+                            if content_body.len() == content_headers.body_size as usize {
+                                println!("Ready to dispatch content to consumers: {:?}, {}", content_body, String::from_utf8_lossy(content_body));
+                                // TODO: Dispatch to consumers
+                            }
+                        }
+                    },
+                    None => panic!("Unexpected body frame. Expected headers first")
+                }
+            },
+            FrameType::HEARTBEAT => {}
+        }
+    }
+}
+
+/// Session holds the connection.
+/// Every synchronous method creates a future, which will be resolved, when the corresponding response is received.
+/// Session receives all the frames and "dispatches" them to resolve futures. The future will be resolved if
+/// the messages matches future's expectation, that is the channel is correct and the expected message class & method match.
+/// The consumer is treated like a stream, so the session drives a stream and for each resolved message it sends ack/reject/nakc.
+
 pub struct Session {
     pub reader: TaskIoRead<TcpStream>,
     pub writer: TaskIoWrite<TcpStream>,
     channel_max_limit: u16,
     frame_max_limit: u32,
-    heartbeat: u16
+    heartbeat: u16,
+    channels: HashMap<u16, Channel>
 }
 
 impl Session {
@@ -115,7 +176,8 @@ impl Session {
                 reader: reader,
                 writer: writer,
                 frame_max_limit: frame_max_limit,
-                heartbeat: heartbeat
+                heartbeat: heartbeat,
+                channels: HashMap::new()
             }
         }).map_err(From::from).and_then(move |session| session.init(options)).boxed()
     }
@@ -127,12 +189,15 @@ impl Session {
                 class_id: 0,
                 method_id: 0
         };
-        self.write_method_rpc::<_, protocol::connection::CloseOk>(close, 0).map(|(session, _close_ok)| drop(session)).boxed()
+        self.write_sync_method::<_, protocol::connection::CloseOk>(close, 0).map(|(session, _close_ok)| drop(session)).boxed()
     }
 
     pub fn open_channel(self, channel_id: u16) -> BoxFuture<(Self, u16), AMQPError> {
         let open_channel = protocol::channel::Open::with_default_values();
-        self.write_method_rpc::<_, protocol::channel::OpenOk>(open_channel, channel_id).map(move |(session, _open_ok)| (session, channel_id)).boxed()
+        self.write_sync_method::<_, protocol::channel::OpenOk>(open_channel, channel_id).map(move |(mut session, _open_ok)|{
+            session.channels.insert(channel_id, Channel::new(channel_id));
+            (session, channel_id)
+        }).boxed()
     }
 
     pub fn close_channel(self, channel_id: u16) -> BoxFuture<Self, AMQPError> {
@@ -142,7 +207,7 @@ impl Session {
             class_id: 0,
             method_id: 0,
         };
-        self.write_method_rpc::<_, protocol::channel::CloseOk>(close_channel, channel_id).map(|(session, _)| session).boxed()
+        self.write_sync_method::<_, protocol::channel::CloseOk>(close_channel, channel_id).map(|(session, _)| session).boxed()
     }
 
     // Recursively read frame, dispatch, run itself again.
@@ -163,11 +228,10 @@ impl Session {
             nowait: false,
             arguments: Table::new(),
         };
-        self.write_method_rpc::<_, protocol::basic::ConsumeOk>(consume, channel_id).boxed()
+        self.write_sync_method::<_, protocol::basic::ConsumeOk>(consume, channel_id).boxed()
     }
 
-    fn dispatch_frame(self, frame: Frame) -> BoxFuture<Self, AMQPError> {
-        println!("Dispatching... {:?}", frame);
+    fn dispatch_frame(mut self, frame: Frame) -> BoxFuture<Self, AMQPError> {
         let result  = match frame.channel {
             0 => {
                 match frame.frame_type {
@@ -190,26 +254,46 @@ impl Session {
                     frame_type => failed(AMQPError::Protocol(format!("Unexpected frame type on channel 0: {:?}", frame_type))).boxed()
                 }
             }, // handle connection methods
-            channel_id => { finished(self).boxed() } // push
+            channel_id => {
+                match self.channels.get_mut(&channel_id) {
+                    Some(mut channel) => channel.dispatch(frame),
+                    None => panic!("Unknown channel {}", channel_id)
+                }
+                finished(self).boxed()
+            }
         };
         result
     }
 
     fn read_frame(self) -> BoxFuture<(Self, Frame), AMQPError> {
-        let Session { reader, writer, channel_max_limit, frame_max_limit, heartbeat } =  self;
+        let Session { reader, writer, channel_max_limit, frame_max_limit, heartbeat, channels } =  self;
         read_frame(reader).map(move |(reader, frame)|
-            (Session{ reader: reader, writer: writer, channel_max_limit: channel_max_limit, frame_max_limit: frame_max_limit, heartbeat: heartbeat }, frame)
+            (Session {
+                reader: reader,
+                writer: writer,
+                channel_max_limit: channel_max_limit,
+                frame_max_limit: frame_max_limit,
+                heartbeat: heartbeat,
+                channels: channels
+            }, frame)
         ).boxed()
     }
 
     fn write_frame(self, frame: Frame) -> BoxFuture<Self, AMQPError> {
-        let Session { reader, writer, channel_max_limit, frame_max_limit, heartbeat } =  self;
+        let Session { reader, writer, channel_max_limit, frame_max_limit, heartbeat, channels } =  self;
         write_frame(writer, frame).map(move |writer|
-            Session{ reader: reader, writer: writer, channel_max_limit: channel_max_limit, frame_max_limit: frame_max_limit, heartbeat: heartbeat }
+            Session {
+                reader: reader,
+                writer: writer,
+                channel_max_limit: channel_max_limit,
+                frame_max_limit: frame_max_limit,
+                heartbeat: heartbeat,
+                channels: channels
+            }
         ).boxed()
     }
 
-    fn write_method_rpc<T, U>(self, method: T, channel_id: u16) -> BoxFuture<(Self, U), AMQPError> where T: protocol::Method, U: protocol::Method + Send + 'static {
+    fn write_sync_method<T, U>(self, method: T, channel_id: u16) -> BoxFuture<(Self, U), AMQPError> where T: Method, U: Method + Send + 'static {
         let session = done(method.to_frame(channel_id)).and_then(|method_frame|{
             self.write_frame(method_frame)
         });
@@ -217,19 +301,34 @@ impl Session {
             session.read_frame().and_then(|(session, frame)|{
                 let method_frame = done(MethodFrame::decode(&frame));
                 let maybe_reply = method_frame.and_then(|method_frame|{
-                    done(protocol::Method::decode(method_frame) as AMQPResult<U>)
+                    done(Method::decode(method_frame) as AMQPResult<U>)
                 });
                 finished(session).join(maybe_reply)
             })
         }).boxed()
     }
 
+    fn write_sync_method2<T>(self, method: T, channel_id: u16, r_method: String) -> BoxFuture<(Self, Oneshot<MethodFrame>), AMQPError> where T: Method {
+        let session = done(method.to_frame(channel_id)).and_then(|method_frame|{
+            self.write_frame(method_frame)
+        });
+        session.map(move |mut session|{
+            let (tx, rx) = futures::oneshot();
+            {
+                let c = session.channels.get_mut(&channel_id).unwrap();
+                c.register_sync_future(r_method, tx);
+            }
+            (session, rx)
+        }).boxed()
+    }
+
+
     fn init(self, options: Options) -> BoxFuture<Session, AMQPError> {
         debug!("Starting init session");
         let Options{ login, password, locale, vhost, .. } = options;
         let start_frame = self.read_frame().and_then(|(session, frame)| {
             let method_frame = MethodFrame::decode(&frame).unwrap();
-            let start : AMQPResult<protocol::connection::Start> = protocol::Method::decode(method_frame);
+            let start : AMQPResult<protocol::connection::Start> = Method::decode(method_frame);
             finished(session).join(done(start))
         });
         let session = start_frame.and_then(move |(session, start_frame)|{
@@ -245,7 +344,7 @@ impl Session {
             client_properties.insert("capabilities".to_owned(), FieldTable(capabilities));
             client_properties.insert("product".to_owned(), LongString("rust-amqp".to_owned()));
             client_properties.insert("platform".to_owned(), LongString("rust".to_owned()));
-            client_properties.insert("version".to_owned(), LongString(env!("CARGO_PKG_VERSION").to_owned()));
+            client_properties.insert("version".to_owned(), LongString(VERSION.to_owned()));
             client_properties.insert("information".to_owned(),
                                         LongString("https://github.com/Antti/rust-amqp".to_owned()));
 
@@ -262,9 +361,9 @@ impl Session {
             session.read_frame().and_then(|(session, frame)| {
                 let connection_tune_or_close = MethodFrame::decode(&frame).unwrap();
                 let tune: AMQPResult<protocol::connection::Tune> = match connection_tune_or_close.method_name() {
-                    "connection.tune" => protocol::Method::decode(connection_tune_or_close),
+                    "connection.tune" => Method::decode(connection_tune_or_close),
                     "connection.close" => {
-                        let close_frame: AMQPResult<protocol::connection::Close> = protocol::Method::decode(connection_tune_or_close);
+                        let close_frame: AMQPResult<protocol::connection::Close> = Method::decode(connection_tune_or_close);
                         Err(AMQPError::Protocol(format!("Connection was closed: {:?}", close_frame)))
                     }
                     response_method => Err(AMQPError::Protocol(format!("Unexpected response: {}", response_method)))
@@ -296,7 +395,7 @@ impl Session {
                     let open_ok_or_close = MethodFrame::decode(&frame).unwrap();
                     let frame_result = match open_ok_or_close.method_name() {
                         "connection.open-ok" => {
-                            let open_ok_frame: AMQPResult<protocol::connection::OpenOk> = protocol::Method::decode(open_ok_or_close);
+                            let open_ok_frame: AMQPResult<protocol::connection::OpenOk> = Method::decode(open_ok_or_close);
                             debug!("Connection initialized. conneciton.open-ok recieved: {:?}", open_ok_frame);
                             Ok(())
                         },

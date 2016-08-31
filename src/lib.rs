@@ -86,6 +86,8 @@ extern crate byteorder;
 extern crate bit_vec;
 extern crate futures;
 extern crate tokio_core;
+extern crate tokio_proto;
+extern crate bytes;
 
 #[cfg(feature = "tls")]
 extern crate openssl;

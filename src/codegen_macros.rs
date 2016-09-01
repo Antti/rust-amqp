@@ -210,15 +210,15 @@ macro_rules! method_struct {
                 Ok(vec![])
             }
 
-            fn name(&self) -> &'static str {
+            fn name() -> &'static str {
                 $method_str
             }
 
-            fn id(&self) -> u16 {
+            fn id() -> u16 {
                 $method_id
             }
 
-            fn class_id(&self) -> u16 {
+            fn class_id() -> u16 {
                 $class_id
             }
         }
@@ -248,15 +248,15 @@ macro_rules! method_struct {
                 Ok(writer.as_bytes())
             }
 
-            fn name(&self) -> &'static str {
+            fn name() -> &'static str {
                 $method_str
             }
 
-            fn id(&self) -> u16 {
+            fn id() -> u16 {
                 $method_id
             }
 
-            fn class_id(&self) -> u16 {
+            fn class_id() -> u16 {
                 $class_id
             }
         }

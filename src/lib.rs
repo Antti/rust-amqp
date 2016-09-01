@@ -85,6 +85,7 @@ extern crate url;
 extern crate byteorder;
 extern crate bit_vec;
 extern crate futures;
+#[macro_use]
 extern crate tokio_core;
 extern crate tokio_proto;
 extern crate bytes;
@@ -103,6 +104,7 @@ mod framing;
 mod session;
 // mod basic;
 mod amqp_error;
+//mod framed_transport;
 pub mod table;
 mod method;
 #[macro_use] mod codegen_macros;

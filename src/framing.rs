@@ -29,7 +29,7 @@ pub struct FrameHeader {
 }
 
 impl FrameHeader {
-    pub fn new(header: [u8; 7]) -> Self {
+    pub fn new(header: &[u8]) -> Self {
         let reader = &mut &header[..];
         let frame_type_id = reader.read_u8().unwrap();
         let channel = reader.read_u16::<BigEndian>().unwrap();
@@ -84,7 +84,7 @@ impl Frame {
     pub fn decode<T: Read>(reader: &mut T) -> AMQPResult<Frame> {
         let mut header = [0u8; 7];
         try!(reader.read_exact(&mut header));
-        let FrameHeader { frame_type_id, channel, payload_size } = FrameHeader::new(header);
+        let FrameHeader { frame_type_id, channel, payload_size } = FrameHeader::new(&header);
         let size = payload_size as usize;
         // We need to use Vec because the size is not know in compile time.
         let mut payload: Vec<u8> = vec![0u8; size];

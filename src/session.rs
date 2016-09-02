@@ -159,8 +159,8 @@ impl SessionInitializer {
                                 let start_ok = protocol::connection::StartOk {
                                     client_properties: client_properties,
                                     mechanism: "PLAIN".to_owned(),
-                                    response: format!("\0{}\0{}", "guest", "guest"),
-                                    locale: "en_US".to_owned(),
+                                    response: format!("\0{}\0{}", self.options.login, self.options.password),
+                                    locale: self.options.locale.clone(),
                                 };
                                 debug!("Sending connection.start-ok: {:?}", start_ok);
                                 self.write_frame_to_buf(&start_ok.to_frame(0).unwrap());
@@ -183,7 +183,7 @@ impl SessionInitializer {
 
 
                                 let open = protocol::connection::Open {
-                                    virtual_host: percent_decode("/"),
+                                    virtual_host: percent_decode(&self.options.vhost),
                                     capabilities: "".to_owned(),
                                     insist: false,
                                 };

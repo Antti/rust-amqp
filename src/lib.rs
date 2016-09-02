@@ -117,8 +117,8 @@ pub use session::{Session, Options};
 pub use table::{Table, TableEntry};
 // pub use basic::{Basic, GetResult};
 pub use session::AMQPScheme;
-pub use amqp_error::AMQPError;
-pub use futures::Future;
-pub use tokio_core::{Loop, LoopHandle};
 pub use amqp_error::AMQPResult;
 pub use framing::{Frame, FrameType};
+
+pub use futures::{Future, finished, done, failed};
+pub use tokio_core::{Loop, LoopHandle};

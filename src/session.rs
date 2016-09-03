@@ -68,7 +68,8 @@ impl Default for Options {
 }
 
 pub struct Channel {
-    id: u16,
+    pub id: u16,
+    session: SessionRef,
     future_handlers: HashMap<String, Complete<MethodFrame>>,
     content_body: Option<Vec<u8>>,
     content_headers: Option<ContentHeaderFrame>,
@@ -76,14 +77,58 @@ pub struct Channel {
 }
 
 impl Channel {
-    pub fn new(channel_id: u16) -> Self {
-        Channel { id: channel_id, future_handlers: HashMap::new(), content_body: None, content_headers: None, content_method: None }
+    fn new(session: SessionRef, channel_id: u16) -> Self {
+        Channel { id: channel_id, session: session, future_handlers: HashMap::new(), content_body: None, content_headers: None, content_method: None }
     }
     pub fn register_sync_future(&mut self, method_name: String, complete: Complete<MethodFrame>) {
         self.future_handlers.insert(method_name, complete);
     }
 
-    pub fn dispatch(&mut self, frame: Frame) {
+
+    pub fn open_channel(&mut self) -> BoxFuture<protocol::channel::OpenOk, AMQPError> {
+        let open_channel = protocol::channel::Open::with_default_values();
+        self.write_sync_method(open_channel)
+    }
+
+    pub fn close_channel(&mut self) -> BoxFuture<protocol::channel::CloseOk, AMQPError> {
+        let close_channel = protocol::channel::Close {
+            reply_code: 200,
+            reply_text: "Closing channel".into(),
+            class_id: 0,
+            method_id: 0,
+        };
+        self.write_sync_method(close_channel)
+    }
+
+    pub fn consume<S>(&mut self, queue: S) -> BoxFuture<protocol::basic::ConsumeOk, AMQPError> where S: Into<String> {
+        let consume = protocol::basic::Consume {
+            ticket: 0,
+            queue: queue.into(),
+            consumer_tag: "".into(),
+            no_local: true,
+            no_ack: true,
+            exclusive: false,
+            nowait: false,
+            arguments: Table::new(),
+        };
+        self.write_sync_method(consume)
+    }
+
+    pub fn basic_qos(&mut self,
+                 prefetch_size: u32,
+                 prefetch_count: u16,
+                 global: bool)
+                 -> BoxFuture<protocol::basic::QosOk, AMQPError> {
+        let qos = protocol::basic::Qos {
+            prefetch_size: prefetch_size,
+            prefetch_count: prefetch_count,
+            global: global,
+        };
+        self.write_sync_method(qos)
+    }
+
+
+    fn dispatch(&mut self, frame: Frame) {
         match frame.frame_type {
             FrameType::METHOD => {
                 let method_frame = MethodFrame::decode(&frame).unwrap();
@@ -110,23 +155,43 @@ impl Channel {
                 match self.content_body {
                     Some(ref mut content_body) => {
                         content_body.extend_from_slice(&frame.payload);
-                        if let Some(ref content_headers) = self.content_headers {
-                            if content_body.len() == content_headers.body_size as usize {
-                                // println!(
-                                //     "Ready to dispatch content to consumers: {:?} {:?} {}",
-                                //     self.content_method,
-                                //     self.content_headers,
-                                //     String::from_utf8_lossy(content_body)
-                                // );
-                                // TODO: Dispatch self.content_method, self.content_headers, self.content_body
+                        match mem::replace(&mut self.content_headers, None) {
+                            None => {},
+                            Some(content_headers) => {
+                                 if content_body.len() == content_headers.body_size as usize {
+                                    let content_method = mem::replace(&mut self.content_method, None).unwrap();
+                                    println!(
+                                        "Ready to dispatch content to consumers: {:?} {:?} {}",
+                                        content_method.method_name(),
+                                        protocol::basic::BasicProperties::decode(content_headers),
+                                        String::from_utf8_lossy(content_body)
+                                    );
+                                    // TODO: Dispatch self.content_method, self.content_headers, self.content_body
+                                }
                             }
                         }
                     },
                     None => panic!("Unexpected body frame. Expected headers first")
                 }
             },
-            FrameType::HEARTBEAT => {}
+            FrameType::HEARTBEAT => {
+                debug!("Received heartbeat.")
+            }
         }
+    }
+    
+
+    fn write_sync_method<T, U>(&mut self, method: T) -> BoxFuture<U, AMQPError> where T: Method, U: Method + Send + 'static {
+        let (tx, rx) = futures::oneshot();
+        self.session.with(|session|{
+            session.borrow_mut().write_frame_to_buf(&method.to_frame(self.id).unwrap());
+        });
+        self.register_sync_future(U::name().to_owned(), tx);
+
+        let oneshot = rx.map_err(|_| AMQPError::Protocol("Oneshot was cancelled".to_owned())).and_then(|method_frame|{
+            Method::decode(method_frame)
+        });
+        SyncMethodFuture { oneshot: oneshot, session: self.session.clone() }.boxed()
     }
 }
 
@@ -300,7 +365,7 @@ impl Future for SessionInitializer {
 }
 
 pub struct SessionRunner {
-    session: TaskRc<RefCell<Session>>
+    session: SessionRef
 }
 
 impl Future for SessionRunner {
@@ -387,7 +452,7 @@ impl Connection {
 // Drives session until synchronous method was resolved
 pub struct SyncMethodFuture<F, T> where F: Future<Item=T, Error=AMQPError> {
     oneshot: F,
-    session: TaskRc<RefCell<Session>>
+    session: SessionRef
 }
 
 impl <F, T> Future for SyncMethodFuture<F, T> where F: Future<Item=T, Error=AMQPError> {
@@ -418,7 +483,7 @@ impl <F, T> Future for SyncMethodFuture<F, T> where F: Future<Item=T, Error=AMQP
 }
 
 pub struct Client {
-    session: TaskRc<RefCell<Session>>
+    session: SessionRef
 }
 
 impl Client {
@@ -428,84 +493,31 @@ impl Client {
         }).boxed()
     }
 
-    pub fn close(mut self) -> BoxFuture<protocol::connection::CloseOk, AMQPError> {
-        let close = protocol::connection::Close {
-                reply_code: 200,
-                reply_text: "Bye".to_string(),
-                class_id: 0,
-                method_id: 0
-        };
-        self.write_sync_method(close, 0).map(|close_ok| { drop(self); close_ok }).boxed()
-    }
-
-    pub fn open_channel(&mut self, channel_id: u16) -> BoxFuture<u16, AMQPError> {
-        self.session.with(|session| session.borrow_mut().channels.insert(channel_id, Channel::new(channel_id)));
-        let open_channel = protocol::channel::Open::with_default_values();
-        self.write_sync_method::<_, protocol::channel::OpenOk>(open_channel, channel_id).map(move |open_ok|{
-            channel_id
-        }).boxed()
-    }
-
-    pub fn close_channel(&mut self, channel_id: u16) -> BoxFuture<protocol::channel::CloseOk, AMQPError> {
-        let close_channel = protocol::channel::Close {
-            reply_code: 200,
-            reply_text: "Closing channel".into(),
-            class_id: 0,
-            method_id: 0,
-        };
-        self.write_sync_method(close_channel, channel_id)
-    }
-
-    pub fn consume<S>(&mut self, channel_id: u16, queue: S) -> BoxFuture<protocol::basic::ConsumeOk, AMQPError> where S: Into<String> {
-        let consume = protocol::basic::Consume {
-            ticket: 0,
-            queue: queue.into(),
-            consumer_tag: "".into(),
-            no_local: true,
-            no_ack: true,
-            exclusive: false,
-            nowait: false,
-            arguments: Table::new(),
-        };
-        self.write_sync_method(consume, channel_id)
-    }
-
-    // pub fn basic_qos(self,
-    //              channel_id: u16,
-    //              prefetch_size: u32,
-    //              prefetch_count: u16,
-    //              global: bool)
-    //              -> BoxFuture<(Self, protocol::basic::QosOk), AMQPError> {
-    //     let qos = protocol::basic::Qos {
-    //         prefetch_size: prefetch_size,
-    //         prefetch_count: prefetch_count,
-    //         global: global,
+    // TODO: Should be redone, because it should not use write_sync_method.
+    // pub fn close(mut self) -> BoxFuture<protocol::connection::CloseOk, AMQPError> {
+    //     let close = protocol::connection::Close {
+    //             reply_code: 200,
+    //             reply_text: "Bye".to_string(),
+    //             class_id: 0,
+    //             method_id: 0
     //     };
-    //     self.write_sync_method::<_, protocol::basic::QosOk>(qos, channel_id).boxed()
+    //     self.write_sync_method(close, 0).map(|close_ok| { drop(self); close_ok }).boxed()
     // }
+
+    pub fn open_channel(&mut self, channel_id: u16) -> BoxFuture<TaskRc<RefCell<Channel>>, AMQPError> {
+        let channel = TaskRc::new(RefCell::new(Channel::new(self.session.clone(), channel_id)));
+        let c2 = channel.clone();
+        self.session.with(|session| session.borrow_mut().channels.insert(channel_id, channel.clone()));
+        channel.with(|channel| channel.borrow_mut().open_channel().map(move |_open_ok| c2)).boxed()
+    }
 
     pub fn session_runner(self) -> SessionRunner {
         debug!("Creating session runner");
         SessionRunner { session: self.session }
     }
-
-    fn write_sync_method<T, U>(&mut self, method: T, channel_id: u16) -> BoxFuture<U, AMQPError> where T: Method, U: Method + Send + 'static {
-        let (tx, rx) = futures::oneshot();
-        self.session.with(|session|{
-            let mut session = session.borrow_mut();
-            session.write_frame_to_buf(&method.to_frame(channel_id).unwrap());
-            {
-                let c = session.channels.get_mut(&channel_id).unwrap();
-                c.register_sync_future(U::name().to_owned(), tx);
-            }
-        });
-
-        let oneshot = rx.map_err(|_| AMQPError::Protocol("Oneshot was cancelled".to_owned())).and_then(|method_frame|{
-            Method::decode(method_frame)
-        });
-        SyncMethodFuture { oneshot: oneshot, session: self.session.clone() }.boxed()
-    }
 }
+
+type SessionRef = TaskRc<RefCell<Session>>;
 
 /// Session holds the connection.
 /// Every synchronous method creates a future, which will be resolved, when the corresponding response is received.
@@ -520,7 +532,7 @@ pub struct Session {
     channel_max_limit: u16,
     frame_max_limit: u32,
     heartbeat: u16,
-    channels: HashMap<u16, Channel>
+    channels: HashMap<u16, TaskRc<RefCell<Channel>>>
 }
 
 impl Session {
@@ -587,7 +599,7 @@ impl Session {
             channel_id => {
                 debug!("Dispatching frame to channel: {}", channel_id);
                 match self.channels.get_mut(&channel_id) {
-                    Some(mut channel) => channel.dispatch(frame),
+                    Some(mut channel) => channel.with(|channel| channel.borrow_mut().dispatch(frame)),
                     None => panic!("Unknown channel {}", channel_id)
                 }
                 Ok(())

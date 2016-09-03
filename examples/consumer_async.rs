@@ -11,17 +11,19 @@ fn main() {
     drop(env_logger::init().unwrap());
     let mut lp = amqp::Loop::new().unwrap();
     let client = Client::open_url(lp.handle(), "amqp://127.0.0.1//");
-    let client = client.and_then(|mut client|{
+    let done = client.and_then(|mut client|{
         println!("Trying to open channel");
-        client.open_channel(1).and_then(move |channel_id|{
-            println!("Opened channel {}. Trying to consume on channel: {}", channel_id, channel_id);
-            client.consume(channel_id, "test_queue").map(|consume_ok|{
-                println!("Consume ok: {:?}", consume_ok);
-                client
+        let channel1 = client.open_channel(1).and_then(|channel|{
+            channel.with(|channel|{
+                let mut channel = channel.borrow_mut();
+                println!("Opened channel {:?}", channel.id);
+                channel.consume("test_queue").map(|consume_ok|{
+                    println!("Consume ok: {:?}", consume_ok);
+                })
             })
-        })
+        });
+        client.session_runner().join(channel1)
     });
-    let session_runner = client.and_then(|client| client.session_runner() );
     // let session = session.open_channel(1).and_then(|(session, channel)| {
     //     println!("Opened channel: {}", channel);
     //     // exchange_declare, queue_declare, bind
@@ -29,7 +31,7 @@ fn main() {
     //     let qos = session.basic_qos(channel, 0, 1000, true);
     //     let session = qos.and_then(move |(session, _qos_ok)| session.consume(channel, "test_queue".to_string() ).map(|(session, ok)| { println!("{:?}", ok); session }));
     // });
-    match lp.run(session_runner) {
+    match lp.run(done) {
         Ok(_) => {},
         Err(err) => { println!("Session was closed because: {:?}", err) }
     };

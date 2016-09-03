@@ -1,7 +1,7 @@
 extern crate amqp;
 extern crate env_logger;
 
-use amqp::{Session, Future, finished};
+use amqp::{Client, Future};
 
 // 1. Api must be asynchronous
 // 2. Channels should be sendable, but not sync.
@@ -10,18 +10,18 @@ use amqp::{Session, Future, finished};
 fn main() {
     drop(env_logger::init().unwrap());
     let mut lp = amqp::Loop::new().unwrap();
-    let session = Session::open_url(lp.handle(), "amqp://127.0.0.1//");
-    let session = session.and_then(|mut session|{
+    let client = Client::open_url(lp.handle(), "amqp://127.0.0.1//");
+    let client = client.and_then(|mut client|{
         println!("Trying to open channel");
-        session.open_channel(1).and_then(move |channel_id|{
+        client.open_channel(1).and_then(move |channel_id|{
             println!("Opened channel {}. Trying to consume on channel: {}", channel_id, channel_id);
-            session.consume(channel_id, "test_queue").map(|consume_ok|{
+            client.consume(channel_id, "test_queue").map(|consume_ok|{
                 println!("Consume ok: {:?}", consume_ok);
-                session
+                client
             })
         })
     });
-    let session_runner = session.and_then(|session| session.session_runner() );
+    let session_runner = client.and_then(|client| client.session_runner() );
     // let session = session.open_channel(1).and_then(|(session, channel)| {
     //     println!("Opened channel: {}", channel);
     //     // exchange_declare, queue_declare, bind

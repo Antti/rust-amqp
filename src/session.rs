@@ -10,11 +10,13 @@ use std::io;
 use std::mem;
 use std::collections::HashMap;
 use std::net::SocketAddr;
+use std::cell::RefCell;
 
 use byteorder::{BigEndian, ReadBytesExt};
 use enum_primitive::FromPrimitive;
 
 use futures::{self, Future, BoxFuture, Oneshot, Complete, Poll, finished, done, failed};
+use futures::task::TaskRc;
 use tokio_core::io::{read_exact, write_all};
 use tokio_core::io::{TaskIo, TaskIoRead, TaskIoWrite};
 use tokio_core::{LoopHandle, TcpStream};
@@ -110,7 +112,12 @@ impl Channel {
                         content_body.extend_from_slice(&frame.payload);
                         if let Some(ref content_headers) = self.content_headers {
                             if content_body.len() == content_headers.body_size as usize {
-                                // println!("Ready to dispatch content to consumers: {}", String::from_utf8_lossy(content_body));
+                                // println!(
+                                //     "Ready to dispatch content to consumers: {:?} {:?} {}",
+                                //     self.content_method,
+                                //     self.content_headers,
+                                //     String::from_utf8_lossy(content_body)
+                                // );
                                 // TODO: Dispatch self.content_method, self.content_headers, self.content_body
                             }
                         }
@@ -218,12 +225,12 @@ impl SessionInitializer {
                 error!("{}", err_msg);
                 let close = protocol::connection::Close {
                     reply_code: 500,
-                    reply_text: err_msg,
+                    reply_text: err_msg.clone(),
                     class_id: 0,
                     method_id: 0,
                 };
                 self.write_frame_to_buf(&close.to_frame(0).unwrap());
-                Err(AMQPError::Protocol(format!("Unexpected frame type on channel 0: {:?}", channel_id)))
+                Err(AMQPError::Protocol(err_msg))
             }
         }
     }
@@ -245,26 +252,40 @@ impl Future for SessionInitializer {
     type Error = AMQPError;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        let frames = match self.connection {
+        let mut frames = vec![];
+        match self.connection {
             Some(ref mut connection) => {
                 match connection.flush_buffers() {
-                    Ok(frames) => frames,
+                    Ok(_) => {
+                        while connection.frame_read_buf.len() > 0 {
+                            match try_parse_frame(&mut connection.frame_read_buf) {
+                                Some(frame) => frames.push(frame),
+                                None => { break }
+                            }
+                        }
+                    },
                     Err(e) => return Poll::Err(e)
                 }
             },
             None => panic!("Feature was resolved")
-        };
+        }
         for frame in frames {
-            self.dispatch_frame(frame);
+            match self.dispatch_frame(frame) {
+                Err(err) => return Poll::Err(err),
+                _ => {}
+            }
         }
         match self.session_inited {
             true => {
                 debug!("Session was inited. Resolving future");
                 match mem::replace(&mut self.connection, None){
                     Some(connection) => {
+                        let Connection { stream, frame_read_buf, frame_write_buf } = connection;
                         Poll::Ok(Session {
                             channel_max_limit: self.options.channel_max_limit,
-                            connection: connection,
+                            stream: stream,
+                            frame_read_buf: frame_read_buf,
+                            frame_write_buf: frame_write_buf,
                             frame_max_limit: self.options.frame_max_limit,
                             heartbeat: self.options.heartbeat,
                             channels: HashMap::new()
@@ -279,7 +300,7 @@ impl Future for SessionInitializer {
 }
 
 pub struct SessionRunner {
-    session: Session
+    session: TaskRc<RefCell<Session>>
 }
 
 impl Future for SessionRunner {
@@ -288,7 +309,7 @@ impl Future for SessionRunner {
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         debug!("Polling runner");
-        match self.session.flush_buffers() {
+        match self.session.with(|session| session.borrow_mut().flush_buffers()) {
             Ok(_) => Poll::NotReady,
             Err(err) => Poll::Err(err)
         }
@@ -306,10 +327,17 @@ impl Connection {
         Connection { stream: stream, frame_read_buf: BlockBuf::default(), frame_write_buf: BlockBuf::default() }
     }
 
-    pub fn flush_buffers(&mut self) -> AMQPResult<Vec<Frame>> {
-        self.flush_write_buffer();
-        self.fill_read_buffer();
-        Ok(self.parse_frames())
+    pub fn flush_buffers(&mut self) -> AMQPResult<()> {
+        debug!("Connection::flush_buffers");
+        if let Err(err) = self.flush_write_buffer() {
+            error!("Error flushing write buffers! {:?}", err);
+            return Err(err);
+        }
+        if let Err(err) = self.fill_read_buffer() {
+            error!("Error filling read buffers! {:?}", err);
+            return Err(err);
+        }
+        Ok(())
     }
 
     pub fn write_slice(&mut self, slice: &[u8]) {
@@ -319,7 +347,7 @@ impl Connection {
     fn flush_write_buffer(&mut self) -> AMQPResult<()> {
         use bytes::WriteExt;
 
-        debug!("Flushing buffers");
+        debug!("Flushing write buffer");
         if self.frame_write_buf.len() > 0 {
             debug!("Trying to write write buffer. Write buf size: {}", self.frame_write_buf.len());
             let write_result = self.stream.write_buf(&mut self.frame_write_buf.buf());
@@ -344,7 +372,7 @@ impl Connection {
         let read_result = self.stream.read_buf(&mut self.frame_read_buf);
         match read_result {
             Ok(read_len) => {
-                debug!("Bytes read. New read buf size: {}", self.frame_read_buf.len());
+                debug!("Read {} bytes. New read buf size: {}", read_len, self.frame_read_buf.len());
                 Ok(())
             },
             Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
@@ -354,60 +382,130 @@ impl Connection {
             Err(e) => Err(From::from(e))
         }
     }
-
-    fn parse_frames(&mut self) -> Vec<Frame> {
-        let mut frames = vec![];
-        while self.frame_read_buf.len() > 0 {
-            match self.parse_frame(){
-                Some(frame) => frames.push(frame),
-                None => break
-            }
-        }
-        frames
-    }
-
-    fn parse_frame(&mut self) -> Option<Frame> {
-        debug!("Trying to parse frame. Buf size: {}", self.frame_read_buf.len());
-        try_parse_frame(&mut (self.frame_read_buf)).map(|frame|{
-            debug!("Frame parsed. Bytes left in the buffer: {}", self.frame_read_buf.len());
-            frame
-        })
-    }
 }
 
-impl futures::stream::Stream for Connection {
-    type Item = Frame;
-    type Error = AMQPError;
-
-    fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
-        if let Err(err) = self.flush_write_buffer() {
-            return Poll::Err(err)
-        }
-        if let Err(err) = self.fill_read_buffer() {
-            return Poll::Err(err)
-        }
-        match self.parse_frame() {
-            Some(frame) => Poll::Ok(Some(frame)),
-            None => Poll::NotReady
-        }
-    }
+// Drives session until synchronous method was resolved
+pub struct SyncMethodFuture<F, T> where F: Future<Item=T, Error=AMQPError> {
+    oneshot: F,
+    session: TaskRc<RefCell<Session>>
 }
 
-pub struct SyncMethodFuture<T> {
-    oneshot: Oneshot<T>,
-    connection: Connection
-}
-
-impl <T> Future for SyncMethodFuture<T> {
+impl <F, T> Future for SyncMethodFuture<F, T> where F: Future<Item=T, Error=AMQPError> {
     type Item = T;
     type Error = AMQPError;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        self.connection.flush_buffers();
-        Poll::NotReady
+        match self.session.with(|session| session.borrow_mut().flush_buffers()) {
+            Err(err) => return Poll::Err(err),
+            Ok(_) => {}
+        }
+        self.oneshot.poll()
+        // loop {
+        //     match self.session.with(|session| session.borrow_mut().parse_and_dispatch_next_frame()) {
+        //         Ok(Some(_)) => {
+        //             println!("SyncMethodFuture dispatched frame");
+        //             match self.oneshot.poll() {
+        //                 Poll::Ok(x) => return Poll::Ok(x),
+        //                 Poll::NotReady => {}, // continue
+        //                 Poll::Err(err) => return Poll::Err(err)
+        //             }
+        //         },
+        //         Ok(None) => { println!("SyncMethodFuture buffer is empty"); return Poll::NotReady },
+        //         Err(err) =>  return Poll::Err(err)
+        //     }
+        // }
     }
 }
 
+pub struct Client {
+    session: TaskRc<RefCell<Session>>
+}
+
+impl Client {
+    pub fn open_url(handle: LoopHandle, url_string: &str) -> BoxFuture<Self, AMQPError> {
+        Session::open_url(handle, url_string).map(|session| {
+            Client { session: TaskRc::new(RefCell::new(session)) }
+        }).boxed()
+    }
+
+    pub fn close(mut self) -> BoxFuture<protocol::connection::CloseOk, AMQPError> {
+        let close = protocol::connection::Close {
+                reply_code: 200,
+                reply_text: "Bye".to_string(),
+                class_id: 0,
+                method_id: 0
+        };
+        self.write_sync_method(close, 0).map(|close_ok| { drop(self); close_ok }).boxed()
+    }
+
+    pub fn open_channel(&mut self, channel_id: u16) -> BoxFuture<u16, AMQPError> {
+        self.session.with(|session| session.borrow_mut().channels.insert(channel_id, Channel::new(channel_id)));
+        let open_channel = protocol::channel::Open::with_default_values();
+        self.write_sync_method::<_, protocol::channel::OpenOk>(open_channel, channel_id).map(move |open_ok|{
+            channel_id
+        }).boxed()
+    }
+
+    pub fn close_channel(&mut self, channel_id: u16) -> BoxFuture<protocol::channel::CloseOk, AMQPError> {
+        let close_channel = protocol::channel::Close {
+            reply_code: 200,
+            reply_text: "Closing channel".into(),
+            class_id: 0,
+            method_id: 0,
+        };
+        self.write_sync_method(close_channel, channel_id)
+    }
+
+    pub fn consume<S>(&mut self, channel_id: u16, queue: S) -> BoxFuture<protocol::basic::ConsumeOk, AMQPError> where S: Into<String> {
+        let consume = protocol::basic::Consume {
+            ticket: 0,
+            queue: queue.into(),
+            consumer_tag: "".into(),
+            no_local: true,
+            no_ack: true,
+            exclusive: false,
+            nowait: false,
+            arguments: Table::new(),
+        };
+        self.write_sync_method(consume, channel_id)
+    }
+
+    // pub fn basic_qos(self,
+    //              channel_id: u16,
+    //              prefetch_size: u32,
+    //              prefetch_count: u16,
+    //              global: bool)
+    //              -> BoxFuture<(Self, protocol::basic::QosOk), AMQPError> {
+    //     let qos = protocol::basic::Qos {
+    //         prefetch_size: prefetch_size,
+    //         prefetch_count: prefetch_count,
+    //         global: global,
+    //     };
+    //     self.write_sync_method::<_, protocol::basic::QosOk>(qos, channel_id).boxed()
+    // }
+
+    pub fn session_runner(self) -> SessionRunner {
+        debug!("Creating session runner");
+        SessionRunner { session: self.session }
+    }
+
+    fn write_sync_method<T, U>(&mut self, method: T, channel_id: u16) -> BoxFuture<U, AMQPError> where T: Method, U: Method + Send + 'static {
+        let (tx, rx) = futures::oneshot();
+        self.session.with(|session|{
+            let mut session = session.borrow_mut();
+            session.write_frame_to_buf(&method.to_frame(channel_id).unwrap());
+            {
+                let c = session.channels.get_mut(&channel_id).unwrap();
+                c.register_sync_future(U::name().to_owned(), tx);
+            }
+        });
+
+        let oneshot = rx.map_err(|_| AMQPError::Protocol("Oneshot was cancelled".to_owned())).and_then(|method_frame|{
+            Method::decode(method_frame)
+        });
+        SyncMethodFuture { oneshot: oneshot, session: self.session.clone() }.boxed()
+    }
+}
 
 /// Session holds the connection.
 /// Every synchronous method creates a future, which will be resolved, when the corresponding response is received.
@@ -416,7 +514,9 @@ impl <T> Future for SyncMethodFuture<T> {
 /// The consumer is treated like a stream, so the session drives a stream and for each resolved message it sends ack/reject/nack.
 
 pub struct Session {
-    connection: Connection,
+    stream: TcpStream,
+    frame_read_buf: BlockBuf,
+    frame_write_buf: BlockBuf,
     channel_max_limit: u16,
     frame_max_limit: u32,
     heartbeat: u16,
@@ -465,74 +565,6 @@ impl Session {
         ).boxed()
     }
 
-    // pub fn run(&mut self) -> BoxFuture<(), AMQPError> {
-    //     use futures::stream::Stream;
-
-    //     self.connection.map(|frame|{
-    //         self.dispatch_frame(frame)
-    //     }).into_future().map(|_| () ).map_err(|(err,_)| err ).boxed()
-    // }
-
-    // pub fn close(self) -> BoxFuture<(), AMQPError> {
-    //     let close = protocol::connection::Close {
-    //             reply_code: 200,
-    //             reply_text: "Bye".to_string(),
-    //             class_id: 0,
-    //             method_id: 0
-    //     };
-    //     self.write_sync_method::<_, protocol::connection::CloseOk>(close, 0).map(|(session, _close_ok)| drop(session)).boxed()
-    // }
-
-    pub fn open_channel(&mut self, channel_id: u16) -> BoxFuture<u16, AMQPError> {
-        self.channels.insert(channel_id, Channel::new(channel_id));
-        let open_channel = protocol::channel::Open::with_default_values();
-        self.write_sync_method::<_, protocol::channel::OpenOk>(open_channel, channel_id).map(move |open_ok|{
-            channel_id
-        }).boxed()
-    }
-
-    // pub fn close_channel(self, channel_id: u16) -> BoxFuture<Self, AMQPError> {
-    //     let close_channel = protocol::channel::Close {
-    //         reply_code: 200,
-    //         reply_text: "Closing channel".into(),
-    //         class_id: 0,
-    //         method_id: 0,
-    //     };
-    //     self.write_sync_method::<_, protocol::channel::CloseOk>(close_channel, channel_id).map(|(session, _)| session).boxed()
-    // }
-
-    pub fn consume<S>(&mut self, channel_id: u16, queue: S) -> BoxFuture<protocol::basic::ConsumeOk, AMQPError> where S: Into<String> {
-        let consume = protocol::basic::Consume {
-            ticket: 0,
-            queue: queue.into(),
-            consumer_tag: "".into(),
-            no_local: true,
-            no_ack: true,
-            exclusive: false,
-            nowait: false,
-            arguments: Table::new(),
-        };
-        self.write_sync_method(consume, channel_id)
-    }
-
-    // pub fn basic_qos(self,
-    //              channel_id: u16,
-    //              prefetch_size: u32,
-    //              prefetch_count: u16,
-    //              global: bool)
-    //              -> BoxFuture<(Self, protocol::basic::QosOk), AMQPError> {
-    //     let qos = protocol::basic::Qos {
-    //         prefetch_size: prefetch_size,
-    //         prefetch_count: prefetch_count,
-    //         global: global,
-    //     };
-    //     self.write_sync_method::<_, protocol::basic::QosOk>(qos, channel_id).boxed()
-    // }
-
-    pub fn session_runner(self) -> SessionRunner {
-        SessionRunner { session: self }
-    }
-
     fn dispatch_frame(&mut self, frame: Frame) -> AMQPResult<()> {
         match frame.channel {
             0 => {
@@ -564,39 +596,95 @@ impl Session {
     }
 
     fn write_frame_to_buf(&mut self, frame: &Frame) {
-        self.connection.write_slice(&frame.encode().unwrap());
-        self.flush_buffers();
+        self.write_slice(&frame.encode().unwrap());
+        self.flush_buffers(); // Will poll_write be enough?
     }
 
-    fn flush_buffers(&mut self) -> AMQPResult<()> {
-        self.connection.flush_buffers().and_then(|frames|{
-            for frame in frames {
-                match self.dispatch_frame(frame) {
-                    Err(err) => return Err(err),
-                    _ => {}
-                }
+    fn parse_and_dispatch_frames(&mut self) -> AMQPResult<usize>{
+        // if !self.frame_read_buf.is_compact() {
+        //     self.frame_read_buf.compact();
+        // }
+        let mut frames_count = 0;
+        while self.frame_read_buf.len() > 0 {
+            match self.parse_and_dispatch_next_frame() {
+                Ok(Some(_)) => { frames_count += 1 },
+                Ok(None) => { break },
+                Err(err) => return Err(err)
             }
-            Ok(())
-        })
+        }
+        Ok(frames_count)
     }
 
-    fn write_sync_method<T, U>(&mut self, method: T, channel_id: u16) -> BoxFuture<U, AMQPError> where T: Method, U: Method + Send + 'static {
-        self.write_frame_to_buf(&method.to_frame(channel_id).unwrap());
-        let (tx, rx) = futures::oneshot();
-        {
-            let c = self.channels.get_mut(&channel_id).unwrap();
-            c.register_sync_future(U::name().to_owned(), tx);
+    fn parse_and_dispatch_next_frame(&mut self) -> AMQPResult<Option<()>> {
+        match try_parse_frame(&mut self.frame_read_buf) {
+            Some(frame) => self.dispatch_frame(frame).map(|_| Some(())),
+            None => Ok(None)
         }
-        let oneshot = rx.map_err(|_| AMQPError::Protocol("Oneshot was cancelled".to_owned())).and_then(|method_frame|{
-            Method::decode(method_frame)
-        });
-        // TODO: Keep polling connection and dispatching frames until oneshot was resolved.
-        oneshot.boxed()
+    }
+
+    // Connection
+
+    pub fn flush_buffers(&mut self) -> AMQPResult<()> {
+        self.fill_read_buffer()
+    }
+
+    pub fn write_slice(&mut self, slice: &[u8]) {
+        self.frame_write_buf.write_slice(slice)
+    }
+
+    fn flush_write_buffer(&mut self) -> AMQPResult<()> {
+        use bytes::WriteExt;
+
+        debug!("Flushing write buffer");
+        if self.frame_write_buf.len() > 0 {
+            debug!("Trying to write write buffer. Write buf size: {}", self.frame_write_buf.len());
+            let write_result = self.stream.write_buf(&mut self.frame_write_buf.buf());
+            match write_result {
+                Ok(write_len) => {
+                    self.frame_write_buf.shift(write_len);
+                    debug!("Bytes written. New write buf size: {:?}", self.frame_write_buf.len());
+                },
+                Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
+                    debug!("Writing would block");
+                },
+                Err(e) => return Err(From::from(e))
+            }
+        }
+        Ok(())
+    }
+
+    fn fill_read_buffer(&mut self) -> AMQPResult<()> {
+        use bytes::ReadExt;
+
+        loop {
+            debug!("Trying to append buffer starting from: {}", self.frame_read_buf.len());
+            let read_result = self.stream.read_buf(&mut self.frame_read_buf);
+
+            if let Err(err) = self.flush_write_buffer() {
+                return Err(err)
+            }
+            match read_result {
+                Ok(read_len) => {
+                    debug!("Read {} bytes. New read buf size: {}", read_len, self.frame_read_buf.len());
+                    if let Err(err) = self.parse_and_dispatch_frames() {
+                        return Err(err)
+                    }
+                },
+                Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
+                    debug!("Reading would block");
+                    break;
+                },
+                Err(e) => return Err(From::from(e))
+            }
+        }
+        Ok(())
     }
 }
 
 fn try_parse_frame(buf: &mut BlockBuf) -> Option<Frame> {
     use framing::FrameHeader;
+
+    debug!("Trying to parse frame. Buf size: {}", buf.len());
 
     // This panics..
     // if !buf.is_compact() {
@@ -618,6 +706,7 @@ fn try_parse_frame(buf: &mut BlockBuf) -> Option<Frame> {
             error!("Frame end error");
             return None; // There should be a way to indicate an error;
         }
+        debug!("Frame parsed. Bytes left in the buffer: {}", buf.len());
         Some(Frame {
             frame_type: FrameType::from_u8(header.frame_type_id).unwrap(), //also should return, rather than panicing
             channel: header.channel,

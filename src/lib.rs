@@ -112,7 +112,7 @@ mod method;
 pub const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 pub mod protocol;
 
-pub use session::{Session, Options};
+pub use session::{Session, Options, Client};
 //pub use channel::{Channel, ConsumerCallBackFn, Consumer};
 pub use table::{Table, TableEntry};
 // pub use basic::{Basic, GetResult};

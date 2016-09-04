@@ -1,11 +1,18 @@
 extern crate amqp;
 extern crate env_logger;
 
-use amqp::{Client, Future};
+use amqp::{Client, Future, Consumer, protocol};
 
 // 1. Api must be asynchronous
 // 2. Channels should be sendable, but not sync.
 
+pub struct MyConsumer;
+
+impl Consumer for MyConsumer {
+    fn consume(&mut self, method: protocol::basic::Deliver, headers: protocol::basic::BasicProperties, body: Vec<u8>) {
+        println!("Executing consumer: method:{:?}\nheaders:{:?}\nbody:{:?}", method, headers, body);
+    }
+}
 
 fn main() {
     drop(env_logger::init().unwrap());
@@ -15,7 +22,7 @@ fn main() {
         println!("Trying to open channel");
         let channel1 = client.open_channel(1).and_then(|(channel, open_ok)|{
             println!("Opened channel {} {:?}", channel.id, open_ok);
-            channel.consume("test_queue").map(|(channel, consume_ok)|{
+            channel.consume("test_queue", MyConsumer).map(|(channel, consume_ok)|{
                 println!("Consume ok: {:?}", consume_ok);
                 channel
             })
@@ -23,7 +30,7 @@ fn main() {
 
         let channel2 = client.open_channel(2).and_then(|(channel, open_ok)|{
             println!("Opened channel {:?}", channel.id);
-            channel.consume("test_queue").map(|(channel, consume_ok)|{
+            channel.consume("test_queue", MyConsumer).map(|(channel, consume_ok)|{
                 println!("Consume ok: {:?}", consume_ok);
                 channel
             })

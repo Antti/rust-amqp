@@ -12,13 +12,11 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::cell::RefCell;
 
-use byteorder::{BigEndian, ReadBytesExt};
 use enum_primitive::FromPrimitive;
 
-use futures::{self, Future, BoxFuture, Oneshot, Complete, Poll, finished, done, failed};
+use futures::{self, Future, BoxFuture, Complete, Poll};
 use futures::task::TaskRc;
-use tokio_core::io::{read_exact, write_all};
-use tokio_core::io::{TaskIo, TaskIoRead, TaskIoWrite};
+use tokio_core::io::write_all;
 use tokio_core::{LoopHandle, TcpStream};
 
 use bytes::{Buf, BlockBuf, MutBuf};
@@ -67,9 +65,14 @@ impl Default for Options {
     }
 }
 
+pub trait Consumer: Send + 'static {
+    fn consume(&mut self, method: protocol::basic::Deliver, headers: protocol::basic::BasicProperties, body: Vec<u8>);
+}
+
 pub struct ChannelDispatcher {
     id: u16,
     future_handlers: HashMap<String, Complete<MethodFrame>>,
+    consumers: HashMap<String, Box<Consumer>>,
     content_body: Option<Vec<u8>>,
     content_headers: Option<ContentHeaderFrame>,
     content_method: Option<MethodFrame>
@@ -77,7 +80,14 @@ pub struct ChannelDispatcher {
 
 impl ChannelDispatcher {
     fn new(channel_id: u16) -> Self {
-        ChannelDispatcher { id: channel_id, future_handlers: HashMap::new(), content_body: None, content_headers: None, content_method: None }
+        ChannelDispatcher { 
+            id: channel_id,
+            future_handlers: HashMap::new(),
+            content_body: None,
+            content_headers: None,
+            content_method: None,
+            consumers: HashMap::new()
+        }
     }
 
     fn dispatch(&mut self, frame: Frame) {
@@ -104,27 +114,35 @@ impl ChannelDispatcher {
                 self.content_headers = Some(content_headers);
             },
             FrameType::BODY => {
-                match self.content_body {
+                let ready_to_send = match self.content_body {
                     Some(ref mut content_body) => {
                         content_body.extend_from_slice(&frame.payload);
-                        match mem::replace(&mut self.content_headers, None) {
-                            None => {},
-                            Some(content_headers) => {
-                                 if content_body.len() == content_headers.body_size as usize {
-                                    let content_method = mem::replace(&mut self.content_method, None).unwrap();
-                                    println!(
-                                        "Channel {}. Ready to dispatch content to consumers: {:?} {:?} {}",
-                                        self.id,
-                                        content_method.method_name(),
-                                        protocol::basic::BasicProperties::decode(content_headers),
-                                        String::from_utf8_lossy(content_body)
-                                    );
-                                    // TODO: Dispatch self.content_method, self.content_headers, self.content_body
-                                }
-                            }
+                        match self.content_headers {
+                            Some(ref content_headers) => content_headers.body_size as usize == content_body.len(),
+                            None => panic!("Unexpected body frame. Expected headers first")
                         }
                     },
                     None => panic!("Unexpected body frame. Expected headers first")
+                };
+
+                if ready_to_send {
+                    match mem::replace(&mut self.content_headers, None) {
+                        None => {},
+                        Some(content_headers) => {
+                            let content_method = mem::replace(&mut self.content_method, None).unwrap();
+                            let basic_properties = protocol::basic::BasicProperties::decode(content_headers).unwrap();
+                            let basic_deliver = protocol::basic::Deliver::decode(content_method).unwrap();
+
+                            match self.consumers.get_mut(&basic_deliver.consumer_tag) {
+                                Some(consumer) => {
+                                    // TODO: Decide how to execute a consumer. It should not block a loop if it's slow.
+                                    // Maybe run it in the separate thread_pool? How to communicate ack/nack/reject then?
+                                    consumer.consume(basic_deliver, basic_properties, mem::replace(&mut self.content_body, None).unwrap())
+                                },
+                                None => error!("No consumer found for tag {}", basic_deliver.consumer_tag)
+                            }
+                        }
+                    }
                 }
             },
             FrameType::HEARTBEAT => {
@@ -135,6 +153,10 @@ impl ChannelDispatcher {
 
     fn register_sync_future(&mut self, method_name: String, complete: Complete<MethodFrame>) {
         self.future_handlers.insert(method_name, complete);
+    }
+
+    fn register_consumer(&mut self, consumer_tag: String, consumer: Box<Consumer>) {
+        self.consumers.insert(consumer_tag, consumer);
     }
 }
 
@@ -150,7 +172,7 @@ impl Channel {
         Channel { id: channel_id, session: session }
     }
 
-    pub fn open_channel(self) -> SyncMethodFutureResponse<protocol::channel::OpenOk> {
+    fn open_channel(self) -> SyncMethodFutureResponse<protocol::channel::OpenOk> {
         let open_channel = protocol::channel::Open::with_default_values();
         self.write_sync_method(open_channel)
     }
@@ -162,10 +184,11 @@ impl Channel {
             class_id: 0,
             method_id: 0,
         };
+        // TODO: Make sure to remove channel_dispatcher from the session, also return just CloseOK
         self.write_sync_method(close_channel)
     }
 
-    pub fn consume<S>(self, queue: S) -> SyncMethodFutureResponse<protocol::basic::ConsumeOk> where S: Into<String> {
+    pub fn consume<S, C>(self, queue: S, consumer: C) -> SyncMethodFutureResponse<protocol::basic::ConsumeOk> where S: Into<String>, C: Consumer {
         let consume = protocol::basic::Consume {
             ticket: 0,
             queue: queue.into(),
@@ -176,7 +199,14 @@ impl Channel {
             nowait: false,
             arguments: Table::new(),
         };
-        self.write_sync_method(consume)
+        self.write_sync_method::<_, protocol::basic::ConsumeOk>(consume).map(move |(channel, consume_ok)| {
+            let consumer_tag = consume_ok.consumer_tag.clone();
+            channel.session.with(|session|{
+                let mut session = session.borrow_mut();
+                session.register_consumer(&channel.id, consumer_tag, Box::new(consumer))
+            });
+            (channel, consume_ok)
+        }).boxed()
     }
 
     pub fn basic_qos(self,
@@ -193,7 +223,7 @@ impl Channel {
     }
 
 
-    fn write_sync_method<T, U>(mut self, method: T) -> SyncMethodFutureResponse<U> where T: Method, U: Method + Send + 'static {
+    fn write_sync_method<T, U>(self, method: T) -> SyncMethodFutureResponse<U> where T: Method, U: Method + Send + 'static {
         let (tx, rx) = futures::oneshot();
         self.session.with(|session|{
             let mut session = session.borrow_mut();
@@ -304,16 +334,20 @@ impl SessionInitializer {
             channel_id => {
                 let err_msg = format!("Unexpected frame on channel {} during session initialization", channel_id);
                 error!("{}", err_msg);
-                let close = protocol::connection::Close {
-                    reply_code: 500,
-                    reply_text: err_msg.clone(),
-                    class_id: 0,
-                    method_id: 0,
-                };
-                self.write_frame_to_buf(&close.to_frame(0).unwrap());
+                self.close_session(500, err_msg.clone());
                 Err(AMQPError::Protocol(err_msg))
             }
         }
+    }
+
+    fn close_session(&mut self, reply_code: u16, reply_text: String) {
+        let close = protocol::connection::Close {
+            reply_code: reply_code,
+            reply_text: reply_text,
+            class_id: 0,
+            method_id: 0,
+        };
+        self.write_frame_to_buf(&close.to_frame(0).unwrap());
     }
 
     fn write_frame_to_buf(&mut self, frame: &Frame) {
@@ -523,7 +557,7 @@ impl Client {
     pub fn open_channel(&mut self, channel_id: u16) -> SyncMethodFutureResponse<protocol::channel::OpenOk> {
         let channel_d = ChannelDispatcher::new(channel_id);
         self.session.with(|session| session.borrow_mut().channels.insert(channel_id, channel_d));
-        let mut channel = Channel::new(self.session.clone(), channel_id);
+        let channel = Channel::new(self.session.clone(), channel_id);
         channel.open_channel()
     }
 
@@ -595,7 +629,14 @@ impl Session {
 
     fn register_sync_future(&mut self, channel_id: &u16, method_name: String, complete: Complete<MethodFrame>) {
         match self.channels.get_mut(channel_id) {
-            Some(channel) => channel.future_handlers.insert(method_name, complete),
+            Some(channel) => channel.register_sync_future(method_name, complete),
+            None => panic!("Channel gone")
+        };
+    }
+
+    fn register_consumer(&mut self, channel_id: &u16, consumer_tag: String, consumer: Box<Consumer>) {
+        match self.channels.get_mut(channel_id) {
+            Some(channel) => channel.register_consumer(consumer_tag, consumer),
             None => panic!("Channel gone")
         };
     }
@@ -631,6 +672,7 @@ impl Session {
     }
 
     fn write_frame_to_buf(&mut self, frame: &Frame) {
+        // TODO: Split content frames if they are larger than frame_max_limit
         self.write_slice(&frame.encode().unwrap());
         self.flush_buffers(); // Will poll_write be enough?
     }

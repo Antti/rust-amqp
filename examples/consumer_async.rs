@@ -13,17 +13,25 @@ fn main() {
     let client = Client::open_url(lp.handle(), "amqp://127.0.0.1//");
     let done = client.and_then(|mut client|{
         println!("Trying to open channel");
-        let channel1 = client.open_channel(1).and_then(|channel|{
-            channel.with(|channel|{
-                let mut channel = channel.borrow_mut();
-                println!("Opened channel {:?}", channel.id);
-                channel.consume("test_queue").map(|consume_ok|{
-                    println!("Consume ok: {:?}", consume_ok);
-                })
+        let channel1 = client.open_channel(1).and_then(|(channel, open_ok)|{
+            println!("Opened channel {} {:?}", channel.id, open_ok);
+            channel.consume("test_queue").map(|(channel, consume_ok)|{
+                println!("Consume ok: {:?}", consume_ok);
+                channel
             })
         });
-        client.session_runner().join(channel1)
+
+        let channel2 = client.open_channel(2).and_then(|(channel, open_ok)|{
+            println!("Opened channel {:?}", channel.id);
+            channel.consume("test_queue").map(|(channel, consume_ok)|{
+                println!("Consume ok: {:?}", consume_ok);
+                channel
+            })
+        });
+
+        client.session_runner().join(channel1).join(channel2)
     });
+
     // let session = session.open_channel(1).and_then(|(session, channel)| {
     //     println!("Opened channel: {}", channel);
     //     // exchange_declare, queue_declare, bind
@@ -46,9 +54,9 @@ fn mock_api(){
         // Running sync methods on channel will consume channel, returning Future<(Channel, response), AMQPError>
         // This way we can be sure that there will be no race conditions on the channel.
         // All consumer futures are polled when possible and the result is sent to the channel.
-        let consumer1 = session.open_channel(1).and_then(|channel|{
+        let consumer1 = session.open_channel(1).and_then(|channel| {
             let queue = channel.queue_declare("queue");
-            queue.and_then(|(channel, queue)|{
+            queue.and_then(|(channel, queue)| {
                 queue.consume(consumer_object)
             })
         }); // TODO: Check if we need to return ConsumerFinished future?
@@ -62,13 +70,8 @@ fn mock_api(){
             producer.produce(channel)
         });
 
-        // Run all the channel promises;
-        lp.run(consumer1);
-        lp.run(consumer2);
-        lp.run(consumer3);
-
         // Run session to drive consumers
-        session.session_runner()
+        session.session_runner().join(consumer1).join(consumer2).join(consumer3)
     });
     lp.run(session);
 }

@@ -424,7 +424,10 @@ impl Future for SessionRunner {
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         debug!("Polling runner");
-        self.session.with(|session| session.borrow_mut().read_and_dispatch_all()).map(|_| Async::NotReady)
+        self.session.with(|session| {
+            let mut session = session.borrow_mut();
+            session.read_and_dispatch_all().and_then(|_| session.flush_write_buffer()).map(|_| Async::NotReady)
+        })
     }
 }
 
@@ -673,7 +676,7 @@ impl Session {
         }
     }
 
-    fn write_frame_to_buf(&mut self, frame: &Frame) -> AMQPResult<()> {
+    fn write_frame_to_buf(&mut self, frame: &Frame) -> Poll<(), AMQPError> {
         // TODO: Split content frames if they are larger than frame_max_limit
         self.frame_write_buf.write_slice(&frame.encode().unwrap());
         self.flush_write_buffer()
@@ -703,7 +706,7 @@ impl Session {
 
     // Connection
 
-    fn read_and_dispatch_all(&mut self) -> AMQPResult<()> {
+    fn read_and_dispatch_all(&mut self) -> Poll<(), AMQPError> {
         // There might be something left in the buffer, try to dispatch that before filling in more data
         if let Err(err) = self.parse_and_dispatch_frames() {
             return Err(err)
@@ -719,10 +722,10 @@ impl Session {
                 Err(err) => return Err(err)
             }
         }
-        Ok(())
+        Ok(Async::NotReady)
     }
 
-    fn flush_write_buffer(&mut self) -> AMQPResult<()> {
+    fn flush_write_buffer(&mut self) -> Poll<(), AMQPError> {
         use bytes::WriteExt;
 
         debug!("Flushing write buffer");
@@ -736,12 +739,12 @@ impl Session {
                 },
                 Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
                     debug!("Writing would block");
-                    break;
+                    return Ok(Async::NotReady)
                 },
                 Err(e) => return Err(From::from(e))
             }
         }
-        Ok(())
+        Ok(Async::Ready(()))
     }
 
     fn fill_read_buffer(&mut self) -> Poll<(), AMQPError> {

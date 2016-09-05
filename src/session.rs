@@ -227,7 +227,7 @@ impl Channel {
         let (tx, rx) = futures::oneshot();
         self.session.with(|session|{
             let mut session = session.borrow_mut();
-            session.write_frame_to_buf(&method.to_frame(self.id).unwrap());
+            session.write_frame_to_buf(&method.to_frame(self.id).unwrap()); // TODO: return failing future if write failed
             session.register_sync_future(&self.id, U::name().to_owned(), tx);
         });
 
@@ -424,7 +424,7 @@ impl Future for SessionRunner {
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         debug!("Polling runner");
-        match self.session.with(|session| session.borrow_mut().flush_buffers()) {
+        match self.session.with(|session| session.borrow_mut().read_and_dispatch_all()) {
             Ok(_) => Poll::NotReady,
             Err(err) => Poll::Err(err)
         }
@@ -510,25 +510,30 @@ impl <F, T> Future for SyncMethodFuture<F, T> where F: Future<Item=T, Error=AMQP
     type Error = AMQPError;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        match self.session.with(|session| session.borrow_mut().flush_buffers()) {
-            Err(err) => return Poll::Err(err),
-            Ok(_) => {}
-        }
-        self.oneshot.poll()
-        // loop {
-        //     match self.session.with(|session| session.borrow_mut().parse_and_dispatch_next_frame()) {
-        //         Ok(Some(_)) => {
-        //             println!("SyncMethodFuture dispatched frame");
-        //             match self.oneshot.poll() {
-        //                 Poll::Ok(x) => return Poll::Ok(x),
-        //                 Poll::NotReady => {}, // continue
-        //                 Poll::Err(err) => return Poll::Err(err)
-        //             }
-        //         },
-        //         Ok(None) => { println!("SyncMethodFuture buffer is empty"); return Poll::NotReady },
-        //         Err(err) =>  return Poll::Err(err)
-        //     }
-        // }
+        let ref mut oneshot = self.oneshot;
+        self.session.with(|session| {
+            loop {
+                let mut session = session.borrow_mut();
+                match session.parse_and_dispatch_next_frame() {
+                    Ok(Some(_)) => {
+                        match oneshot.poll() {
+                            Poll::Ok(x) => return Poll::Ok(x),
+                            Poll::Err(err) => return Poll::Err(err),
+                            Poll::NotReady => {} // try again
+                        }
+                    }
+                    Ok(None) => {
+                        // buffer did not contain a full frame, read some more
+                        match session.fill_read_buffer() {
+                            Ok(None) => return Poll::NotReady, // would block
+                            Ok(Some(_)) => {}, // something was read, retry loop
+                            Err(err) => return Poll::Err(err) // pass the error up
+                        }
+                    },
+                    Err(err) => return Poll::Err(err) // pass the error up
+                }
+            }
+        })
     }
 }
 
@@ -671,10 +676,10 @@ impl Session {
         }
     }
 
-    fn write_frame_to_buf(&mut self, frame: &Frame) {
+    fn write_frame_to_buf(&mut self, frame: &Frame) -> AMQPResult<()> {
         // TODO: Split content frames if they are larger than frame_max_limit
-        self.write_slice(&frame.encode().unwrap());
-        self.flush_buffers(); // Will poll_write be enough?
+        self.frame_write_buf.write_slice(&frame.encode().unwrap());
+        self.flush_write_buffer()
     }
 
     fn parse_and_dispatch_frames(&mut self) -> AMQPResult<usize>{
@@ -701,19 +706,30 @@ impl Session {
 
     // Connection
 
-    fn flush_buffers(&mut self) -> AMQPResult<()> {
-        self.fill_read_buffer()
-    }
-
-    fn write_slice(&mut self, slice: &[u8]) {
-        self.frame_write_buf.write_slice(slice)
+    fn read_and_dispatch_all(&mut self) -> AMQPResult<()> {
+        // There might be something left in the buffer, try to dispatch that before filling in more data
+        if let Err(err) = self.parse_and_dispatch_frames() {
+            return Err(err)
+        }
+        loop {
+            match self.fill_read_buffer() {
+                Ok(Some(_)) => { 
+                    if let Err(err) = self.parse_and_dispatch_frames() {
+                        return Err(err)
+                    }
+                },
+                Ok(None) => { break },
+                Err(err) => return Err(err)
+            }
+        }
+        Ok(())
     }
 
     fn flush_write_buffer(&mut self) -> AMQPResult<()> {
         use bytes::WriteExt;
 
         debug!("Flushing write buffer");
-        if self.frame_write_buf.len() > 0 {
+        while self.frame_write_buf.len() > 0{
             debug!("Trying to write write buffer. Write buf size: {}", self.frame_write_buf.len());
             let write_result = self.stream.write_buf(&mut self.frame_write_buf.buf());
             match write_result {
@@ -723,6 +739,7 @@ impl Session {
                 },
                 Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
                     debug!("Writing would block");
+                    break;
                 },
                 Err(e) => return Err(From::from(e))
             }
@@ -730,31 +747,23 @@ impl Session {
         Ok(())
     }
 
-    fn fill_read_buffer(&mut self) -> AMQPResult<()> {
+    fn fill_read_buffer(&mut self) -> AMQPResult<Option<()>> {
         use bytes::ReadExt;
 
-        loop {
-            debug!("Trying to append buffer starting from: {}", self.frame_read_buf.len());
-            let read_result = self.stream.read_buf(&mut self.frame_read_buf);
+        debug!("Trying to append buffer starting from: {}", self.frame_read_buf.len());
+        let read_result = self.stream.read_buf(&mut self.frame_read_buf);
 
-            if let Err(err) = self.flush_write_buffer() {
-                return Err(err)
-            }
-            match read_result {
-                Ok(read_len) => {
-                    debug!("Read {} bytes. New read buf size: {}", read_len, self.frame_read_buf.len());
-                    if let Err(err) = self.parse_and_dispatch_frames() {
-                        return Err(err)
-                    }
-                },
-                Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
-                    debug!("Reading would block");
-                    break;
-                },
-                Err(e) => return Err(From::from(e))
-            }
+        match read_result {
+            Ok(read_len) => {
+                debug!("Read {} bytes. New read buf size: {}", read_len, self.frame_read_buf.len());
+                Ok(Some(()))
+            },
+            Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
+                debug!("Reading would block");
+                Ok(None)
+            },
+            Err(e) => Err(From::from(e))
         }
-        Ok(())
     }
 }
 

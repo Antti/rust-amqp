@@ -10,7 +10,7 @@ pub struct MyConsumer;
 
 impl Consumer for MyConsumer {
     fn consume(&mut self, method: protocol::basic::Deliver, headers: protocol::basic::BasicProperties, body: Vec<u8>) {
-        println!("Executing consumer: method:{:?}\nheaders:{:?}\nbody:{:?}", method, headers, body);
+        //println!("Executing consumer: method:{:?}\nheaders:{:?}\nbody:{:?}", method, headers, body);
     }
 }
 
@@ -36,7 +36,7 @@ fn main() {
             })
         });
 
-        client.session_runner().join(channel1).join(channel2)
+        channel1.join(channel2).join(client.session_runner())
     });
 
     // let session = session.open_channel(1).and_then(|(session, channel)| {

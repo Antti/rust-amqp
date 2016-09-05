@@ -19,19 +19,23 @@ fn main() {
     let mut lp = amqp::Loop::new().unwrap();
     let client = Client::open_url(lp.handle(), "amqp://127.0.0.1//");
     let done = client.and_then(|mut client|{
-        println!("Trying to open channel");
-        let channel1 = client.open_channel(1).and_then(|(channel, open_ok)|{
-            println!("Opened channel {} {:?}", channel.id, open_ok);
+        println!("Trying to open channels");
+        let channel1 = client.open_channel(1).and_then(|(channel, _open_ok)|{
+            println!("Opened channel {}", channel.id);
             channel.consume("test_queue", MyConsumer).map(|(channel, consume_ok)|{
-                println!("Consume ok: {:?}", consume_ok);
+                println!("Consume on channel {} ok: {:?}", channel.id, consume_ok);
                 channel
             })
         });
 
-        let channel2 = client.open_channel(2).and_then(|(channel, open_ok)|{
+        let channel2 = client.open_channel(2).and_then(|(channel, _open_ok)|{
             println!("Opened channel {:?}", channel.id);
             channel.consume("test_queue", MyConsumer).map(|(channel, consume_ok)|{
-                println!("Consume ok: {:?}", consume_ok);
+                println!("Consume on channel {} ok: {:?}", channel.id, consume_ok);
+                channel
+            })
+        });
+
                 channel
             })
         });
@@ -39,13 +43,6 @@ fn main() {
         channel1.join(channel2).join(client.session_runner())
     });
 
-    // let session = session.open_channel(1).and_then(|(session, channel)| {
-    //     println!("Opened channel: {}", channel);
-    //     // exchange_declare, queue_declare, bind
-    //     // declare consumer.
-    //     let qos = session.basic_qos(channel, 0, 1000, true);
-    //     let session = qos.and_then(move |(session, _qos_ok)| session.consume(channel, "test_queue".to_string() ).map(|(session, ok)| { println!("{:?}", ok); session }));
-    // });
     match lp.run(done) {
         Ok(_) => {},
         Err(err) => { println!("Session was closed because: {:?}", err) }

@@ -265,7 +265,7 @@ impl SessionInitializer {
                                 capabilities.insert("consumer_cancel_notify".to_owned(), Bool(true));
                                 capabilities.insert("exchange_exchange_bindings".to_owned(), Bool(true));
                                 capabilities.insert("basic.nack".to_owned(), Bool(true));
-                                capabilities.insert("connection.blocked".to_owned(), Bool(true));
+                                capabilities.insert("connection.blocked".to_owned(), Bool(false));
                                 capabilities.insert("authentication_failure_close".to_owned(), Bool(true));
                                 client_properties.insert("capabilities".to_owned(), FieldTable(capabilities));
                                 client_properties.insert("product".to_owned(), LongString("rust-amqp".to_owned()));
@@ -424,10 +424,7 @@ impl Future for SessionRunner {
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         debug!("Polling runner");
-        match self.session.with(|session| session.borrow_mut().read_and_dispatch_all()) {
-            Ok(_) => Ok(Async::NotReady),
-            Err(err) => Err(err)
-        }
+        self.session.with(|session| session.borrow_mut().read_and_dispatch_all()).map(|_| Async::NotReady)
     }
 }
 
@@ -513,27 +510,20 @@ impl <F, T> Future for SyncMethodFuture<F, T> where F: Future<Item=T, Error=AMQP
         debug!("SyncMethodFuture polling...");
         let ref mut oneshot = self.oneshot;
         self.session.with(|session| {
+            let mut session = session.borrow_mut();
             loop {
-                let mut session = session.borrow_mut();
                 // Maybe our oneshot was already resolved, then just return
                 match oneshot.poll() {
-                    Ok(Async::Ready(x)) => return Ok(Async::Ready(x)),
                     Ok(Async::NotReady) => {}, // continue
-                    Err(err) => return Err(err)
+                    other => return other  //resolved or error
                 }
                 match session.parse_and_dispatch_next_frame() {
-                    Ok(Some(_)) => {
-                        match oneshot.poll() {
-                            Ok(Async::Ready(x)) => return Ok(Async::Ready(x)),
-                            Ok(Async::NotReady) => {}, // try again
-                            Err(err) => return Err(err)
-                        }
-                    }
+                    Ok(Some(_)) => {} // there was a dispatched continue the loop, which will resolve oneshot if the frame was expected
                     Ok(None) => {
                         // buffer did not contain a full frame, read some more
                         match session.fill_read_buffer() {
-                            Ok(None) => return Ok(Async::NotReady), // would block
-                            Ok(Some(_)) => {}, // something was read, retry loop
+                            Ok(Async::Ready(_)) => {} // something was read, continue loop
+                            Ok(Async::NotReady) => return Ok(Async::NotReady), // would block
                             Err(err) => return Err(err) // pass the error up
                         }
                     },
@@ -720,12 +710,12 @@ impl Session {
         }
         loop {
             match self.fill_read_buffer() {
-                Ok(Some(_)) => {
+                Ok(Async::Ready(_)) => {
                     if let Err(err) = self.parse_and_dispatch_frames() {
                         return Err(err)
                     }
                 },
-                Ok(None) => { break },
+                Ok(Async::NotReady) => { break },
                 Err(err) => return Err(err)
             }
         }
@@ -754,7 +744,7 @@ impl Session {
         Ok(())
     }
 
-    fn fill_read_buffer(&mut self) -> AMQPResult<Option<()>> {
+    fn fill_read_buffer(&mut self) -> Poll<(), AMQPError> {
         use bytes::ReadExt;
 
         debug!("Trying to append buffer starting from: {}", self.frame_read_buf.len());
@@ -763,11 +753,11 @@ impl Session {
         match read_result {
             Ok(read_len) => {
                 debug!("Read {} bytes. New read buf size: {}", read_len, self.frame_read_buf.len());
-                Ok(Some(()))
+                Ok(Async::Ready(()))
             },
             Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => {
                 debug!("Reading would block");
-                Ok(None)
+                Ok(Async::NotReady)
             },
             Err(e) => Err(From::from(e))
         }

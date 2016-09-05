@@ -14,7 +14,7 @@ use std::cell::RefCell;
 
 use enum_primitive::FromPrimitive;
 
-use futures::{self, Future, BoxFuture, Complete, Poll};
+use futures::{self, Future, BoxFuture, Complete, Poll, Async};
 use futures::task::TaskRc;
 use tokio_core::io::write_all;
 use tokio_core::{LoopHandle, TcpStream};
@@ -80,7 +80,7 @@ pub struct ChannelDispatcher {
 
 impl ChannelDispatcher {
     fn new(channel_id: u16) -> Self {
-        ChannelDispatcher { 
+        ChannelDispatcher {
             id: channel_id,
             future_handlers: HashMap::new(),
             content_body: None,
@@ -160,7 +160,7 @@ impl ChannelDispatcher {
     }
 }
 
-pub type SyncMethodFutureResponse<T> = BoxFuture<(Channel, T), AMQPError>; 
+pub type SyncMethodFutureResponse<T> = BoxFuture<(Channel, T), AMQPError>;
 
 pub struct Channel {
     pub id: u16,
@@ -379,14 +379,14 @@ impl Future for SessionInitializer {
                             }
                         }
                     },
-                    Err(e) => return Poll::Err(e)
+                    Err(e) => return Err(e)
                 }
             },
             None => panic!("Feature was resolved")
         }
         for frame in frames {
             match self.dispatch_frame(frame) {
-                Err(err) => return Poll::Err(err),
+                Err(err) => return Err(err),
                 _ => {}
             }
         }
@@ -396,7 +396,7 @@ impl Future for SessionInitializer {
                 match mem::replace(&mut self.connection, None){
                     Some(connection) => {
                         let Connection { stream, frame_read_buf, frame_write_buf } = connection;
-                        Poll::Ok(Session {
+                        Ok(Async::Ready(Session {
                             channel_max_limit: self.options.channel_max_limit,
                             stream: stream,
                             frame_read_buf: frame_read_buf,
@@ -404,12 +404,12 @@ impl Future for SessionInitializer {
                             frame_max_limit: self.options.frame_max_limit,
                             heartbeat: self.options.heartbeat,
                             channels: HashMap::new()
-                        })
+                        }))
                     },
                     None => panic!("Session is gone")
                 }
             },
-            false => Poll::NotReady
+            false => Ok(Async::NotReady)
         }
     }
 }
@@ -425,8 +425,8 @@ impl Future for SessionRunner {
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
         debug!("Polling runner");
         match self.session.with(|session| session.borrow_mut().read_and_dispatch_all()) {
-            Ok(_) => Poll::NotReady,
-            Err(err) => Poll::Err(err)
+            Ok(_) => Ok(Async::NotReady),
+            Err(err) => Err(err)
         }
     }
 }
@@ -510,27 +510,34 @@ impl <F, T> Future for SyncMethodFuture<F, T> where F: Future<Item=T, Error=AMQP
     type Error = AMQPError;
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        debug!("SyncMethodFuture polling...");
         let ref mut oneshot = self.oneshot;
         self.session.with(|session| {
             loop {
                 let mut session = session.borrow_mut();
+                // Maybe our oneshot was already resolved, then just return
+                match oneshot.poll() {
+                    Ok(Async::Ready(x)) => return Ok(Async::Ready(x)),
+                    Ok(Async::NotReady) => {}, // continue
+                    Err(err) => return Err(err)
+                }
                 match session.parse_and_dispatch_next_frame() {
                     Ok(Some(_)) => {
                         match oneshot.poll() {
-                            Poll::Ok(x) => return Poll::Ok(x),
-                            Poll::Err(err) => return Poll::Err(err),
-                            Poll::NotReady => {} // try again
+                            Ok(Async::Ready(x)) => return Ok(Async::Ready(x)),
+                            Ok(Async::NotReady) => {}, // try again
+                            Err(err) => return Err(err)
                         }
                     }
                     Ok(None) => {
                         // buffer did not contain a full frame, read some more
                         match session.fill_read_buffer() {
-                            Ok(None) => return Poll::NotReady, // would block
+                            Ok(None) => return Ok(Async::NotReady), // would block
                             Ok(Some(_)) => {}, // something was read, retry loop
-                            Err(err) => return Poll::Err(err) // pass the error up
+                            Err(err) => return Err(err) // pass the error up
                         }
                     },
-                    Err(err) => return Poll::Err(err) // pass the error up
+                    Err(err) => return Err(err) // pass the error up
                 }
             }
         })
@@ -713,7 +720,7 @@ impl Session {
         }
         loop {
             match self.fill_read_buffer() {
-                Ok(Some(_)) => { 
+                Ok(Some(_)) => {
                     if let Err(err) = self.parse_and_dispatch_frames() {
                         return Err(err)
                     }

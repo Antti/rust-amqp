@@ -16,7 +16,7 @@ impl Consumer for MyConsumer {
 
 fn main() {
     drop(env_logger::init().unwrap());
-    let mut lp = amqp::Loop::new().unwrap();
+    let mut lp = amqp::Core::new().unwrap();
     let client = Client::open_url(lp.handle(), "amqp://127.0.0.1//");
     let done = client.and_then(|mut client|{
         println!("Trying to open channels");

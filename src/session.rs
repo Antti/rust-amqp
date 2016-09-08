@@ -16,8 +16,10 @@ use enum_primitive::FromPrimitive;
 
 use futures::{self, Future, BoxFuture, Complete, Poll, Async};
 use futures::task::TaskRc;
+use futures_cpupool::CpuPool;
 use tokio_core::io::write_all;
-use tokio_core::{LoopHandle, TcpStream};
+use tokio_core::net::TcpStream;
+use tokio_core::reactor::Handle;
 
 use bytes::{Buf, BlockBuf, MutBuf};
 
@@ -542,7 +544,7 @@ pub struct Client {
 }
 
 impl Client {
-    pub fn open_url(handle: LoopHandle, url_string: &str) -> BoxFuture<Self, AMQPError> {
+    pub fn open_url(handle: Handle, url_string: &str) -> BoxFuture<Self, AMQPError> {
         Session::open_url(handle, url_string).map(|session| {
             Client { session: TaskRc::new(RefCell::new(session)) }
         }).boxed()
@@ -600,7 +602,7 @@ impl Session {
     /// `"amqp://localhost//"` and it will connect to rabbitmq server,
     /// running on `localhost` on port `5672`,
     /// with login `"guest"`, password: `"guest"` to vhost `"/"`
-    pub fn open_url(handle: LoopHandle, url_string: &str) -> BoxFuture<Session, AMQPError> {
+    pub fn open_url(handle: Handle, url_string: &str) -> BoxFuture<Session, AMQPError> {
         let options = parse_url(url_string).unwrap();
         Session::new(handle, options)
     }
@@ -616,9 +618,9 @@ impl Session {
     ///     Err(error) => panic!("Failed openning an amqp session: {:?}", error)
     /// };
     /// ```
-    pub fn new(handle: LoopHandle, options: Options) -> BoxFuture<Self, AMQPError> {
+    pub fn new(handle: Handle, options: Options) -> BoxFuture<Self, AMQPError> {
         let address = resolve(&options.host, options.port);
-        let stream = handle.tcp_connect(&address);
+        let stream = TcpStream::connect(&address, &handle);
         let inited_connection = stream.and_then(|stream|{
             debug!("Initializing connection...");
             write_all(stream, [b'A', b'M', b'Q', b'P', 0, 0, 9, 1])

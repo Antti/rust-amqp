@@ -121,4 +121,4 @@ pub use amqp_error::AMQPResult;
 pub use framing::{Frame, FrameType};
 
 pub use futures::{Future, finished, done, failed};
-pub use tokio_core::{Loop, LoopHandle};
+pub use tokio_core::reactor::{Core, Handle};

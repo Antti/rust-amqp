@@ -16,12 +16,13 @@ use enum_primitive::FromPrimitive;
 
 use futures::{self, Future, BoxFuture, Complete, Poll, Async};
 use futures::task::TaskRc;
-use futures_cpupool::CpuPool;
+// use futures_cpupool::CpuPool;
 use tokio_core::io::write_all;
 use tokio_core::net::TcpStream;
 use tokio_core::reactor::Handle;
 
-use bytes::{Buf, BlockBuf, MutBuf};
+use bytes::buf::BlockBuf;
+use bytes::{MutBuf, Buf};
 
 
 use url::{Url, percent_encoding};
@@ -462,7 +463,7 @@ impl Connection {
     }
 
     fn flush_write_buffer(&mut self) -> AMQPResult<()> {
-        use bytes::WriteExt;
+        use bytes::buf::WriteExt;
 
         debug!("Flushing write buffer");
         if self.frame_write_buf.len() > 0 {
@@ -483,7 +484,7 @@ impl Connection {
     }
 
     fn fill_read_buffer(&mut self) -> AMQPResult<()> {
-        use bytes::ReadExt;
+        use bytes::buf::ReadExt;
 
         debug!("Trying to append buffer starting from: {}", self.frame_read_buf.len());
         let read_result = self.stream.read_buf(&mut self.frame_read_buf);
@@ -728,7 +729,7 @@ impl Session {
     }
 
     fn flush_write_buffer(&mut self) -> Poll<(), AMQPError> {
-        use bytes::WriteExt;
+        use bytes::buf::WriteExt;
 
         debug!("Flushing write buffer");
         while self.frame_write_buf.len() > 0{
@@ -750,7 +751,7 @@ impl Session {
     }
 
     fn fill_read_buffer(&mut self) -> Poll<(), AMQPError> {
-        use bytes::ReadExt;
+        use bytes::buf::ReadExt;
 
         debug!("Trying to append buffer starting from: {}", self.frame_read_buf.len());
         let read_result = self.stream.read_buf(&mut self.frame_read_buf);

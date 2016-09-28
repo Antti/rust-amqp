@@ -110,3 +110,4 @@ pub use channel::{Channel, ConsumerCallBackFn, Consumer};
 pub use table::{Table, TableEntry};
 pub use basic::{Basic, GetResult};
 pub use session::AMQPScheme;
+pub use amqp_error::AMQPError;

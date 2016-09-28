@@ -72,7 +72,8 @@ pub trait Consumer: Send + 'static {
     fn consume(&mut self, method: protocol::basic::Deliver, headers: protocol::basic::BasicProperties, body: Vec<u8>);
 }
 
-pub struct ChannelDispatcher {
+// This is a private struct, to hold the channel state, which lives in the session, it is not accessed directly by the user.
+struct ChannelDispatcher {
     id: u16,
     future_handlers: HashMap<String, Complete<MethodFrame>>,
     consumers: HashMap<String, Box<Consumer>>,
@@ -102,6 +103,11 @@ impl ChannelDispatcher {
                     "basic.deliver" => {
                         debug!("Received basic.deliver");
                         self.content_method = Some(method_frame);
+                    },
+                    "channel.close" => {
+                        let channel_close = protocol::channel::Close::decode(method_frame).unwrap();
+                        debug!("Received channel.close {:?}", channel_close);
+                        // TODO: Figure out what to do in this case
                     },
                     method_name => {
                         match self.future_handlers.remove(method_name) {
@@ -225,6 +231,12 @@ impl Channel {
         self.write_sync_method(qos)
     }
 
+    fn write_async_method<T>(self, method: T) where T: Method {
+        self.session.with(|session| {
+            let mut session = session.borrow_mut();
+            session.write_frame_to_buf(&method.to_frame(self.id).unwrap()); // TODO: return failing future if write failed
+        });
+    }
 
     fn write_sync_method<T, U>(self, method: T) -> SyncMethodFutureResponse<U> where T: Method, U: Method + Send + 'static {
         let (tx, rx) = futures::oneshot();

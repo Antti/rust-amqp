@@ -10,7 +10,7 @@ pub struct MyConsumer;
 
 impl Consumer for MyConsumer {
     fn consume(&mut self, method: protocol::basic::Deliver, headers: protocol::basic::BasicProperties, body: Vec<u8>) {
-        //println!("Executing consumer: method:{:?}\nheaders:{:?}\nbody:{:?}", method, headers, body);
+        // println!("Executing consumer: method:{:?}\nheaders:{:?}\nbody:{:?}", method, headers, body);
     }
 }
 
@@ -32,10 +32,6 @@ fn main() {
             println!("Opened channel {:?}", channel.id);
             channel.consume("test_queue", MyConsumer).map(|(channel, consume_ok)|{
                 println!("Consume on channel {} ok: {:?}", channel.id, consume_ok);
-                channel
-            })
-        });
-
                 channel
             })
         });

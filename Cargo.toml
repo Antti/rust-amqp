@@ -20,7 +20,7 @@ enum_primitive = "0.1"
 env_logger = "0.3"
 log = "0.3"
 url = "1.2"
-futures = { git = "https://github.com/alexcrichton/futures-rs" }
+futures = "^0.1.0"
 tokio-core = { git = "https://github.com/tokio-rs/tokio-core" }
 tokio-proto = { git = "https://github.com/tokio-rs/tokio-proto" }
 bytes = { git = "https://github.com/carllerche/bytes" }

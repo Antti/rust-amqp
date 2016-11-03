@@ -1,9 +1,10 @@
 use channel;
 use connection::Connection;
-use protocol::{self, MethodFrame};
+use protocol;
 use table::Table;
 use table::TableEntry::{FieldTable, Bool, LongString};
-use framing::Frame;
+use framing::{Frame, MethodFrame};
+
 use amqp_error::{AMQPResult, AMQPError};
 use super::VERSION;
 
@@ -13,6 +14,7 @@ use std::collections::HashMap;
 use std::sync::mpsc::{SyncSender, sync_channel};
 use std::thread;
 use std::cmp;
+
 
 use url::{Url, percent_encoding};
 

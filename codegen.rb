@@ -138,13 +138,22 @@ class SpecGenerator
     @spec["classes"]
   end
 
-  def matches
+  def class_id_and_method_id_to_name
     @spec["classes"].flat_map do |klass|
       klass["methods"].map do |method|
         "(#{klass["id"]}, #{method["id"]}) => \"#{klass["name"]}.#{method["name"]}\""
       end
     end
   end
+
+  def class_id_and_method_id_carries_content
+    @spec["classes"].flat_map do |klass|
+      klass["methods"].select{|m| m["content"] }.map do |method|
+        "(#{klass["id"]}, #{method["id"]}) => #{!!method["content"]}"
+      end
+    end
+  end
+
 
   def get_binding
     binding
@@ -245,5 +254,30 @@ class SpecGenerator
   end
 end
 
+
+method_frame_methods = <<-EOF
+fn method_name(method_frame: &MethodFrame) -> &'static str {
+    match (method_frame.class_id, method_frame.method_id) {
+    <% class_id_and_method_id_to_name.each do |m| -%>
+    <%= m %>,
+    <% end -%>
+    (_,_) => "UNKNOWN"
+    }
+}
+
+fn method_carries_content(method_frame: &MethodFrame) -> bool {
+    match (method_frame.class_id, method_frame.method_id) {
+    <% class_id_and_method_id_carries_content.each do |m| -%>
+    <%= m %>,
+    <% end -%>
+    (_,_) => false
+    }
+}
+
+EOF
+
+erb = ERB.new(method_frame_methods, 0 , "<>-")
+File.write('src/method_frame_methods.rs', erb.result(SpecGenerator.new(SPEC.clone).get_binding))
+
 erb = ERB.new(File.read('codegen.erb'), 0 , "<>-")
-puts  erb.result(SpecGenerator.new(SPEC.clone).get_binding)
+puts erb.result(SpecGenerator.new(SPEC.clone).get_binding)

@@ -9,11 +9,11 @@ extern "C" {
 }
 extern fn interrupt(_:u32) {
   unsafe {
-      stop_loop = true;
+      STOP_LOOP = true;
   }
 }
 
-static mut stop_loop : bool = false;
+static mut STOP_LOOP : bool = false;
 
 fn main() {
     env_logger::init().unwrap();
@@ -40,7 +40,7 @@ fn main() {
             properties,
             (b"Hello from rust!").to_vec()).ok().expect("Failed publishing");
         unsafe {
-            if stop_loop {
+            if STOP_LOOP {
                 break;
             }
         }

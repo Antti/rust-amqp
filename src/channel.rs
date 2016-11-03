@@ -1,11 +1,11 @@
 use amqp_error::{AMQPResult, AMQPError};
 use std::sync::mpsc::Receiver;
 
-use framing::{ContentHeaderFrame, Frame, FrameType};
+use framing::{MethodFrame, ContentHeaderFrame, Frame, FrameType};
 use table::Table;
 use protocol;
 use basic::{Basic, GetIterator};
-use protocol::{MethodFrame, channel, basic};
+use protocol::{channel, basic};
 use protocol::basic::BasicProperties;
 use protocol::basic::{Consume, ConsumeOk, Deliver, Publish, Ack, Nack, Reject, Qos, QosOk, Cancel,
                       CancelOk};
@@ -110,7 +110,7 @@ impl Channel {
         self.write(Frame {
             frame_type: FrameType::METHOD,
             channel: id,
-            payload: try!(MethodFrame::encode_method(method)),
+            payload: try!(method.encode_method_frame()),
         })
     }
 
@@ -140,7 +140,7 @@ impl Channel {
     }
 
     pub fn read_headers(&mut self) -> AMQPResult<ContentHeaderFrame> {
-        ContentHeaderFrame::decode(try!(self.read()))
+        ContentHeaderFrame::decode(&try!(self.read()))
     }
 
     pub fn read_body(&mut self, size: u64) -> AMQPResult<Vec<u8>> {

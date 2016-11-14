@@ -36,81 +36,23 @@ pub mod connection {
     use bit_vec::BitVec;
     use table;
     use table::{Table, decode_table, encode_table};
-    use protocol::Method;
+    use protocol;
     use framing::{ContentHeaderFrame, MethodFrame};
     use amqp_error::{AMQPResult, AMQPError};
     use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
     use std::io::{Read, Write};
+    use codegen_macros::{ArgumentsReader, ArgumentsWriter};
 
 
 
     // Method 10:start
-    #[derive(Debug)]
-    pub struct Start {
-        pub version_major: u8,
-        pub version_minor: u8,
-        pub server_properties: Table,
-        pub mechanisms: String,
-        pub locales: String,
-    }
-
-    impl Method for Start {
-        fn name(&self) -> &'static str {
-            "connection.start"
-        }
-
-        fn id(&self) -> u16 {
-            10
-        }
-
-        fn class_id(&self) -> u16 {
-            10
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<Start> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (10, 10) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            let reader = &mut &method_frame.arguments[..];
-            let version_major = try!(reader.read_u8());
-            let version_minor = try!(reader.read_u8());
-            let server_properties = try!(decode_table(reader));
-            let mechanisms = {
-                let size = try!(reader.read_u32::<BigEndian>()) as usize;
-                let mut buffer: Vec<u8> = vec![0u8; size];
-                try!(reader.read(&mut buffer[..]));
-                String::from_utf8_lossy(&buffer[..]).to_string()
-            };
-            let locales = {
-                let size = try!(reader.read_u32::<BigEndian>()) as usize;
-                let mut buffer: Vec<u8> = vec![0u8; size];
-                try!(reader.read(&mut buffer[..]));
-                String::from_utf8_lossy(&buffer[..]).to_string()
-            };
-            Ok(Start {
-                version_major: version_major,
-                version_minor: version_minor,
-                server_properties: server_properties,
-                mechanisms: mechanisms,
-                locales: locales,
-            })
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            let mut writer = vec![];
-            try!(writer.write_u8(self.version_major));
-            try!(writer.write_u8(self.version_minor));
-            try!(encode_table(&mut writer, &self.server_properties));
-            try!(writer.write_u32::<BigEndian>(self.mechanisms.len() as u32));
-            try!(writer.write_all(self.mechanisms.as_bytes()));
-            try!(writer.write_u32::<BigEndian>(self.locales.len() as u32));
-            try!(writer.write_all(self.locales.as_bytes()));
-            Ok(writer)
-        }
-    }
+    method_struct!(Start, "connection.start", 10, 10,
+        version_major => octet,
+version_minor => octet,
+server_properties => table,
+mechanisms => longstr,
+locales => longstr
+    );
 
     impl Start {
         pub fn with_default_values(server_properties: Table) -> Start {
@@ -126,74 +68,12 @@ pub mod connection {
 
     unsafe impl Send for Start {}
     // Method 11:start-ok
-    #[derive(Debug)]
-    pub struct StartOk {
-        pub client_properties: Table,
-        pub mechanism: String,
-        pub response: String,
-        pub locale: String,
-    }
-
-    impl Method for StartOk {
-        fn name(&self) -> &'static str {
-            "connection.start-ok"
-        }
-
-        fn id(&self) -> u16 {
-            11
-        }
-
-        fn class_id(&self) -> u16 {
-            10
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<StartOk> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (10, 11) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            let reader = &mut &method_frame.arguments[..];
-            let client_properties = try!(decode_table(reader));
-            let mechanism = {
-                let size = try!(reader.read_u8()) as usize;
-                let mut buffer: Vec<u8> = vec![0u8; size];
-                try!(reader.read(&mut buffer[..]));
-                String::from_utf8_lossy(&buffer[..]).to_string()
-            };
-            let response = {
-                let size = try!(reader.read_u32::<BigEndian>()) as usize;
-                let mut buffer: Vec<u8> = vec![0u8; size];
-                try!(reader.read(&mut buffer[..]));
-                String::from_utf8_lossy(&buffer[..]).to_string()
-            };
-            let locale = {
-                let size = try!(reader.read_u8()) as usize;
-                let mut buffer: Vec<u8> = vec![0u8; size];
-                try!(reader.read(&mut buffer[..]));
-                String::from_utf8_lossy(&buffer[..]).to_string()
-            };
-            Ok(StartOk {
-                client_properties: client_properties,
-                mechanism: mechanism,
-                response: response,
-                locale: locale,
-            })
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            let mut writer = vec![];
-            try!(encode_table(&mut writer, &self.client_properties));
-            try!(writer.write_u8(self.mechanism.len() as u8));
-            try!(writer.write_all(self.mechanism.as_bytes()));
-            try!(writer.write_u32::<BigEndian>(self.response.len() as u32));
-            try!(writer.write_all(self.response.as_bytes()));
-            try!(writer.write_u8(self.locale.len() as u8));
-            try!(writer.write_all(self.locale.as_bytes()));
-            Ok(writer)
-        }
-    }
+    method_struct!(StartOk, "connection.start-ok", 10, 11,
+        client_properties => table,
+mechanism => shortstr,
+response => longstr,
+locale => shortstr
+    );
 
     impl StartOk {
         pub fn with_default_values(client_properties: Table, response: String) -> StartOk {
@@ -208,144 +88,25 @@ pub mod connection {
 
     unsafe impl Send for StartOk {}
     // Method 20:secure
-    #[derive(Debug)]
-    pub struct Secure {
-        pub challenge: String,
-    }
-
-    impl Method for Secure {
-        fn name(&self) -> &'static str {
-            "connection.secure"
-        }
-
-        fn id(&self) -> u16 {
-            20
-        }
-
-        fn class_id(&self) -> u16 {
-            10
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<Secure> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (10, 20) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            let reader = &mut &method_frame.arguments[..];
-            let challenge = {
-                let size = try!(reader.read_u32::<BigEndian>()) as usize;
-                let mut buffer: Vec<u8> = vec![0u8; size];
-                try!(reader.read(&mut buffer[..]));
-                String::from_utf8_lossy(&buffer[..]).to_string()
-            };
-            Ok(Secure { challenge: challenge })
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            let mut writer = vec![];
-            try!(writer.write_u32::<BigEndian>(self.challenge.len() as u32));
-            try!(writer.write_all(self.challenge.as_bytes()));
-            Ok(writer)
-        }
-    }
+    method_struct!(Secure, "connection.secure", 10, 20,
+        challenge => longstr
+    );
 
 
     unsafe impl Send for Secure {}
     // Method 21:secure-ok
-    #[derive(Debug)]
-    pub struct SecureOk {
-        pub response: String,
-    }
-
-    impl Method for SecureOk {
-        fn name(&self) -> &'static str {
-            "connection.secure-ok"
-        }
-
-        fn id(&self) -> u16 {
-            21
-        }
-
-        fn class_id(&self) -> u16 {
-            10
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<SecureOk> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (10, 21) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            let reader = &mut &method_frame.arguments[..];
-            let response = {
-                let size = try!(reader.read_u32::<BigEndian>()) as usize;
-                let mut buffer: Vec<u8> = vec![0u8; size];
-                try!(reader.read(&mut buffer[..]));
-                String::from_utf8_lossy(&buffer[..]).to_string()
-            };
-            Ok(SecureOk { response: response })
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            let mut writer = vec![];
-            try!(writer.write_u32::<BigEndian>(self.response.len() as u32));
-            try!(writer.write_all(self.response.as_bytes()));
-            Ok(writer)
-        }
-    }
+    method_struct!(SecureOk, "connection.secure-ok", 10, 21,
+        response => longstr
+    );
 
 
     unsafe impl Send for SecureOk {}
     // Method 30:tune
-    #[derive(Debug)]
-    pub struct Tune {
-        pub channel_max: u16,
-        pub frame_max: u32,
-        pub heartbeat: u16,
-    }
-
-    impl Method for Tune {
-        fn name(&self) -> &'static str {
-            "connection.tune"
-        }
-
-        fn id(&self) -> u16 {
-            30
-        }
-
-        fn class_id(&self) -> u16 {
-            10
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<Tune> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (10, 30) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            let reader = &mut &method_frame.arguments[..];
-            let channel_max = try!(reader.read_u16::<BigEndian>());
-            let frame_max = try!(reader.read_u32::<BigEndian>());
-            let heartbeat = try!(reader.read_u16::<BigEndian>());
-            Ok(Tune {
-                channel_max: channel_max,
-                frame_max: frame_max,
-                heartbeat: heartbeat,
-            })
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            let mut writer = vec![];
-            try!(writer.write_u16::<BigEndian>(self.channel_max));
-            try!(writer.write_u32::<BigEndian>(self.frame_max));
-            try!(writer.write_u16::<BigEndian>(self.heartbeat));
-            Ok(writer)
-        }
-    }
+    method_struct!(Tune, "connection.tune", 10, 30,
+        channel_max => short,
+frame_max => long,
+heartbeat => short
+    );
 
     impl Tune {
         pub fn with_default_values() -> Tune {
@@ -359,52 +120,11 @@ pub mod connection {
 
     unsafe impl Send for Tune {}
     // Method 31:tune-ok
-    #[derive(Debug)]
-    pub struct TuneOk {
-        pub channel_max: u16,
-        pub frame_max: u32,
-        pub heartbeat: u16,
-    }
-
-    impl Method for TuneOk {
-        fn name(&self) -> &'static str {
-            "connection.tune-ok"
-        }
-
-        fn id(&self) -> u16 {
-            31
-        }
-
-        fn class_id(&self) -> u16 {
-            10
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<TuneOk> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (10, 31) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            let reader = &mut &method_frame.arguments[..];
-            let channel_max = try!(reader.read_u16::<BigEndian>());
-            let frame_max = try!(reader.read_u32::<BigEndian>());
-            let heartbeat = try!(reader.read_u16::<BigEndian>());
-            Ok(TuneOk {
-                channel_max: channel_max,
-                frame_max: frame_max,
-                heartbeat: heartbeat,
-            })
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            let mut writer = vec![];
-            try!(writer.write_u16::<BigEndian>(self.channel_max));
-            try!(writer.write_u32::<BigEndian>(self.frame_max));
-            try!(writer.write_u16::<BigEndian>(self.heartbeat));
-            Ok(writer)
-        }
-    }
+    method_struct!(TuneOk, "connection.tune-ok", 10, 31,
+        channel_max => short,
+frame_max => long,
+heartbeat => short
+    );
 
     impl TuneOk {
         pub fn with_default_values() -> TuneOk {
@@ -418,71 +138,11 @@ pub mod connection {
 
     unsafe impl Send for TuneOk {}
     // Method 40:open
-    #[derive(Debug)]
-    pub struct Open {
-        pub virtual_host: String,
-        pub capabilities: String,
-        pub insist: bool,
-    }
-
-    impl Method for Open {
-        fn name(&self) -> &'static str {
-            "connection.open"
-        }
-
-        fn id(&self) -> u16 {
-            40
-        }
-
-        fn class_id(&self) -> u16 {
-            10
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<Open> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (10, 40) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            let reader = &mut &method_frame.arguments[..];
-            let virtual_host = {
-                let size = try!(reader.read_u8()) as usize;
-                let mut buffer: Vec<u8> = vec![0u8; size];
-                try!(reader.read(&mut buffer[..]));
-                String::from_utf8_lossy(&buffer[..]).to_string()
-            };
-            let capabilities = {
-                let size = try!(reader.read_u8()) as usize;
-                let mut buffer: Vec<u8> = vec![0u8; size];
-                try!(reader.read(&mut buffer[..]));
-                String::from_utf8_lossy(&buffer[..]).to_string()
-            };
-            let byte = try!(reader.read_u8());
-            let bits = BitVec::from_bytes(&[byte]);
-            let insist = match bits.get(7) {
-                Some(bit) => bit,
-                None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned())),
-            };
-            Ok(Open {
-                virtual_host: virtual_host,
-                capabilities: capabilities,
-                insist: insist,
-            })
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            let mut writer = vec![];
-            try!(writer.write_u8(self.virtual_host.len() as u8));
-            try!(writer.write_all(self.virtual_host.as_bytes()));
-            try!(writer.write_u8(self.capabilities.len() as u8));
-            try!(writer.write_all(self.capabilities.as_bytes()));
-            let mut bits = BitVec::from_elem(8, false);
-            bits.set(7, self.insist);
-            try!(writer.write_all(&bits.to_bytes()));
-            Ok(writer)
-        }
-    }
+    method_struct!(Open, "connection.open", 10, 40,
+        virtual_host => shortstr,
+capabilities => shortstr,
+insist => bit
+    );
 
     impl Open {
         pub fn with_default_values(insist: bool) -> Open {
@@ -496,48 +156,9 @@ pub mod connection {
 
     unsafe impl Send for Open {}
     // Method 41:open-ok
-    #[derive(Debug)]
-    pub struct OpenOk {
-        pub known_hosts: String,
-    }
-
-    impl Method for OpenOk {
-        fn name(&self) -> &'static str {
-            "connection.open-ok"
-        }
-
-        fn id(&self) -> u16 {
-            41
-        }
-
-        fn class_id(&self) -> u16 {
-            10
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<OpenOk> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (10, 41) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            let reader = &mut &method_frame.arguments[..];
-            let known_hosts = {
-                let size = try!(reader.read_u8()) as usize;
-                let mut buffer: Vec<u8> = vec![0u8; size];
-                try!(reader.read(&mut buffer[..]));
-                String::from_utf8_lossy(&buffer[..]).to_string()
-            };
-            Ok(OpenOk { known_hosts: known_hosts })
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            let mut writer = vec![];
-            try!(writer.write_u8(self.known_hosts.len() as u8));
-            try!(writer.write_all(self.known_hosts.as_bytes()));
-            Ok(writer)
-        }
-    }
+    method_struct!(OpenOk, "connection.open-ok", 10, 41,
+        known_hosts => shortstr
+    );
 
     impl OpenOk {
         pub fn with_default_values() -> OpenOk {
@@ -547,62 +168,12 @@ pub mod connection {
 
     unsafe impl Send for OpenOk {}
     // Method 50:close
-    #[derive(Debug)]
-    pub struct Close {
-        pub reply_code: u16,
-        pub reply_text: String,
-        pub class_id: u16,
-        pub method_id: u16,
-    }
-
-    impl Method for Close {
-        fn name(&self) -> &'static str {
-            "connection.close"
-        }
-
-        fn id(&self) -> u16 {
-            50
-        }
-
-        fn class_id(&self) -> u16 {
-            10
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<Close> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (10, 50) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            let reader = &mut &method_frame.arguments[..];
-            let reply_code = try!(reader.read_u16::<BigEndian>());
-            let reply_text = {
-                let size = try!(reader.read_u8()) as usize;
-                let mut buffer: Vec<u8> = vec![0u8; size];
-                try!(reader.read(&mut buffer[..]));
-                String::from_utf8_lossy(&buffer[..]).to_string()
-            };
-            let class_id = try!(reader.read_u16::<BigEndian>());
-            let method_id = try!(reader.read_u16::<BigEndian>());
-            Ok(Close {
-                reply_code: reply_code,
-                reply_text: reply_text,
-                class_id: class_id,
-                method_id: method_id,
-            })
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            let mut writer = vec![];
-            try!(writer.write_u16::<BigEndian>(self.reply_code));
-            try!(writer.write_u8(self.reply_text.len() as u8));
-            try!(writer.write_all(self.reply_text.as_bytes()));
-            try!(writer.write_u16::<BigEndian>(self.class_id));
-            try!(writer.write_u16::<BigEndian>(self.method_id));
-            Ok(writer)
-        }
-    }
+    method_struct!(Close, "connection.close", 10, 50,
+        reply_code => short,
+reply_text => shortstr,
+class_id => short,
+method_id => short
+    );
 
     impl Close {
         pub fn with_default_values(reply_code: u16, class_id: u16, method_id: u16) -> Close {
@@ -617,82 +188,16 @@ pub mod connection {
 
     unsafe impl Send for Close {}
     // Method 51:close-ok
-    #[derive(Debug)]
-    pub struct CloseOk;
+    method_struct!(CloseOk, "connection.close-ok", 10, 51,
 
-    impl Method for CloseOk {
-        fn name(&self) -> &'static str {
-            "connection.close-ok"
-        }
-
-        fn id(&self) -> u16 {
-            51
-        }
-
-        fn class_id(&self) -> u16 {
-            10
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<CloseOk> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (10, 51) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            Ok(CloseOk)
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            Ok(vec![])
-        }
-    }
+    );
 
 
     unsafe impl Send for CloseOk {}
     // Method 60:blocked
-    #[derive(Debug)]
-    pub struct Blocked {
-        pub reason: String,
-    }
-
-    impl Method for Blocked {
-        fn name(&self) -> &'static str {
-            "connection.blocked"
-        }
-
-        fn id(&self) -> u16 {
-            60
-        }
-
-        fn class_id(&self) -> u16 {
-            10
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<Blocked> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (10, 60) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            let reader = &mut &method_frame.arguments[..];
-            let reason = {
-                let size = try!(reader.read_u8()) as usize;
-                let mut buffer: Vec<u8> = vec![0u8; size];
-                try!(reader.read(&mut buffer[..]));
-                String::from_utf8_lossy(&buffer[..]).to_string()
-            };
-            Ok(Blocked { reason: reason })
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            let mut writer = vec![];
-            try!(writer.write_u8(self.reason.len() as u8));
-            try!(writer.write_all(self.reason.as_bytes()));
-            Ok(writer)
-        }
-    }
+    method_struct!(Blocked, "connection.blocked", 10, 60,
+        reason => shortstr
+    );
 
     impl Blocked {
         pub fn with_default_values() -> Blocked {
@@ -702,36 +207,9 @@ pub mod connection {
 
     unsafe impl Send for Blocked {}
     // Method 61:unblocked
-    #[derive(Debug)]
-    pub struct Unblocked;
+    method_struct!(Unblocked, "connection.unblocked", 10, 61,
 
-    impl Method for Unblocked {
-        fn name(&self) -> &'static str {
-            "connection.unblocked"
-        }
-
-        fn id(&self) -> u16 {
-            61
-        }
-
-        fn class_id(&self) -> u16 {
-            10
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<Unblocked> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (10, 61) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            Ok(Unblocked)
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            Ok(vec![])
-        }
-    }
+    );
 
 
     unsafe impl Send for Unblocked {}
@@ -743,57 +221,19 @@ pub mod channel {
     use bit_vec::BitVec;
     use table;
     use table::{Table, decode_table, encode_table};
-    use protocol::Method;
+    use protocol;
     use framing::{ContentHeaderFrame, MethodFrame};
     use amqp_error::{AMQPResult, AMQPError};
     use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
     use std::io::{Read, Write};
+    use codegen_macros::{ArgumentsReader, ArgumentsWriter};
 
 
 
     // Method 10:open
-    #[derive(Debug)]
-    pub struct Open {
-        pub out_of_band: String,
-    }
-
-    impl Method for Open {
-        fn name(&self) -> &'static str {
-            "channel.open"
-        }
-
-        fn id(&self) -> u16 {
-            10
-        }
-
-        fn class_id(&self) -> u16 {
-            20
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<Open> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (20, 10) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            let reader = &mut &method_frame.arguments[..];
-            let out_of_band = {
-                let size = try!(reader.read_u8()) as usize;
-                let mut buffer: Vec<u8> = vec![0u8; size];
-                try!(reader.read(&mut buffer[..]));
-                String::from_utf8_lossy(&buffer[..]).to_string()
-            };
-            Ok(Open { out_of_band: out_of_band })
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            let mut writer = vec![];
-            try!(writer.write_u8(self.out_of_band.len() as u8));
-            try!(writer.write_all(self.out_of_band.as_bytes()));
-            Ok(writer)
-        }
-    }
+    method_struct!(Open, "channel.open", 20, 10,
+        out_of_band => shortstr
+    );
 
     impl Open {
         pub fn with_default_values() -> Open {
@@ -803,48 +243,9 @@ pub mod channel {
 
     unsafe impl Send for Open {}
     // Method 11:open-ok
-    #[derive(Debug)]
-    pub struct OpenOk {
-        pub channel_id: String,
-    }
-
-    impl Method for OpenOk {
-        fn name(&self) -> &'static str {
-            "channel.open-ok"
-        }
-
-        fn id(&self) -> u16 {
-            11
-        }
-
-        fn class_id(&self) -> u16 {
-            20
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<OpenOk> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (20, 11) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            let reader = &mut &method_frame.arguments[..];
-            let channel_id = {
-                let size = try!(reader.read_u32::<BigEndian>()) as usize;
-                let mut buffer: Vec<u8> = vec![0u8; size];
-                try!(reader.read(&mut buffer[..]));
-                String::from_utf8_lossy(&buffer[..]).to_string()
-            };
-            Ok(OpenOk { channel_id: channel_id })
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            let mut writer = vec![];
-            try!(writer.write_u32::<BigEndian>(self.channel_id.len() as u32));
-            try!(writer.write_all(self.channel_id.as_bytes()));
-            Ok(writer)
-        }
-    }
+    method_struct!(OpenOk, "channel.open-ok", 20, 11,
+        channel_id => longstr
+    );
 
     impl OpenOk {
         pub fn with_default_values() -> OpenOk {
@@ -854,156 +255,26 @@ pub mod channel {
 
     unsafe impl Send for OpenOk {}
     // Method 20:flow
-    #[derive(Debug)]
-    pub struct Flow {
-        pub active: bool,
-    }
-
-    impl Method for Flow {
-        fn name(&self) -> &'static str {
-            "channel.flow"
-        }
-
-        fn id(&self) -> u16 {
-            20
-        }
-
-        fn class_id(&self) -> u16 {
-            20
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<Flow> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (20, 20) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            let reader = &mut &method_frame.arguments[..];
-            let byte = try!(reader.read_u8());
-            let bits = BitVec::from_bytes(&[byte]);
-            let active = match bits.get(7) {
-                Some(bit) => bit,
-                None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned())),
-            };
-            Ok(Flow { active: active })
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            let mut writer = vec![];
-            let mut bits = BitVec::from_elem(8, false);
-            bits.set(7, self.active);
-            try!(writer.write_all(&bits.to_bytes()));
-            Ok(writer)
-        }
-    }
+    method_struct!(Flow, "channel.flow", 20, 20,
+        active => bit
+    );
 
 
     unsafe impl Send for Flow {}
     // Method 21:flow-ok
-    #[derive(Debug)]
-    pub struct FlowOk {
-        pub active: bool,
-    }
-
-    impl Method for FlowOk {
-        fn name(&self) -> &'static str {
-            "channel.flow-ok"
-        }
-
-        fn id(&self) -> u16 {
-            21
-        }
-
-        fn class_id(&self) -> u16 {
-            20
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<FlowOk> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (20, 21) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            let reader = &mut &method_frame.arguments[..];
-            let byte = try!(reader.read_u8());
-            let bits = BitVec::from_bytes(&[byte]);
-            let active = match bits.get(7) {
-                Some(bit) => bit,
-                None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned())),
-            };
-            Ok(FlowOk { active: active })
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            let mut writer = vec![];
-            let mut bits = BitVec::from_elem(8, false);
-            bits.set(7, self.active);
-            try!(writer.write_all(&bits.to_bytes()));
-            Ok(writer)
-        }
-    }
+    method_struct!(FlowOk, "channel.flow-ok", 20, 21,
+        active => bit
+    );
 
 
     unsafe impl Send for FlowOk {}
     // Method 40:close
-    #[derive(Debug)]
-    pub struct Close {
-        pub reply_code: u16,
-        pub reply_text: String,
-        pub class_id: u16,
-        pub method_id: u16,
-    }
-
-    impl Method for Close {
-        fn name(&self) -> &'static str {
-            "channel.close"
-        }
-
-        fn id(&self) -> u16 {
-            40
-        }
-
-        fn class_id(&self) -> u16 {
-            20
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<Close> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (20, 40) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            let reader = &mut &method_frame.arguments[..];
-            let reply_code = try!(reader.read_u16::<BigEndian>());
-            let reply_text = {
-                let size = try!(reader.read_u8()) as usize;
-                let mut buffer: Vec<u8> = vec![0u8; size];
-                try!(reader.read(&mut buffer[..]));
-                String::from_utf8_lossy(&buffer[..]).to_string()
-            };
-            let class_id = try!(reader.read_u16::<BigEndian>());
-            let method_id = try!(reader.read_u16::<BigEndian>());
-            Ok(Close {
-                reply_code: reply_code,
-                reply_text: reply_text,
-                class_id: class_id,
-                method_id: method_id,
-            })
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            let mut writer = vec![];
-            try!(writer.write_u16::<BigEndian>(self.reply_code));
-            try!(writer.write_u8(self.reply_text.len() as u8));
-            try!(writer.write_all(self.reply_text.as_bytes()));
-            try!(writer.write_u16::<BigEndian>(self.class_id));
-            try!(writer.write_u16::<BigEndian>(self.method_id));
-            Ok(writer)
-        }
-    }
+    method_struct!(Close, "channel.close", 20, 40,
+        reply_code => short,
+reply_text => shortstr,
+class_id => short,
+method_id => short
+    );
 
     impl Close {
         pub fn with_default_values(reply_code: u16, class_id: u16, method_id: u16) -> Close {
@@ -1018,36 +289,9 @@ pub mod channel {
 
     unsafe impl Send for Close {}
     // Method 41:close-ok
-    #[derive(Debug)]
-    pub struct CloseOk;
+    method_struct!(CloseOk, "channel.close-ok", 20, 41,
 
-    impl Method for CloseOk {
-        fn name(&self) -> &'static str {
-            "channel.close-ok"
-        }
-
-        fn id(&self) -> u16 {
-            41
-        }
-
-        fn class_id(&self) -> u16 {
-            20
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<CloseOk> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (20, 41) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            Ok(CloseOk)
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            Ok(vec![])
-        }
-    }
+    );
 
 
     unsafe impl Send for CloseOk {}
@@ -1059,98 +303,24 @@ pub mod access {
     use bit_vec::BitVec;
     use table;
     use table::{Table, decode_table, encode_table};
-    use protocol::Method;
+    use protocol;
     use framing::{ContentHeaderFrame, MethodFrame};
     use amqp_error::{AMQPResult, AMQPError};
     use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
     use std::io::{Read, Write};
+    use codegen_macros::{ArgumentsReader, ArgumentsWriter};
 
 
 
     // Method 10:request
-    #[derive(Debug)]
-    pub struct Request {
-        pub realm: String,
-        pub exclusive: bool,
-        pub passive: bool,
-        pub active: bool,
-        pub write: bool,
-        pub read: bool,
-    }
-
-    impl Method for Request {
-        fn name(&self) -> &'static str {
-            "access.request"
-        }
-
-        fn id(&self) -> u16 {
-            10
-        }
-
-        fn class_id(&self) -> u16 {
-            30
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<Request> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (30, 10) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            let reader = &mut &method_frame.arguments[..];
-            let realm = {
-                let size = try!(reader.read_u8()) as usize;
-                let mut buffer: Vec<u8> = vec![0u8; size];
-                try!(reader.read(&mut buffer[..]));
-                String::from_utf8_lossy(&buffer[..]).to_string()
-            };
-            let byte = try!(reader.read_u8());
-            let bits = BitVec::from_bytes(&[byte]);
-            let exclusive = match bits.get(7) {
-                Some(bit) => bit,
-                None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned())),
-            };
-            let passive = match bits.get(6) {
-                Some(bit) => bit,
-                None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned())),
-            };
-            let active = match bits.get(5) {
-                Some(bit) => bit,
-                None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned())),
-            };
-            let write = match bits.get(4) {
-                Some(bit) => bit,
-                None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned())),
-            };
-            let read = match bits.get(3) {
-                Some(bit) => bit,
-                None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned())),
-            };
-            Ok(Request {
-                realm: realm,
-                exclusive: exclusive,
-                passive: passive,
-                active: active,
-                write: write,
-                read: read,
-            })
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            let mut writer = vec![];
-            try!(writer.write_u8(self.realm.len() as u8));
-            try!(writer.write_all(self.realm.as_bytes()));
-            let mut bits = BitVec::from_elem(8, false);
-            bits.set(7, self.exclusive);
-            bits.set(6, self.passive);
-            bits.set(5, self.active);
-            bits.set(4, self.write);
-            bits.set(3, self.read);
-            try!(writer.write_all(&bits.to_bytes()));
-            Ok(writer)
-        }
-    }
+    method_struct!(Request, "access.request", 30, 10,
+        realm => shortstr,
+exclusive => bit,
+passive => bit,
+active => bit,
+write => bit,
+read => bit
+    );
 
     impl Request {
         pub fn with_default_values(exclusive: bool) -> Request {
@@ -1167,42 +337,9 @@ pub mod access {
 
     unsafe impl Send for Request {}
     // Method 11:request-ok
-    #[derive(Debug)]
-    pub struct RequestOk {
-        pub ticket: u16,
-    }
-
-    impl Method for RequestOk {
-        fn name(&self) -> &'static str {
-            "access.request-ok"
-        }
-
-        fn id(&self) -> u16 {
-            11
-        }
-
-        fn class_id(&self) -> u16 {
-            30
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<RequestOk> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (30, 11) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            let reader = &mut &method_frame.arguments[..];
-            let ticket = try!(reader.read_u16::<BigEndian>());
-            Ok(RequestOk { ticket: ticket })
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            let mut writer = vec![];
-            try!(writer.write_u16::<BigEndian>(self.ticket));
-            Ok(writer)
-        }
-    }
+    method_struct!(RequestOk, "access.request-ok", 30, 11,
+        ticket => short
+    );
 
     impl RequestOk {
         pub fn with_default_values() -> RequestOk {
@@ -1219,116 +356,27 @@ pub mod exchange {
     use bit_vec::BitVec;
     use table;
     use table::{Table, decode_table, encode_table};
-    use protocol::Method;
+    use protocol;
     use framing::{ContentHeaderFrame, MethodFrame};
     use amqp_error::{AMQPResult, AMQPError};
     use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
     use std::io::{Read, Write};
+    use codegen_macros::{ArgumentsReader, ArgumentsWriter};
 
 
 
     // Method 10:declare
-    #[derive(Debug)]
-    pub struct Declare {
-        pub ticket: u16,
-        pub exchange: String,
-        pub _type: String,
-        pub passive: bool,
-        pub durable: bool,
-        pub auto_delete: bool,
-        pub internal: bool,
-        pub nowait: bool,
-        pub arguments: Table,
-    }
-
-    impl Method for Declare {
-        fn name(&self) -> &'static str {
-            "exchange.declare"
-        }
-
-        fn id(&self) -> u16 {
-            10
-        }
-
-        fn class_id(&self) -> u16 {
-            40
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<Declare> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (40, 10) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            let reader = &mut &method_frame.arguments[..];
-            let ticket = try!(reader.read_u16::<BigEndian>());
-            let exchange = {
-                let size = try!(reader.read_u8()) as usize;
-                let mut buffer: Vec<u8> = vec![0u8; size];
-                try!(reader.read(&mut buffer[..]));
-                String::from_utf8_lossy(&buffer[..]).to_string()
-            };
-            let _type = {
-                let size = try!(reader.read_u8()) as usize;
-                let mut buffer: Vec<u8> = vec![0u8; size];
-                try!(reader.read(&mut buffer[..]));
-                String::from_utf8_lossy(&buffer[..]).to_string()
-            };
-            let byte = try!(reader.read_u8());
-            let bits = BitVec::from_bytes(&[byte]);
-            let passive = match bits.get(7) {
-                Some(bit) => bit,
-                None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned())),
-            };
-            let durable = match bits.get(6) {
-                Some(bit) => bit,
-                None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned())),
-            };
-            let auto_delete = match bits.get(5) {
-                Some(bit) => bit,
-                None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned())),
-            };
-            let internal = match bits.get(4) {
-                Some(bit) => bit,
-                None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned())),
-            };
-            let nowait = match bits.get(3) {
-                Some(bit) => bit,
-                None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned())),
-            };
-            let arguments = try!(decode_table(reader));
-            Ok(Declare {
-                ticket: ticket,
-                exchange: exchange,
-                _type: _type,
-                passive: passive,
-                durable: durable,
-                auto_delete: auto_delete,
-                internal: internal,
-                nowait: nowait,
-                arguments: arguments,
-            })
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            let mut writer = vec![];
-            try!(writer.write_u16::<BigEndian>(self.ticket));
-            try!(writer.write_u8(self.exchange.len() as u8));
-            try!(writer.write_all(self.exchange.as_bytes()));
-            try!(writer.write_u8(self._type.len() as u8));
-            try!(writer.write_all(self._type.as_bytes()));
-            let mut bits = BitVec::from_elem(8, false);
-            bits.set(7, self.passive);
-            bits.set(6, self.durable);
-            bits.set(5, self.auto_delete);
-            bits.set(4, self.internal);
-            bits.set(3, self.nowait);
-            try!(writer.write_all(&bits.to_bytes()));
-            try!(encode_table(&mut writer, &self.arguments));
-            Ok(writer)
-        }
-    }
+    method_struct!(Declare, "exchange.declare", 40, 10,
+        ticket => short,
+exchange => shortstr,
+_type => shortstr,
+passive => bit,
+durable => bit,
+auto_delete => bit,
+internal => bit,
+nowait => bit,
+arguments => table
+    );
 
     impl Declare {
         pub fn with_default_values(exchange: String,
@@ -1354,106 +402,19 @@ pub mod exchange {
 
     unsafe impl Send for Declare {}
     // Method 11:declare-ok
-    #[derive(Debug)]
-    pub struct DeclareOk;
+    method_struct!(DeclareOk, "exchange.declare-ok", 40, 11,
 
-    impl Method for DeclareOk {
-        fn name(&self) -> &'static str {
-            "exchange.declare-ok"
-        }
-
-        fn id(&self) -> u16 {
-            11
-        }
-
-        fn class_id(&self) -> u16 {
-            40
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<DeclareOk> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (40, 11) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            Ok(DeclareOk)
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            Ok(vec![])
-        }
-    }
+    );
 
 
     unsafe impl Send for DeclareOk {}
     // Method 20:delete
-    #[derive(Debug)]
-    pub struct Delete {
-        pub ticket: u16,
-        pub exchange: String,
-        pub if_unused: bool,
-        pub nowait: bool,
-    }
-
-    impl Method for Delete {
-        fn name(&self) -> &'static str {
-            "exchange.delete"
-        }
-
-        fn id(&self) -> u16 {
-            20
-        }
-
-        fn class_id(&self) -> u16 {
-            40
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<Delete> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (40, 20) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            let reader = &mut &method_frame.arguments[..];
-            let ticket = try!(reader.read_u16::<BigEndian>());
-            let exchange = {
-                let size = try!(reader.read_u8()) as usize;
-                let mut buffer: Vec<u8> = vec![0u8; size];
-                try!(reader.read(&mut buffer[..]));
-                String::from_utf8_lossy(&buffer[..]).to_string()
-            };
-            let byte = try!(reader.read_u8());
-            let bits = BitVec::from_bytes(&[byte]);
-            let if_unused = match bits.get(7) {
-                Some(bit) => bit,
-                None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned())),
-            };
-            let nowait = match bits.get(6) {
-                Some(bit) => bit,
-                None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned())),
-            };
-            Ok(Delete {
-                ticket: ticket,
-                exchange: exchange,
-                if_unused: if_unused,
-                nowait: nowait,
-            })
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            let mut writer = vec![];
-            try!(writer.write_u16::<BigEndian>(self.ticket));
-            try!(writer.write_u8(self.exchange.len() as u8));
-            try!(writer.write_all(self.exchange.as_bytes()));
-            let mut bits = BitVec::from_elem(8, false);
-            bits.set(7, self.if_unused);
-            bits.set(6, self.nowait);
-            try!(writer.write_all(&bits.to_bytes()));
-            Ok(writer)
-        }
-    }
+    method_struct!(Delete, "exchange.delete", 40, 20,
+        ticket => short,
+exchange => shortstr,
+if_unused => bit,
+nowait => bit
+    );
 
     impl Delete {
         pub fn with_default_values(exchange: String, if_unused: bool, nowait: bool) -> Delete {
@@ -1468,123 +429,21 @@ pub mod exchange {
 
     unsafe impl Send for Delete {}
     // Method 21:delete-ok
-    #[derive(Debug)]
-    pub struct DeleteOk;
+    method_struct!(DeleteOk, "exchange.delete-ok", 40, 21,
 
-    impl Method for DeleteOk {
-        fn name(&self) -> &'static str {
-            "exchange.delete-ok"
-        }
-
-        fn id(&self) -> u16 {
-            21
-        }
-
-        fn class_id(&self) -> u16 {
-            40
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<DeleteOk> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (40, 21) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            Ok(DeleteOk)
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            Ok(vec![])
-        }
-    }
+    );
 
 
     unsafe impl Send for DeleteOk {}
     // Method 30:bind
-    #[derive(Debug)]
-    pub struct Bind {
-        pub ticket: u16,
-        pub destination: String,
-        pub source: String,
-        pub routing_key: String,
-        pub nowait: bool,
-        pub arguments: Table,
-    }
-
-    impl Method for Bind {
-        fn name(&self) -> &'static str {
-            "exchange.bind"
-        }
-
-        fn id(&self) -> u16 {
-            30
-        }
-
-        fn class_id(&self) -> u16 {
-            40
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<Bind> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (40, 30) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            let reader = &mut &method_frame.arguments[..];
-            let ticket = try!(reader.read_u16::<BigEndian>());
-            let destination = {
-                let size = try!(reader.read_u8()) as usize;
-                let mut buffer: Vec<u8> = vec![0u8; size];
-                try!(reader.read(&mut buffer[..]));
-                String::from_utf8_lossy(&buffer[..]).to_string()
-            };
-            let source = {
-                let size = try!(reader.read_u8()) as usize;
-                let mut buffer: Vec<u8> = vec![0u8; size];
-                try!(reader.read(&mut buffer[..]));
-                String::from_utf8_lossy(&buffer[..]).to_string()
-            };
-            let routing_key = {
-                let size = try!(reader.read_u8()) as usize;
-                let mut buffer: Vec<u8> = vec![0u8; size];
-                try!(reader.read(&mut buffer[..]));
-                String::from_utf8_lossy(&buffer[..]).to_string()
-            };
-            let byte = try!(reader.read_u8());
-            let bits = BitVec::from_bytes(&[byte]);
-            let nowait = match bits.get(7) {
-                Some(bit) => bit,
-                None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned())),
-            };
-            let arguments = try!(decode_table(reader));
-            Ok(Bind {
-                ticket: ticket,
-                destination: destination,
-                source: source,
-                routing_key: routing_key,
-                nowait: nowait,
-                arguments: arguments,
-            })
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            let mut writer = vec![];
-            try!(writer.write_u16::<BigEndian>(self.ticket));
-            try!(writer.write_u8(self.destination.len() as u8));
-            try!(writer.write_all(self.destination.as_bytes()));
-            try!(writer.write_u8(self.source.len() as u8));
-            try!(writer.write_all(self.source.as_bytes()));
-            try!(writer.write_u8(self.routing_key.len() as u8));
-            try!(writer.write_all(self.routing_key.as_bytes()));
-            let mut bits = BitVec::from_elem(8, false);
-            bits.set(7, self.nowait);
-            try!(writer.write_all(&bits.to_bytes()));
-            try!(encode_table(&mut writer, &self.arguments));
-            Ok(writer)
-        }
-    }
+    method_struct!(Bind, "exchange.bind", 40, 30,
+        ticket => short,
+destination => shortstr,
+source => shortstr,
+routing_key => shortstr,
+nowait => bit,
+arguments => table
+    );
 
     impl Bind {
         pub fn with_default_values(destination: String, source: String, nowait: bool) -> Bind {
@@ -1601,123 +460,21 @@ pub mod exchange {
 
     unsafe impl Send for Bind {}
     // Method 31:bind-ok
-    #[derive(Debug)]
-    pub struct BindOk;
+    method_struct!(BindOk, "exchange.bind-ok", 40, 31,
 
-    impl Method for BindOk {
-        fn name(&self) -> &'static str {
-            "exchange.bind-ok"
-        }
-
-        fn id(&self) -> u16 {
-            31
-        }
-
-        fn class_id(&self) -> u16 {
-            40
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<BindOk> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (40, 31) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            Ok(BindOk)
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            Ok(vec![])
-        }
-    }
+    );
 
 
     unsafe impl Send for BindOk {}
     // Method 40:unbind
-    #[derive(Debug)]
-    pub struct Unbind {
-        pub ticket: u16,
-        pub destination: String,
-        pub source: String,
-        pub routing_key: String,
-        pub nowait: bool,
-        pub arguments: Table,
-    }
-
-    impl Method for Unbind {
-        fn name(&self) -> &'static str {
-            "exchange.unbind"
-        }
-
-        fn id(&self) -> u16 {
-            40
-        }
-
-        fn class_id(&self) -> u16 {
-            40
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<Unbind> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (40, 40) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            let reader = &mut &method_frame.arguments[..];
-            let ticket = try!(reader.read_u16::<BigEndian>());
-            let destination = {
-                let size = try!(reader.read_u8()) as usize;
-                let mut buffer: Vec<u8> = vec![0u8; size];
-                try!(reader.read(&mut buffer[..]));
-                String::from_utf8_lossy(&buffer[..]).to_string()
-            };
-            let source = {
-                let size = try!(reader.read_u8()) as usize;
-                let mut buffer: Vec<u8> = vec![0u8; size];
-                try!(reader.read(&mut buffer[..]));
-                String::from_utf8_lossy(&buffer[..]).to_string()
-            };
-            let routing_key = {
-                let size = try!(reader.read_u8()) as usize;
-                let mut buffer: Vec<u8> = vec![0u8; size];
-                try!(reader.read(&mut buffer[..]));
-                String::from_utf8_lossy(&buffer[..]).to_string()
-            };
-            let byte = try!(reader.read_u8());
-            let bits = BitVec::from_bytes(&[byte]);
-            let nowait = match bits.get(7) {
-                Some(bit) => bit,
-                None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned())),
-            };
-            let arguments = try!(decode_table(reader));
-            Ok(Unbind {
-                ticket: ticket,
-                destination: destination,
-                source: source,
-                routing_key: routing_key,
-                nowait: nowait,
-                arguments: arguments,
-            })
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            let mut writer = vec![];
-            try!(writer.write_u16::<BigEndian>(self.ticket));
-            try!(writer.write_u8(self.destination.len() as u8));
-            try!(writer.write_all(self.destination.as_bytes()));
-            try!(writer.write_u8(self.source.len() as u8));
-            try!(writer.write_all(self.source.as_bytes()));
-            try!(writer.write_u8(self.routing_key.len() as u8));
-            try!(writer.write_all(self.routing_key.as_bytes()));
-            let mut bits = BitVec::from_elem(8, false);
-            bits.set(7, self.nowait);
-            try!(writer.write_all(&bits.to_bytes()));
-            try!(encode_table(&mut writer, &self.arguments));
-            Ok(writer)
-        }
-    }
+    method_struct!(Unbind, "exchange.unbind", 40, 40,
+        ticket => short,
+destination => shortstr,
+source => shortstr,
+routing_key => shortstr,
+nowait => bit,
+arguments => table
+    );
 
     impl Unbind {
         pub fn with_default_values(destination: String, source: String, nowait: bool) -> Unbind {
@@ -1734,36 +491,9 @@ pub mod exchange {
 
     unsafe impl Send for Unbind {}
     // Method 51:unbind-ok
-    #[derive(Debug)]
-    pub struct UnbindOk;
+    method_struct!(UnbindOk, "exchange.unbind-ok", 40, 51,
 
-    impl Method for UnbindOk {
-        fn name(&self) -> &'static str {
-            "exchange.unbind-ok"
-        }
-
-        fn id(&self) -> u16 {
-            51
-        }
-
-        fn class_id(&self) -> u16 {
-            40
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<UnbindOk> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (40, 51) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            Ok(UnbindOk)
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            Ok(vec![])
-        }
-    }
+    );
 
 
     unsafe impl Send for UnbindOk {}
@@ -1775,106 +505,26 @@ pub mod queue {
     use bit_vec::BitVec;
     use table;
     use table::{Table, decode_table, encode_table};
-    use protocol::Method;
+    use protocol;
     use framing::{ContentHeaderFrame, MethodFrame};
     use amqp_error::{AMQPResult, AMQPError};
     use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
     use std::io::{Read, Write};
+    use codegen_macros::{ArgumentsReader, ArgumentsWriter};
 
 
 
     // Method 10:declare
-    #[derive(Debug)]
-    pub struct Declare {
-        pub ticket: u16,
-        pub queue: String,
-        pub passive: bool,
-        pub durable: bool,
-        pub exclusive: bool,
-        pub auto_delete: bool,
-        pub nowait: bool,
-        pub arguments: Table,
-    }
-
-    impl Method for Declare {
-        fn name(&self) -> &'static str {
-            "queue.declare"
-        }
-
-        fn id(&self) -> u16 {
-            10
-        }
-
-        fn class_id(&self) -> u16 {
-            50
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<Declare> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (50, 10) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            let reader = &mut &method_frame.arguments[..];
-            let ticket = try!(reader.read_u16::<BigEndian>());
-            let queue = {
-                let size = try!(reader.read_u8()) as usize;
-                let mut buffer: Vec<u8> = vec![0u8; size];
-                try!(reader.read(&mut buffer[..]));
-                String::from_utf8_lossy(&buffer[..]).to_string()
-            };
-            let byte = try!(reader.read_u8());
-            let bits = BitVec::from_bytes(&[byte]);
-            let passive = match bits.get(7) {
-                Some(bit) => bit,
-                None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned())),
-            };
-            let durable = match bits.get(6) {
-                Some(bit) => bit,
-                None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned())),
-            };
-            let exclusive = match bits.get(5) {
-                Some(bit) => bit,
-                None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned())),
-            };
-            let auto_delete = match bits.get(4) {
-                Some(bit) => bit,
-                None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned())),
-            };
-            let nowait = match bits.get(3) {
-                Some(bit) => bit,
-                None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned())),
-            };
-            let arguments = try!(decode_table(reader));
-            Ok(Declare {
-                ticket: ticket,
-                queue: queue,
-                passive: passive,
-                durable: durable,
-                exclusive: exclusive,
-                auto_delete: auto_delete,
-                nowait: nowait,
-                arguments: arguments,
-            })
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            let mut writer = vec![];
-            try!(writer.write_u16::<BigEndian>(self.ticket));
-            try!(writer.write_u8(self.queue.len() as u8));
-            try!(writer.write_all(self.queue.as_bytes()));
-            let mut bits = BitVec::from_elem(8, false);
-            bits.set(7, self.passive);
-            bits.set(6, self.durable);
-            bits.set(5, self.exclusive);
-            bits.set(4, self.auto_delete);
-            bits.set(3, self.nowait);
-            try!(writer.write_all(&bits.to_bytes()));
-            try!(encode_table(&mut writer, &self.arguments));
-            Ok(writer)
-        }
-    }
+    method_struct!(Declare, "queue.declare", 50, 10,
+        ticket => short,
+queue => shortstr,
+passive => bit,
+durable => bit,
+exclusive => bit,
+auto_delete => bit,
+nowait => bit,
+arguments => table
+    );
 
     impl Declare {
         pub fn with_default_values(passive: bool,
@@ -1898,145 +548,23 @@ pub mod queue {
 
     unsafe impl Send for Declare {}
     // Method 11:declare-ok
-    #[derive(Debug)]
-    pub struct DeclareOk {
-        pub queue: String,
-        pub message_count: u32,
-        pub consumer_count: u32,
-    }
-
-    impl Method for DeclareOk {
-        fn name(&self) -> &'static str {
-            "queue.declare-ok"
-        }
-
-        fn id(&self) -> u16 {
-            11
-        }
-
-        fn class_id(&self) -> u16 {
-            50
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<DeclareOk> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (50, 11) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            let reader = &mut &method_frame.arguments[..];
-            let queue = {
-                let size = try!(reader.read_u8()) as usize;
-                let mut buffer: Vec<u8> = vec![0u8; size];
-                try!(reader.read(&mut buffer[..]));
-                String::from_utf8_lossy(&buffer[..]).to_string()
-            };
-            let message_count = try!(reader.read_u32::<BigEndian>());
-            let consumer_count = try!(reader.read_u32::<BigEndian>());
-            Ok(DeclareOk {
-                queue: queue,
-                message_count: message_count,
-                consumer_count: consumer_count,
-            })
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            let mut writer = vec![];
-            try!(writer.write_u8(self.queue.len() as u8));
-            try!(writer.write_all(self.queue.as_bytes()));
-            try!(writer.write_u32::<BigEndian>(self.message_count));
-            try!(writer.write_u32::<BigEndian>(self.consumer_count));
-            Ok(writer)
-        }
-    }
+    method_struct!(DeclareOk, "queue.declare-ok", 50, 11,
+        queue => shortstr,
+message_count => long,
+consumer_count => long
+    );
 
 
     unsafe impl Send for DeclareOk {}
     // Method 20:bind
-    #[derive(Debug)]
-    pub struct Bind {
-        pub ticket: u16,
-        pub queue: String,
-        pub exchange: String,
-        pub routing_key: String,
-        pub nowait: bool,
-        pub arguments: Table,
-    }
-
-    impl Method for Bind {
-        fn name(&self) -> &'static str {
-            "queue.bind"
-        }
-
-        fn id(&self) -> u16 {
-            20
-        }
-
-        fn class_id(&self) -> u16 {
-            50
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<Bind> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (50, 20) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            let reader = &mut &method_frame.arguments[..];
-            let ticket = try!(reader.read_u16::<BigEndian>());
-            let queue = {
-                let size = try!(reader.read_u8()) as usize;
-                let mut buffer: Vec<u8> = vec![0u8; size];
-                try!(reader.read(&mut buffer[..]));
-                String::from_utf8_lossy(&buffer[..]).to_string()
-            };
-            let exchange = {
-                let size = try!(reader.read_u8()) as usize;
-                let mut buffer: Vec<u8> = vec![0u8; size];
-                try!(reader.read(&mut buffer[..]));
-                String::from_utf8_lossy(&buffer[..]).to_string()
-            };
-            let routing_key = {
-                let size = try!(reader.read_u8()) as usize;
-                let mut buffer: Vec<u8> = vec![0u8; size];
-                try!(reader.read(&mut buffer[..]));
-                String::from_utf8_lossy(&buffer[..]).to_string()
-            };
-            let byte = try!(reader.read_u8());
-            let bits = BitVec::from_bytes(&[byte]);
-            let nowait = match bits.get(7) {
-                Some(bit) => bit,
-                None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned())),
-            };
-            let arguments = try!(decode_table(reader));
-            Ok(Bind {
-                ticket: ticket,
-                queue: queue,
-                exchange: exchange,
-                routing_key: routing_key,
-                nowait: nowait,
-                arguments: arguments,
-            })
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            let mut writer = vec![];
-            try!(writer.write_u16::<BigEndian>(self.ticket));
-            try!(writer.write_u8(self.queue.len() as u8));
-            try!(writer.write_all(self.queue.as_bytes()));
-            try!(writer.write_u8(self.exchange.len() as u8));
-            try!(writer.write_all(self.exchange.as_bytes()));
-            try!(writer.write_u8(self.routing_key.len() as u8));
-            try!(writer.write_all(self.routing_key.as_bytes()));
-            let mut bits = BitVec::from_elem(8, false);
-            bits.set(7, self.nowait);
-            try!(writer.write_all(&bits.to_bytes()));
-            try!(encode_table(&mut writer, &self.arguments));
-            Ok(writer)
-        }
-    }
+    method_struct!(Bind, "queue.bind", 50, 20,
+        ticket => short,
+queue => shortstr,
+exchange => shortstr,
+routing_key => shortstr,
+nowait => bit,
+arguments => table
+    );
 
     impl Bind {
         pub fn with_default_values(exchange: String, nowait: bool) -> Bind {
@@ -2053,99 +581,18 @@ pub mod queue {
 
     unsafe impl Send for Bind {}
     // Method 21:bind-ok
-    #[derive(Debug)]
-    pub struct BindOk;
+    method_struct!(BindOk, "queue.bind-ok", 50, 21,
 
-    impl Method for BindOk {
-        fn name(&self) -> &'static str {
-            "queue.bind-ok"
-        }
-
-        fn id(&self) -> u16 {
-            21
-        }
-
-        fn class_id(&self) -> u16 {
-            50
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<BindOk> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (50, 21) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            Ok(BindOk)
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            Ok(vec![])
-        }
-    }
+    );
 
 
     unsafe impl Send for BindOk {}
     // Method 30:purge
-    #[derive(Debug)]
-    pub struct Purge {
-        pub ticket: u16,
-        pub queue: String,
-        pub nowait: bool,
-    }
-
-    impl Method for Purge {
-        fn name(&self) -> &'static str {
-            "queue.purge"
-        }
-
-        fn id(&self) -> u16 {
-            30
-        }
-
-        fn class_id(&self) -> u16 {
-            50
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<Purge> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (50, 30) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            let reader = &mut &method_frame.arguments[..];
-            let ticket = try!(reader.read_u16::<BigEndian>());
-            let queue = {
-                let size = try!(reader.read_u8()) as usize;
-                let mut buffer: Vec<u8> = vec![0u8; size];
-                try!(reader.read(&mut buffer[..]));
-                String::from_utf8_lossy(&buffer[..]).to_string()
-            };
-            let byte = try!(reader.read_u8());
-            let bits = BitVec::from_bytes(&[byte]);
-            let nowait = match bits.get(7) {
-                Some(bit) => bit,
-                None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned())),
-            };
-            Ok(Purge {
-                ticket: ticket,
-                queue: queue,
-                nowait: nowait,
-            })
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            let mut writer = vec![];
-            try!(writer.write_u16::<BigEndian>(self.ticket));
-            try!(writer.write_u8(self.queue.len() as u8));
-            try!(writer.write_all(self.queue.as_bytes()));
-            let mut bits = BitVec::from_elem(8, false);
-            bits.set(7, self.nowait);
-            try!(writer.write_all(&bits.to_bytes()));
-            Ok(writer)
-        }
-    }
+    method_struct!(Purge, "queue.purge", 50, 30,
+        ticket => short,
+queue => shortstr,
+nowait => bit
+    );
 
     impl Purge {
         pub fn with_default_values(nowait: bool) -> Purge {
@@ -2159,119 +606,20 @@ pub mod queue {
 
     unsafe impl Send for Purge {}
     // Method 31:purge-ok
-    #[derive(Debug)]
-    pub struct PurgeOk {
-        pub message_count: u32,
-    }
-
-    impl Method for PurgeOk {
-        fn name(&self) -> &'static str {
-            "queue.purge-ok"
-        }
-
-        fn id(&self) -> u16 {
-            31
-        }
-
-        fn class_id(&self) -> u16 {
-            50
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<PurgeOk> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (50, 31) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            let reader = &mut &method_frame.arguments[..];
-            let message_count = try!(reader.read_u32::<BigEndian>());
-            Ok(PurgeOk { message_count: message_count })
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            let mut writer = vec![];
-            try!(writer.write_u32::<BigEndian>(self.message_count));
-            Ok(writer)
-        }
-    }
+    method_struct!(PurgeOk, "queue.purge-ok", 50, 31,
+        message_count => long
+    );
 
 
     unsafe impl Send for PurgeOk {}
     // Method 40:delete
-    #[derive(Debug)]
-    pub struct Delete {
-        pub ticket: u16,
-        pub queue: String,
-        pub if_unused: bool,
-        pub if_empty: bool,
-        pub nowait: bool,
-    }
-
-    impl Method for Delete {
-        fn name(&self) -> &'static str {
-            "queue.delete"
-        }
-
-        fn id(&self) -> u16 {
-            40
-        }
-
-        fn class_id(&self) -> u16 {
-            50
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<Delete> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (50, 40) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            let reader = &mut &method_frame.arguments[..];
-            let ticket = try!(reader.read_u16::<BigEndian>());
-            let queue = {
-                let size = try!(reader.read_u8()) as usize;
-                let mut buffer: Vec<u8> = vec![0u8; size];
-                try!(reader.read(&mut buffer[..]));
-                String::from_utf8_lossy(&buffer[..]).to_string()
-            };
-            let byte = try!(reader.read_u8());
-            let bits = BitVec::from_bytes(&[byte]);
-            let if_unused = match bits.get(7) {
-                Some(bit) => bit,
-                None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned())),
-            };
-            let if_empty = match bits.get(6) {
-                Some(bit) => bit,
-                None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned())),
-            };
-            let nowait = match bits.get(5) {
-                Some(bit) => bit,
-                None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned())),
-            };
-            Ok(Delete {
-                ticket: ticket,
-                queue: queue,
-                if_unused: if_unused,
-                if_empty: if_empty,
-                nowait: nowait,
-            })
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            let mut writer = vec![];
-            try!(writer.write_u16::<BigEndian>(self.ticket));
-            try!(writer.write_u8(self.queue.len() as u8));
-            try!(writer.write_all(self.queue.as_bytes()));
-            let mut bits = BitVec::from_elem(8, false);
-            bits.set(7, self.if_unused);
-            bits.set(6, self.if_empty);
-            bits.set(5, self.nowait);
-            try!(writer.write_all(&bits.to_bytes()));
-            Ok(writer)
-        }
-    }
+    method_struct!(Delete, "queue.delete", 50, 40,
+        ticket => short,
+queue => shortstr,
+if_unused => bit,
+if_empty => bit,
+nowait => bit
+    );
 
     impl Delete {
         pub fn with_default_values(if_unused: bool, if_empty: bool, nowait: bool) -> Delete {
@@ -2287,118 +635,20 @@ pub mod queue {
 
     unsafe impl Send for Delete {}
     // Method 41:delete-ok
-    #[derive(Debug)]
-    pub struct DeleteOk {
-        pub message_count: u32,
-    }
-
-    impl Method for DeleteOk {
-        fn name(&self) -> &'static str {
-            "queue.delete-ok"
-        }
-
-        fn id(&self) -> u16 {
-            41
-        }
-
-        fn class_id(&self) -> u16 {
-            50
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<DeleteOk> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (50, 41) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            let reader = &mut &method_frame.arguments[..];
-            let message_count = try!(reader.read_u32::<BigEndian>());
-            Ok(DeleteOk { message_count: message_count })
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            let mut writer = vec![];
-            try!(writer.write_u32::<BigEndian>(self.message_count));
-            Ok(writer)
-        }
-    }
+    method_struct!(DeleteOk, "queue.delete-ok", 50, 41,
+        message_count => long
+    );
 
 
     unsafe impl Send for DeleteOk {}
     // Method 50:unbind
-    #[derive(Debug)]
-    pub struct Unbind {
-        pub ticket: u16,
-        pub queue: String,
-        pub exchange: String,
-        pub routing_key: String,
-        pub arguments: Table,
-    }
-
-    impl Method for Unbind {
-        fn name(&self) -> &'static str {
-            "queue.unbind"
-        }
-
-        fn id(&self) -> u16 {
-            50
-        }
-
-        fn class_id(&self) -> u16 {
-            50
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<Unbind> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (50, 50) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            let reader = &mut &method_frame.arguments[..];
-            let ticket = try!(reader.read_u16::<BigEndian>());
-            let queue = {
-                let size = try!(reader.read_u8()) as usize;
-                let mut buffer: Vec<u8> = vec![0u8; size];
-                try!(reader.read(&mut buffer[..]));
-                String::from_utf8_lossy(&buffer[..]).to_string()
-            };
-            let exchange = {
-                let size = try!(reader.read_u8()) as usize;
-                let mut buffer: Vec<u8> = vec![0u8; size];
-                try!(reader.read(&mut buffer[..]));
-                String::from_utf8_lossy(&buffer[..]).to_string()
-            };
-            let routing_key = {
-                let size = try!(reader.read_u8()) as usize;
-                let mut buffer: Vec<u8> = vec![0u8; size];
-                try!(reader.read(&mut buffer[..]));
-                String::from_utf8_lossy(&buffer[..]).to_string()
-            };
-            let arguments = try!(decode_table(reader));
-            Ok(Unbind {
-                ticket: ticket,
-                queue: queue,
-                exchange: exchange,
-                routing_key: routing_key,
-                arguments: arguments,
-            })
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            let mut writer = vec![];
-            try!(writer.write_u16::<BigEndian>(self.ticket));
-            try!(writer.write_u8(self.queue.len() as u8));
-            try!(writer.write_all(self.queue.as_bytes()));
-            try!(writer.write_u8(self.exchange.len() as u8));
-            try!(writer.write_all(self.exchange.as_bytes()));
-            try!(writer.write_u8(self.routing_key.len() as u8));
-            try!(writer.write_all(self.routing_key.as_bytes()));
-            try!(encode_table(&mut writer, &self.arguments));
-            Ok(writer)
-        }
-    }
+    method_struct!(Unbind, "queue.unbind", 50, 50,
+        ticket => short,
+queue => shortstr,
+exchange => shortstr,
+routing_key => shortstr,
+arguments => table
+    );
 
     impl Unbind {
         pub fn with_default_values(exchange: String) -> Unbind {
@@ -2414,36 +664,9 @@ pub mod queue {
 
     unsafe impl Send for Unbind {}
     // Method 51:unbind-ok
-    #[derive(Debug)]
-    pub struct UnbindOk;
+    method_struct!(UnbindOk, "queue.unbind-ok", 50, 51,
 
-    impl Method for UnbindOk {
-        fn name(&self) -> &'static str {
-            "queue.unbind-ok"
-        }
-
-        fn id(&self) -> u16 {
-            51
-        }
-
-        fn class_id(&self) -> u16 {
-            50
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<UnbindOk> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (50, 51) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            Ok(UnbindOk)
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            Ok(vec![])
-        }
-    }
+    );
 
 
     unsafe impl Send for UnbindOk {}
@@ -2455,11 +678,12 @@ pub mod basic {
     use bit_vec::BitVec;
     use table;
     use table::{Table, decode_table, encode_table};
-    use protocol::Method;
+    use protocol;
     use framing::{ContentHeaderFrame, MethodFrame};
     use amqp_error::{AMQPResult, AMQPError};
     use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
     use std::io::{Read, Write};
+    use codegen_macros::{ArgumentsReader, ArgumentsWriter};
 
 
     // properties struct for basic
@@ -2516,7 +740,7 @@ pub mod basic {
                 _ => None,
             };
             let headers = match properties_flags.get(2) {
-                Some(flag) if flag => Some(try!(decode_table(reader))),
+                Some(flag) if flag => Some(try!(decode_table(reader)).0),
                 None => {
                     return Err(AMQPError::Protocol("Properties flags are not correct".to_owned()))
                 }
@@ -2808,59 +1032,11 @@ pub mod basic {
     }
 
     // Method 10:qos
-    #[derive(Debug)]
-    pub struct Qos {
-        pub prefetch_size: u32,
-        pub prefetch_count: u16,
-        pub global: bool,
-    }
-
-    impl Method for Qos {
-        fn name(&self) -> &'static str {
-            "basic.qos"
-        }
-
-        fn id(&self) -> u16 {
-            10
-        }
-
-        fn class_id(&self) -> u16 {
-            60
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<Qos> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (60, 10) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            let reader = &mut &method_frame.arguments[..];
-            let prefetch_size = try!(reader.read_u32::<BigEndian>());
-            let prefetch_count = try!(reader.read_u16::<BigEndian>());
-            let byte = try!(reader.read_u8());
-            let bits = BitVec::from_bytes(&[byte]);
-            let global = match bits.get(7) {
-                Some(bit) => bit,
-                None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned())),
-            };
-            Ok(Qos {
-                prefetch_size: prefetch_size,
-                prefetch_count: prefetch_count,
-                global: global,
-            })
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            let mut writer = vec![];
-            try!(writer.write_u32::<BigEndian>(self.prefetch_size));
-            try!(writer.write_u16::<BigEndian>(self.prefetch_count));
-            let mut bits = BitVec::from_elem(8, false);
-            bits.set(7, self.global);
-            try!(writer.write_all(&bits.to_bytes()));
-            Ok(writer)
-        }
-    }
+    method_struct!(Qos, "basic.qos", 60, 10,
+        prefetch_size => long,
+prefetch_count => short,
+global => bit
+    );
 
     impl Qos {
         pub fn with_default_values(global: bool) -> Qos {
@@ -2874,134 +1050,23 @@ pub mod basic {
 
     unsafe impl Send for Qos {}
     // Method 11:qos-ok
-    #[derive(Debug)]
-    pub struct QosOk;
+    method_struct!(QosOk, "basic.qos-ok", 60, 11,
 
-    impl Method for QosOk {
-        fn name(&self) -> &'static str {
-            "basic.qos-ok"
-        }
-
-        fn id(&self) -> u16 {
-            11
-        }
-
-        fn class_id(&self) -> u16 {
-            60
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<QosOk> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (60, 11) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            Ok(QosOk)
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            Ok(vec![])
-        }
-    }
+    );
 
 
     unsafe impl Send for QosOk {}
     // Method 20:consume
-    #[derive(Debug)]
-    pub struct Consume {
-        pub ticket: u16,
-        pub queue: String,
-        pub consumer_tag: String,
-        pub no_local: bool,
-        pub no_ack: bool,
-        pub exclusive: bool,
-        pub nowait: bool,
-        pub arguments: Table,
-    }
-
-    impl Method for Consume {
-        fn name(&self) -> &'static str {
-            "basic.consume"
-        }
-
-        fn id(&self) -> u16 {
-            20
-        }
-
-        fn class_id(&self) -> u16 {
-            60
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<Consume> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (60, 20) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            let reader = &mut &method_frame.arguments[..];
-            let ticket = try!(reader.read_u16::<BigEndian>());
-            let queue = {
-                let size = try!(reader.read_u8()) as usize;
-                let mut buffer: Vec<u8> = vec![0u8; size];
-                try!(reader.read(&mut buffer[..]));
-                String::from_utf8_lossy(&buffer[..]).to_string()
-            };
-            let consumer_tag = {
-                let size = try!(reader.read_u8()) as usize;
-                let mut buffer: Vec<u8> = vec![0u8; size];
-                try!(reader.read(&mut buffer[..]));
-                String::from_utf8_lossy(&buffer[..]).to_string()
-            };
-            let byte = try!(reader.read_u8());
-            let bits = BitVec::from_bytes(&[byte]);
-            let no_local = match bits.get(7) {
-                Some(bit) => bit,
-                None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned())),
-            };
-            let no_ack = match bits.get(6) {
-                Some(bit) => bit,
-                None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned())),
-            };
-            let exclusive = match bits.get(5) {
-                Some(bit) => bit,
-                None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned())),
-            };
-            let nowait = match bits.get(4) {
-                Some(bit) => bit,
-                None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned())),
-            };
-            let arguments = try!(decode_table(reader));
-            Ok(Consume {
-                ticket: ticket,
-                queue: queue,
-                consumer_tag: consumer_tag,
-                no_local: no_local,
-                no_ack: no_ack,
-                exclusive: exclusive,
-                nowait: nowait,
-                arguments: arguments,
-            })
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            let mut writer = vec![];
-            try!(writer.write_u16::<BigEndian>(self.ticket));
-            try!(writer.write_u8(self.queue.len() as u8));
-            try!(writer.write_all(self.queue.as_bytes()));
-            try!(writer.write_u8(self.consumer_tag.len() as u8));
-            try!(writer.write_all(self.consumer_tag.as_bytes()));
-            let mut bits = BitVec::from_elem(8, false);
-            bits.set(7, self.no_local);
-            bits.set(6, self.no_ack);
-            bits.set(5, self.exclusive);
-            bits.set(4, self.nowait);
-            try!(writer.write_all(&bits.to_bytes()));
-            try!(encode_table(&mut writer, &self.arguments));
-            Ok(writer)
-        }
-    }
+    method_struct!(Consume, "basic.consume", 60, 20,
+        ticket => short,
+queue => shortstr,
+consumer_tag => shortstr,
+no_local => bit,
+no_ack => bit,
+exclusive => bit,
+nowait => bit,
+arguments => table
+    );
 
     impl Consume {
         pub fn with_default_values(no_local: bool,
@@ -3024,233 +1089,35 @@ pub mod basic {
 
     unsafe impl Send for Consume {}
     // Method 21:consume-ok
-    #[derive(Debug)]
-    pub struct ConsumeOk {
-        pub consumer_tag: String,
-    }
-
-    impl Method for ConsumeOk {
-        fn name(&self) -> &'static str {
-            "basic.consume-ok"
-        }
-
-        fn id(&self) -> u16 {
-            21
-        }
-
-        fn class_id(&self) -> u16 {
-            60
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<ConsumeOk> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (60, 21) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            let reader = &mut &method_frame.arguments[..];
-            let consumer_tag = {
-                let size = try!(reader.read_u8()) as usize;
-                let mut buffer: Vec<u8> = vec![0u8; size];
-                try!(reader.read(&mut buffer[..]));
-                String::from_utf8_lossy(&buffer[..]).to_string()
-            };
-            Ok(ConsumeOk { consumer_tag: consumer_tag })
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            let mut writer = vec![];
-            try!(writer.write_u8(self.consumer_tag.len() as u8));
-            try!(writer.write_all(self.consumer_tag.as_bytes()));
-            Ok(writer)
-        }
-    }
+    method_struct!(ConsumeOk, "basic.consume-ok", 60, 21,
+        consumer_tag => shortstr
+    );
 
 
     unsafe impl Send for ConsumeOk {}
     // Method 30:cancel
-    #[derive(Debug)]
-    pub struct Cancel {
-        pub consumer_tag: String,
-        pub nowait: bool,
-    }
-
-    impl Method for Cancel {
-        fn name(&self) -> &'static str {
-            "basic.cancel"
-        }
-
-        fn id(&self) -> u16 {
-            30
-        }
-
-        fn class_id(&self) -> u16 {
-            60
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<Cancel> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (60, 30) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            let reader = &mut &method_frame.arguments[..];
-            let consumer_tag = {
-                let size = try!(reader.read_u8()) as usize;
-                let mut buffer: Vec<u8> = vec![0u8; size];
-                try!(reader.read(&mut buffer[..]));
-                String::from_utf8_lossy(&buffer[..]).to_string()
-            };
-            let byte = try!(reader.read_u8());
-            let bits = BitVec::from_bytes(&[byte]);
-            let nowait = match bits.get(7) {
-                Some(bit) => bit,
-                None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned())),
-            };
-            Ok(Cancel {
-                consumer_tag: consumer_tag,
-                nowait: nowait,
-            })
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            let mut writer = vec![];
-            try!(writer.write_u8(self.consumer_tag.len() as u8));
-            try!(writer.write_all(self.consumer_tag.as_bytes()));
-            let mut bits = BitVec::from_elem(8, false);
-            bits.set(7, self.nowait);
-            try!(writer.write_all(&bits.to_bytes()));
-            Ok(writer)
-        }
-    }
+    method_struct!(Cancel, "basic.cancel", 60, 30,
+        consumer_tag => shortstr,
+nowait => bit
+    );
 
 
     unsafe impl Send for Cancel {}
     // Method 31:cancel-ok
-    #[derive(Debug)]
-    pub struct CancelOk {
-        pub consumer_tag: String,
-    }
-
-    impl Method for CancelOk {
-        fn name(&self) -> &'static str {
-            "basic.cancel-ok"
-        }
-
-        fn id(&self) -> u16 {
-            31
-        }
-
-        fn class_id(&self) -> u16 {
-            60
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<CancelOk> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (60, 31) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            let reader = &mut &method_frame.arguments[..];
-            let consumer_tag = {
-                let size = try!(reader.read_u8()) as usize;
-                let mut buffer: Vec<u8> = vec![0u8; size];
-                try!(reader.read(&mut buffer[..]));
-                String::from_utf8_lossy(&buffer[..]).to_string()
-            };
-            Ok(CancelOk { consumer_tag: consumer_tag })
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            let mut writer = vec![];
-            try!(writer.write_u8(self.consumer_tag.len() as u8));
-            try!(writer.write_all(self.consumer_tag.as_bytes()));
-            Ok(writer)
-        }
-    }
+    method_struct!(CancelOk, "basic.cancel-ok", 60, 31,
+        consumer_tag => shortstr
+    );
 
 
     unsafe impl Send for CancelOk {}
     // Method 40:publish
-    #[derive(Debug)]
-    pub struct Publish {
-        pub ticket: u16,
-        pub exchange: String,
-        pub routing_key: String,
-        pub mandatory: bool,
-        pub immediate: bool,
-    }
-
-    impl Method for Publish {
-        fn name(&self) -> &'static str {
-            "basic.publish"
-        }
-
-        fn id(&self) -> u16 {
-            40
-        }
-
-        fn class_id(&self) -> u16 {
-            60
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<Publish> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (60, 40) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            let reader = &mut &method_frame.arguments[..];
-            let ticket = try!(reader.read_u16::<BigEndian>());
-            let exchange = {
-                let size = try!(reader.read_u8()) as usize;
-                let mut buffer: Vec<u8> = vec![0u8; size];
-                try!(reader.read(&mut buffer[..]));
-                String::from_utf8_lossy(&buffer[..]).to_string()
-            };
-            let routing_key = {
-                let size = try!(reader.read_u8()) as usize;
-                let mut buffer: Vec<u8> = vec![0u8; size];
-                try!(reader.read(&mut buffer[..]));
-                String::from_utf8_lossy(&buffer[..]).to_string()
-            };
-            let byte = try!(reader.read_u8());
-            let bits = BitVec::from_bytes(&[byte]);
-            let mandatory = match bits.get(7) {
-                Some(bit) => bit,
-                None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned())),
-            };
-            let immediate = match bits.get(6) {
-                Some(bit) => bit,
-                None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned())),
-            };
-            Ok(Publish {
-                ticket: ticket,
-                exchange: exchange,
-                routing_key: routing_key,
-                mandatory: mandatory,
-                immediate: immediate,
-            })
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            let mut writer = vec![];
-            try!(writer.write_u16::<BigEndian>(self.ticket));
-            try!(writer.write_u8(self.exchange.len() as u8));
-            try!(writer.write_all(self.exchange.as_bytes()));
-            try!(writer.write_u8(self.routing_key.len() as u8));
-            try!(writer.write_all(self.routing_key.as_bytes()));
-            let mut bits = BitVec::from_elem(8, false);
-            bits.set(7, self.mandatory);
-            bits.set(6, self.immediate);
-            try!(writer.write_all(&bits.to_bytes()));
-            Ok(writer)
-        }
-    }
+    method_struct!(Publish, "basic.publish", 60, 40,
+        ticket => short,
+exchange => shortstr,
+routing_key => shortstr,
+mandatory => bit,
+immediate => bit
+    );
 
     impl Publish {
         pub fn with_default_values(mandatory: bool, immediate: bool) -> Publish {
@@ -3266,74 +1133,12 @@ pub mod basic {
 
     unsafe impl Send for Publish {}
     // Method 50:return
-    #[derive(Debug)]
-    pub struct Return {
-        pub reply_code: u16,
-        pub reply_text: String,
-        pub exchange: String,
-        pub routing_key: String,
-    }
-
-    impl Method for Return {
-        fn name(&self) -> &'static str {
-            "basic.return"
-        }
-
-        fn id(&self) -> u16 {
-            50
-        }
-
-        fn class_id(&self) -> u16 {
-            60
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<Return> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (60, 50) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            let reader = &mut &method_frame.arguments[..];
-            let reply_code = try!(reader.read_u16::<BigEndian>());
-            let reply_text = {
-                let size = try!(reader.read_u8()) as usize;
-                let mut buffer: Vec<u8> = vec![0u8; size];
-                try!(reader.read(&mut buffer[..]));
-                String::from_utf8_lossy(&buffer[..]).to_string()
-            };
-            let exchange = {
-                let size = try!(reader.read_u8()) as usize;
-                let mut buffer: Vec<u8> = vec![0u8; size];
-                try!(reader.read(&mut buffer[..]));
-                String::from_utf8_lossy(&buffer[..]).to_string()
-            };
-            let routing_key = {
-                let size = try!(reader.read_u8()) as usize;
-                let mut buffer: Vec<u8> = vec![0u8; size];
-                try!(reader.read(&mut buffer[..]));
-                String::from_utf8_lossy(&buffer[..]).to_string()
-            };
-            Ok(Return {
-                reply_code: reply_code,
-                reply_text: reply_text,
-                exchange: exchange,
-                routing_key: routing_key,
-            })
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            let mut writer = vec![];
-            try!(writer.write_u16::<BigEndian>(self.reply_code));
-            try!(writer.write_u8(self.reply_text.len() as u8));
-            try!(writer.write_all(self.reply_text.as_bytes()));
-            try!(writer.write_u8(self.exchange.len() as u8));
-            try!(writer.write_all(self.exchange.as_bytes()));
-            try!(writer.write_u8(self.routing_key.len() as u8));
-            try!(writer.write_all(self.routing_key.as_bytes()));
-            Ok(writer)
-        }
-    }
+    method_struct!(Return, "basic.return", 60, 50,
+        reply_code => short,
+reply_text => shortstr,
+exchange => shortstr,
+routing_key => shortstr
+    );
 
     impl Return {
         pub fn with_default_values(reply_code: u16,
@@ -3351,148 +1156,22 @@ pub mod basic {
 
     unsafe impl Send for Return {}
     // Method 60:deliver
-    #[derive(Debug)]
-    pub struct Deliver {
-        pub consumer_tag: String,
-        pub delivery_tag: u64,
-        pub redelivered: bool,
-        pub exchange: String,
-        pub routing_key: String,
-    }
-
-    impl Method for Deliver {
-        fn name(&self) -> &'static str {
-            "basic.deliver"
-        }
-
-        fn id(&self) -> u16 {
-            60
-        }
-
-        fn class_id(&self) -> u16 {
-            60
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<Deliver> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (60, 60) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            let reader = &mut &method_frame.arguments[..];
-            let consumer_tag = {
-                let size = try!(reader.read_u8()) as usize;
-                let mut buffer: Vec<u8> = vec![0u8; size];
-                try!(reader.read(&mut buffer[..]));
-                String::from_utf8_lossy(&buffer[..]).to_string()
-            };
-            let delivery_tag = try!(reader.read_u64::<BigEndian>());
-            let byte = try!(reader.read_u8());
-            let bits = BitVec::from_bytes(&[byte]);
-            let redelivered = match bits.get(7) {
-                Some(bit) => bit,
-                None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned())),
-            };
-            let exchange = {
-                let size = try!(reader.read_u8()) as usize;
-                let mut buffer: Vec<u8> = vec![0u8; size];
-                try!(reader.read(&mut buffer[..]));
-                String::from_utf8_lossy(&buffer[..]).to_string()
-            };
-            let routing_key = {
-                let size = try!(reader.read_u8()) as usize;
-                let mut buffer: Vec<u8> = vec![0u8; size];
-                try!(reader.read(&mut buffer[..]));
-                String::from_utf8_lossy(&buffer[..]).to_string()
-            };
-            Ok(Deliver {
-                consumer_tag: consumer_tag,
-                delivery_tag: delivery_tag,
-                redelivered: redelivered,
-                exchange: exchange,
-                routing_key: routing_key,
-            })
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            let mut writer = vec![];
-            try!(writer.write_u8(self.consumer_tag.len() as u8));
-            try!(writer.write_all(self.consumer_tag.as_bytes()));
-            try!(writer.write_u64::<BigEndian>(self.delivery_tag));
-            let mut bits = BitVec::from_elem(8, false);
-            bits.set(7, self.redelivered);
-            try!(writer.write_all(&bits.to_bytes()));
-            try!(writer.write_u8(self.exchange.len() as u8));
-            try!(writer.write_all(self.exchange.as_bytes()));
-            try!(writer.write_u8(self.routing_key.len() as u8));
-            try!(writer.write_all(self.routing_key.as_bytes()));
-            Ok(writer)
-        }
-    }
+    method_struct!(Deliver, "basic.deliver", 60, 60,
+        consumer_tag => shortstr,
+delivery_tag => longlong,
+redelivered => bit,
+exchange => shortstr,
+routing_key => shortstr
+    );
 
 
     unsafe impl Send for Deliver {}
     // Method 70:get
-    #[derive(Debug)]
-    pub struct Get {
-        pub ticket: u16,
-        pub queue: String,
-        pub no_ack: bool,
-    }
-
-    impl Method for Get {
-        fn name(&self) -> &'static str {
-            "basic.get"
-        }
-
-        fn id(&self) -> u16 {
-            70
-        }
-
-        fn class_id(&self) -> u16 {
-            60
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<Get> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (60, 70) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            let reader = &mut &method_frame.arguments[..];
-            let ticket = try!(reader.read_u16::<BigEndian>());
-            let queue = {
-                let size = try!(reader.read_u8()) as usize;
-                let mut buffer: Vec<u8> = vec![0u8; size];
-                try!(reader.read(&mut buffer[..]));
-                String::from_utf8_lossy(&buffer[..]).to_string()
-            };
-            let byte = try!(reader.read_u8());
-            let bits = BitVec::from_bytes(&[byte]);
-            let no_ack = match bits.get(7) {
-                Some(bit) => bit,
-                None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned())),
-            };
-            Ok(Get {
-                ticket: ticket,
-                queue: queue,
-                no_ack: no_ack,
-            })
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            let mut writer = vec![];
-            try!(writer.write_u16::<BigEndian>(self.ticket));
-            try!(writer.write_u8(self.queue.len() as u8));
-            try!(writer.write_all(self.queue.as_bytes()));
-            let mut bits = BitVec::from_elem(8, false);
-            bits.set(7, self.no_ack);
-            try!(writer.write_all(&bits.to_bytes()));
-            Ok(writer)
-        }
-    }
+    method_struct!(Get, "basic.get", 60, 70,
+        ticket => short,
+queue => shortstr,
+no_ack => bit
+    );
 
     impl Get {
         pub fn with_default_values(no_ack: bool) -> Get {
@@ -3506,125 +1185,20 @@ pub mod basic {
 
     unsafe impl Send for Get {}
     // Method 71:get-ok
-    #[derive(Debug)]
-    pub struct GetOk {
-        pub delivery_tag: u64,
-        pub redelivered: bool,
-        pub exchange: String,
-        pub routing_key: String,
-        pub message_count: u32,
-    }
-
-    impl Method for GetOk {
-        fn name(&self) -> &'static str {
-            "basic.get-ok"
-        }
-
-        fn id(&self) -> u16 {
-            71
-        }
-
-        fn class_id(&self) -> u16 {
-            60
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<GetOk> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (60, 71) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            let reader = &mut &method_frame.arguments[..];
-            let delivery_tag = try!(reader.read_u64::<BigEndian>());
-            let byte = try!(reader.read_u8());
-            let bits = BitVec::from_bytes(&[byte]);
-            let redelivered = match bits.get(7) {
-                Some(bit) => bit,
-                None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned())),
-            };
-            let exchange = {
-                let size = try!(reader.read_u8()) as usize;
-                let mut buffer: Vec<u8> = vec![0u8; size];
-                try!(reader.read(&mut buffer[..]));
-                String::from_utf8_lossy(&buffer[..]).to_string()
-            };
-            let routing_key = {
-                let size = try!(reader.read_u8()) as usize;
-                let mut buffer: Vec<u8> = vec![0u8; size];
-                try!(reader.read(&mut buffer[..]));
-                String::from_utf8_lossy(&buffer[..]).to_string()
-            };
-            let message_count = try!(reader.read_u32::<BigEndian>());
-            Ok(GetOk {
-                delivery_tag: delivery_tag,
-                redelivered: redelivered,
-                exchange: exchange,
-                routing_key: routing_key,
-                message_count: message_count,
-            })
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            let mut writer = vec![];
-            try!(writer.write_u64::<BigEndian>(self.delivery_tag));
-            let mut bits = BitVec::from_elem(8, false);
-            bits.set(7, self.redelivered);
-            try!(writer.write_all(&bits.to_bytes()));
-            try!(writer.write_u8(self.exchange.len() as u8));
-            try!(writer.write_all(self.exchange.as_bytes()));
-            try!(writer.write_u8(self.routing_key.len() as u8));
-            try!(writer.write_all(self.routing_key.as_bytes()));
-            try!(writer.write_u32::<BigEndian>(self.message_count));
-            Ok(writer)
-        }
-    }
+    method_struct!(GetOk, "basic.get-ok", 60, 71,
+        delivery_tag => longlong,
+redelivered => bit,
+exchange => shortstr,
+routing_key => shortstr,
+message_count => long
+    );
 
 
     unsafe impl Send for GetOk {}
     // Method 72:get-empty
-    #[derive(Debug)]
-    pub struct GetEmpty {
-        pub cluster_id: String,
-    }
-
-    impl Method for GetEmpty {
-        fn name(&self) -> &'static str {
-            "basic.get-empty"
-        }
-
-        fn id(&self) -> u16 {
-            72
-        }
-
-        fn class_id(&self) -> u16 {
-            60
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<GetEmpty> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (60, 72) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            let reader = &mut &method_frame.arguments[..];
-            let cluster_id = {
-                let size = try!(reader.read_u8()) as usize;
-                let mut buffer: Vec<u8> = vec![0u8; size];
-                try!(reader.read(&mut buffer[..]));
-                String::from_utf8_lossy(&buffer[..]).to_string()
-            };
-            Ok(GetEmpty { cluster_id: cluster_id })
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            let mut writer = vec![];
-            try!(writer.write_u8(self.cluster_id.len() as u8));
-            try!(writer.write_all(self.cluster_id.as_bytes()));
-            Ok(writer)
-        }
-    }
+    method_struct!(GetEmpty, "basic.get-empty", 60, 72,
+        cluster_id => shortstr
+    );
 
     impl GetEmpty {
         pub fn with_default_values() -> GetEmpty {
@@ -3634,55 +1208,10 @@ pub mod basic {
 
     unsafe impl Send for GetEmpty {}
     // Method 80:ack
-    #[derive(Debug)]
-    pub struct Ack {
-        pub delivery_tag: u64,
-        pub multiple: bool,
-    }
-
-    impl Method for Ack {
-        fn name(&self) -> &'static str {
-            "basic.ack"
-        }
-
-        fn id(&self) -> u16 {
-            80
-        }
-
-        fn class_id(&self) -> u16 {
-            60
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<Ack> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (60, 80) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            let reader = &mut &method_frame.arguments[..];
-            let delivery_tag = try!(reader.read_u64::<BigEndian>());
-            let byte = try!(reader.read_u8());
-            let bits = BitVec::from_bytes(&[byte]);
-            let multiple = match bits.get(7) {
-                Some(bit) => bit,
-                None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned())),
-            };
-            Ok(Ack {
-                delivery_tag: delivery_tag,
-                multiple: multiple,
-            })
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            let mut writer = vec![];
-            try!(writer.write_u64::<BigEndian>(self.delivery_tag));
-            let mut bits = BitVec::from_elem(8, false);
-            bits.set(7, self.multiple);
-            try!(writer.write_all(&bits.to_bytes()));
-            Ok(writer)
-        }
-    }
+    method_struct!(Ack, "basic.ack", 60, 80,
+        delivery_tag => longlong,
+multiple => bit
+    );
 
     impl Ack {
         pub fn with_default_values(multiple: bool) -> Ack {
@@ -3695,55 +1224,10 @@ pub mod basic {
 
     unsafe impl Send for Ack {}
     // Method 90:reject
-    #[derive(Debug)]
-    pub struct Reject {
-        pub delivery_tag: u64,
-        pub requeue: bool,
-    }
-
-    impl Method for Reject {
-        fn name(&self) -> &'static str {
-            "basic.reject"
-        }
-
-        fn id(&self) -> u16 {
-            90
-        }
-
-        fn class_id(&self) -> u16 {
-            60
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<Reject> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (60, 90) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            let reader = &mut &method_frame.arguments[..];
-            let delivery_tag = try!(reader.read_u64::<BigEndian>());
-            let byte = try!(reader.read_u8());
-            let bits = BitVec::from_bytes(&[byte]);
-            let requeue = match bits.get(7) {
-                Some(bit) => bit,
-                None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned())),
-            };
-            Ok(Reject {
-                delivery_tag: delivery_tag,
-                requeue: requeue,
-            })
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            let mut writer = vec![];
-            try!(writer.write_u64::<BigEndian>(self.delivery_tag));
-            let mut bits = BitVec::from_elem(8, false);
-            bits.set(7, self.requeue);
-            try!(writer.write_all(&bits.to_bytes()));
-            Ok(writer)
-        }
-    }
+    method_struct!(Reject, "basic.reject", 60, 90,
+        delivery_tag => longlong,
+requeue => bit
+    );
 
     impl Reject {
         pub fn with_default_values(delivery_tag: u64) -> Reject {
@@ -3756,190 +1240,32 @@ pub mod basic {
 
     unsafe impl Send for Reject {}
     // Method 100:recover-async
-    #[derive(Debug)]
-    pub struct RecoverAsync {
-        pub requeue: bool,
-    }
-
-    impl Method for RecoverAsync {
-        fn name(&self) -> &'static str {
-            "basic.recover-async"
-        }
-
-        fn id(&self) -> u16 {
-            100
-        }
-
-        fn class_id(&self) -> u16 {
-            60
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<RecoverAsync> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (60, 100) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            let reader = &mut &method_frame.arguments[..];
-            let byte = try!(reader.read_u8());
-            let bits = BitVec::from_bytes(&[byte]);
-            let requeue = match bits.get(7) {
-                Some(bit) => bit,
-                None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned())),
-            };
-            Ok(RecoverAsync { requeue: requeue })
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            let mut writer = vec![];
-            let mut bits = BitVec::from_elem(8, false);
-            bits.set(7, self.requeue);
-            try!(writer.write_all(&bits.to_bytes()));
-            Ok(writer)
-        }
-    }
+    method_struct!(RecoverAsync, "basic.recover-async", 60, 100,
+        requeue => bit
+    );
 
 
     unsafe impl Send for RecoverAsync {}
     // Method 110:recover
-    #[derive(Debug)]
-    pub struct Recover {
-        pub requeue: bool,
-    }
-
-    impl Method for Recover {
-        fn name(&self) -> &'static str {
-            "basic.recover"
-        }
-
-        fn id(&self) -> u16 {
-            110
-        }
-
-        fn class_id(&self) -> u16 {
-            60
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<Recover> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (60, 110) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            let reader = &mut &method_frame.arguments[..];
-            let byte = try!(reader.read_u8());
-            let bits = BitVec::from_bytes(&[byte]);
-            let requeue = match bits.get(7) {
-                Some(bit) => bit,
-                None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned())),
-            };
-            Ok(Recover { requeue: requeue })
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            let mut writer = vec![];
-            let mut bits = BitVec::from_elem(8, false);
-            bits.set(7, self.requeue);
-            try!(writer.write_all(&bits.to_bytes()));
-            Ok(writer)
-        }
-    }
+    method_struct!(Recover, "basic.recover", 60, 110,
+        requeue => bit
+    );
 
 
     unsafe impl Send for Recover {}
     // Method 111:recover-ok
-    #[derive(Debug)]
-    pub struct RecoverOk;
+    method_struct!(RecoverOk, "basic.recover-ok", 60, 111,
 
-    impl Method for RecoverOk {
-        fn name(&self) -> &'static str {
-            "basic.recover-ok"
-        }
-
-        fn id(&self) -> u16 {
-            111
-        }
-
-        fn class_id(&self) -> u16 {
-            60
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<RecoverOk> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (60, 111) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            Ok(RecoverOk)
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            Ok(vec![])
-        }
-    }
+    );
 
 
     unsafe impl Send for RecoverOk {}
     // Method 120:nack
-    #[derive(Debug)]
-    pub struct Nack {
-        pub delivery_tag: u64,
-        pub multiple: bool,
-        pub requeue: bool,
-    }
-
-    impl Method for Nack {
-        fn name(&self) -> &'static str {
-            "basic.nack"
-        }
-
-        fn id(&self) -> u16 {
-            120
-        }
-
-        fn class_id(&self) -> u16 {
-            60
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<Nack> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (60, 120) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            let reader = &mut &method_frame.arguments[..];
-            let delivery_tag = try!(reader.read_u64::<BigEndian>());
-            let byte = try!(reader.read_u8());
-            let bits = BitVec::from_bytes(&[byte]);
-            let multiple = match bits.get(7) {
-                Some(bit) => bit,
-                None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned())),
-            };
-            let requeue = match bits.get(6) {
-                Some(bit) => bit,
-                None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned())),
-            };
-            Ok(Nack {
-                delivery_tag: delivery_tag,
-                multiple: multiple,
-                requeue: requeue,
-            })
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            let mut writer = vec![];
-            try!(writer.write_u64::<BigEndian>(self.delivery_tag));
-            let mut bits = BitVec::from_elem(8, false);
-            bits.set(7, self.multiple);
-            bits.set(6, self.requeue);
-            try!(writer.write_all(&bits.to_bytes()));
-            Ok(writer)
-        }
-    }
+    method_struct!(Nack, "basic.nack", 60, 120,
+        delivery_tag => longlong,
+multiple => bit,
+requeue => bit
+    );
 
     impl Nack {
         pub fn with_default_values(multiple: bool) -> Nack {
@@ -3960,215 +1286,54 @@ pub mod tx {
     use bit_vec::BitVec;
     use table;
     use table::{Table, decode_table, encode_table};
-    use protocol::Method;
+    use protocol;
     use framing::{ContentHeaderFrame, MethodFrame};
     use amqp_error::{AMQPResult, AMQPError};
     use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
     use std::io::{Read, Write};
+    use codegen_macros::{ArgumentsReader, ArgumentsWriter};
 
 
 
     // Method 10:select
-    #[derive(Debug)]
-    pub struct Select;
+    method_struct!(Select, "tx.select", 90, 10,
 
-    impl Method for Select {
-        fn name(&self) -> &'static str {
-            "tx.select"
-        }
-
-        fn id(&self) -> u16 {
-            10
-        }
-
-        fn class_id(&self) -> u16 {
-            90
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<Select> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (90, 10) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            Ok(Select)
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            Ok(vec![])
-        }
-    }
+    );
 
 
     unsafe impl Send for Select {}
     // Method 11:select-ok
-    #[derive(Debug)]
-    pub struct SelectOk;
+    method_struct!(SelectOk, "tx.select-ok", 90, 11,
 
-    impl Method for SelectOk {
-        fn name(&self) -> &'static str {
-            "tx.select-ok"
-        }
-
-        fn id(&self) -> u16 {
-            11
-        }
-
-        fn class_id(&self) -> u16 {
-            90
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<SelectOk> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (90, 11) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            Ok(SelectOk)
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            Ok(vec![])
-        }
-    }
+    );
 
 
     unsafe impl Send for SelectOk {}
     // Method 20:commit
-    #[derive(Debug)]
-    pub struct Commit;
+    method_struct!(Commit, "tx.commit", 90, 20,
 
-    impl Method for Commit {
-        fn name(&self) -> &'static str {
-            "tx.commit"
-        }
-
-        fn id(&self) -> u16 {
-            20
-        }
-
-        fn class_id(&self) -> u16 {
-            90
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<Commit> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (90, 20) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            Ok(Commit)
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            Ok(vec![])
-        }
-    }
+    );
 
 
     unsafe impl Send for Commit {}
     // Method 21:commit-ok
-    #[derive(Debug)]
-    pub struct CommitOk;
+    method_struct!(CommitOk, "tx.commit-ok", 90, 21,
 
-    impl Method for CommitOk {
-        fn name(&self) -> &'static str {
-            "tx.commit-ok"
-        }
-
-        fn id(&self) -> u16 {
-            21
-        }
-
-        fn class_id(&self) -> u16 {
-            90
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<CommitOk> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (90, 21) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            Ok(CommitOk)
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            Ok(vec![])
-        }
-    }
+    );
 
 
     unsafe impl Send for CommitOk {}
     // Method 30:rollback
-    #[derive(Debug)]
-    pub struct Rollback;
+    method_struct!(Rollback, "tx.rollback", 90, 30,
 
-    impl Method for Rollback {
-        fn name(&self) -> &'static str {
-            "tx.rollback"
-        }
-
-        fn id(&self) -> u16 {
-            30
-        }
-
-        fn class_id(&self) -> u16 {
-            90
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<Rollback> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (90, 30) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            Ok(Rollback)
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            Ok(vec![])
-        }
-    }
+    );
 
 
     unsafe impl Send for Rollback {}
     // Method 31:rollback-ok
-    #[derive(Debug)]
-    pub struct RollbackOk;
+    method_struct!(RollbackOk, "tx.rollback-ok", 90, 31,
 
-    impl Method for RollbackOk {
-        fn name(&self) -> &'static str {
-            "tx.rollback-ok"
-        }
-
-        fn id(&self) -> u16 {
-            31
-        }
-
-        fn class_id(&self) -> u16 {
-            90
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<RollbackOk> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (90, 31) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            Ok(RollbackOk)
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            Ok(vec![])
-        }
-    }
+    );
 
 
     unsafe impl Send for RollbackOk {}
@@ -4180,92 +1345,26 @@ pub mod confirm {
     use bit_vec::BitVec;
     use table;
     use table::{Table, decode_table, encode_table};
-    use protocol::Method;
+    use protocol;
     use framing::{ContentHeaderFrame, MethodFrame};
     use amqp_error::{AMQPResult, AMQPError};
     use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
     use std::io::{Read, Write};
+    use codegen_macros::{ArgumentsReader, ArgumentsWriter};
 
 
 
     // Method 10:select
-    #[derive(Debug)]
-    pub struct Select {
-        pub nowait: bool,
-    }
-
-    impl Method for Select {
-        fn name(&self) -> &'static str {
-            "confirm.select"
-        }
-
-        fn id(&self) -> u16 {
-            10
-        }
-
-        fn class_id(&self) -> u16 {
-            85
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<Select> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (85, 10) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            let reader = &mut &method_frame.arguments[..];
-            let byte = try!(reader.read_u8());
-            let bits = BitVec::from_bytes(&[byte]);
-            let nowait = match bits.get(7) {
-                Some(bit) => bit,
-                None => return Err(AMQPError::Protocol("Bitmap is not correct".to_owned())),
-            };
-            Ok(Select { nowait: nowait })
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            let mut writer = vec![];
-            let mut bits = BitVec::from_elem(8, false);
-            bits.set(7, self.nowait);
-            try!(writer.write_all(&bits.to_bytes()));
-            Ok(writer)
-        }
-    }
+    method_struct!(Select, "confirm.select", 85, 10,
+        nowait => bit
+    );
 
 
     unsafe impl Send for Select {}
     // Method 11:select-ok
-    #[derive(Debug)]
-    pub struct SelectOk;
+    method_struct!(SelectOk, "confirm.select-ok", 85, 11,
 
-    impl Method for SelectOk {
-        fn name(&self) -> &'static str {
-            "confirm.select-ok"
-        }
-
-        fn id(&self) -> u16 {
-            11
-        }
-
-        fn class_id(&self) -> u16 {
-            85
-        }
-
-        fn decode(method_frame: MethodFrame) -> AMQPResult<SelectOk> {
-            match (method_frame.class_id, method_frame.method_id) {
-                (85, 11) => {}
-                (_, _) => {
-                    return Err(AMQPError::DecodeError("Frame class_id & method_id didn't match"))
-                }
-            };
-            Ok(SelectOk)
-        }
-
-        fn encode(&self) -> AMQPResult<Vec<u8>> {
-            Ok(vec![])
-        }
-    }
+    );
 
 
     unsafe impl Send for SelectOk {}

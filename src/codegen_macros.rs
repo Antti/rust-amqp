@@ -83,28 +83,34 @@ impl ArgumentsWriter {
     }
 
     pub fn write_octet(&mut self, data: &u8) -> AMQPResult<()>  {
+        self.flush_bits()?;
         self.data.write_u8(*data).map_err(From::from)
     }
 
     pub fn write_long(&mut self, data: &u32) -> AMQPResult<()>  {
+        self.flush_bits()?;
         self.data.write_u32::<BigEndian>(*data).map_err(From::from)
     }
 
     pub fn write_longlong(&mut self, data: &u64) -> AMQPResult<()>  {
+        self.flush_bits()?;
         self.data.write_u64::<BigEndian>(*data).map_err(From::from)
     }
 
     pub fn write_short(&mut self, data: &u16) -> AMQPResult<()>  {
+        self.flush_bits()?;
         self.data.write_u16::<BigEndian>(*data).map_err(From::from)
     }
 
     pub fn write_shortstr(&mut self, data: &String) -> AMQPResult<()> {
+        self.flush_bits()?;
         self.data.write_u8(data.len() as u8)?;
         self.data.write_all(data.as_bytes())?;
         Ok(())
     }
 
     pub fn write_longstr(&mut self, data: &String) -> AMQPResult<()> {
+        self.flush_bits()?;
         self.data.write_u32::<BigEndian>(data.len() as u32)?;
         self.data.write_all(data.as_bytes())?;
         Ok(())
@@ -112,10 +118,12 @@ impl ArgumentsWriter {
 
     // Always a last method, since it writes to the end
     pub fn write_table(&mut self, data: &Table) -> AMQPResult<()> {
+        self.flush_bits()?;
         encode_table(&mut self.data,&data)
     }
 
     pub fn write_timestamp(&mut self, data: &u64) -> AMQPResult<()>  {
+        self.flush_bits()?;
         self.write_longlong(data)
     }
 
@@ -185,10 +193,35 @@ macro_rules! write_type {
 }
 
 macro_rules! method_struct {
+    ($method_name:ident, $method_str:expr, $method_id:expr, $class_id:expr, ) => (
+        #[derive(Debug)]
+        pub struct $method_name;
+        impl protocol::Method for $method_name {
+            fn decode(method_frame: MethodFrame) -> AMQPResult<Self> where Self: Sized {
+                Ok($method_name)
+            }
+
+            fn encode(&self) -> AMQPResult<Vec<u8>> {
+                Ok(vec![])
+            }
+
+            fn name(&self) -> &'static str {
+                $method_str
+            }
+
+            fn id(&self) -> u16 {
+                $method_id
+            }
+
+            fn class_id(&self) -> u16 {
+                $class_id
+            }
+        }
+    );
     ($method_name:ident, $method_str:expr, $method_id:expr, $class_id:expr, $($arg_name:ident => $ty:ident),+) => (
         #[derive(Debug)]
         pub struct $method_name {
-            pub $($arg_name: map_type!($ty),)*
+            $(pub $arg_name: map_type!($ty),)*
         }
 
         impl protocol::Method for $method_name {
@@ -233,18 +266,20 @@ mod test {
     use super::*;
 
     method_struct!(Foo, "test.foo", 1, 2, a => octet, b => shortstr, c => longstr, d => bit, e => bit, f => long);
+    method_struct!(FooNoFields, "test.foo_no_fields", 1, 2, );
 
     #[test]
     fn test_foo(){
         use protocol::Method;
-        let f = Foo { a: 1, b: "test".to_string(), c: "bar".to_string(), d: false, e: true, f: 99222456 };
+        let f = Foo { a: 1, b: "test".to_string(), c: "bar".to_string(), d: false, e: true, f: 0xDEADBEEF };
         assert_eq!(f.encode().unwrap(), vec![
-            1, //a
+            1, // 1
             4, // "test".len()
             116, 101, 115, 116, // "test"
             0, 0, 0, 3, // "bar".len()
             98, 97, 114, // "bar"
-            2 // false, true => 0b00000010
+            2, // false, true => 0b00000010
+            0xDE, 0xAD, 0xBE, 0xEF, // 0xDEADBEEF
         ]);
     }
 }

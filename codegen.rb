@@ -68,62 +68,6 @@ def write_type(name, type)
   end
 end
 
-def generate_reader_body(arguments)
-    body = []
-    body << "let reader = &mut &method_frame.arguments[..];"
-    n_bits = 0
-    arguments.each do |argument|
-      type = argument["domain"] ? map_domain(argument["domain"]) : argument["type"]
-      if type == "bit"
-        if n_bits == 0
-          body << "let byte = try!(reader.read_u8());"
-          body << "let bits = BitVec::from_bytes(&[byte]);"
-        end
-        body << "let #{snake_name(argument["name"])} = match bits.get(#{7-n_bits}){
-          Some(bit) => bit,
-          None => return Err(AMQPError::Protocol(\"Bitmap is not correct\".to_owned()))
-        };"
-        n_bits += 1
-        if n_bits == 8
-          n_bits = 0
-        end
-      else
-        n_bits = 0
-        body << "let #{snake_name(argument["name"])} = #{read_type(type)};"
-      end
-    end
-    body
-end
-
-def generate_writer_body(arguments)
-    body = []
-    body << "let mut writer = vec![];"
-    n_bits = 0
-    arguments.each do |argument|
-      type = argument["domain"] ? map_domain(argument["domain"]) : argument["type"]
-      if type == "bit"
-        if n_bits == 0
-          body << "let mut bits = BitVec::from_elem(8, false);"
-        end
-        body << "bits.set(#{7-n_bits}, self.#{snake_name(argument["name"])});"
-        n_bits += 1
-        if n_bits == 8
-          body << "try!(writer.write_all(&bits.to_bytes()));"
-          n_bits = 0
-        end
-      else
-        if n_bits > 0
-          body << "try!(writer.write_all(&bits.to_bytes()));"
-          n_bits = 0
-        end
-        body << write_type("self."+snake_name(argument["name"]), type)
-      end
-    end
-    body << "try!(writer.write_all(&bits.to_bytes()));" if n_bits > 0 #if bits were the last element
-    body << "Ok(writer)"
-    body
-end
-
 spec_file = 'amqp-rabbitmq-0.9.1.json'
 SPEC = JSON.load(File.read(spec_file))
 DOMAINS = Hash[SPEC["domains"]]
@@ -179,11 +123,9 @@ class SpecGenerator
         method["method_name"] = camel_name titleize(method["name"])
         method["method_struct_create"] = method["arguments"].map{|arg| "#{snake_name arg["name"]}: #{snake_name arg["name"]}"}
         method["fields"]= method["arguments"].map do |argument|
-          rust_type = map_type_to_rust argument["domain"] ? map_domain(argument["domain"]) : argument["type"]
-          "pub #{snake_name argument["name"]}: #{rust_type}"
+          type = argument["domain"] ? map_domain(argument["domain"]) : argument["type"]
+          [snake_name(argument["name"]), type]
         end
-        method["readers"] = generate_reader_body(method["arguments"])
-        method["writers"] = generate_writer_body(method["arguments"])
       end
     end
   end #modify_spec

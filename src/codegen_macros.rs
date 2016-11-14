@@ -7,6 +7,7 @@ use amqp_error::{AMQPError, AMQPResult};
 use framing::{FrameType, Frame, MethodFrame};
 use protocol;
 
+#[derive(Debug)]
 pub struct ArgumentsReader<'data> {
     cursor: Cursor<&'data [u8]>,
     bits: BitVec,
@@ -15,51 +16,51 @@ pub struct ArgumentsReader<'data> {
 }
 
 impl <'data> ArgumentsReader<'data> {
-    fn new(data: &'data [u8]) -> Self {
+    pub fn new(data: &'data [u8]) -> Self {
         Self { cursor: Cursor::new(data), bits: BitVec::from_bytes(&[0]), byte: 0, current_bit: 0 }
     }
 
-    fn read_octet(&mut self) -> AMQPResult<u8>  {
+    pub fn read_octet(&mut self) -> AMQPResult<u8>  {
         self.cursor.read_u8().map_err(From::from)
     }
 
-    fn read_long(&mut self) -> AMQPResult<u32>  {
+    pub fn read_long(&mut self) -> AMQPResult<u32>  {
         self.cursor.read_u32::<BigEndian>().map_err(From::from)
     }
 
-    fn read_longlong(&mut self) -> AMQPResult<u64>  {
+    pub fn read_longlong(&mut self) -> AMQPResult<u64>  {
         self.cursor.read_u64::<BigEndian>().map_err(From::from)
     }
 
-    fn read_short(&mut self) -> AMQPResult<u16>  {
+    pub fn read_short(&mut self) -> AMQPResult<u16>  {
         self.cursor.read_u16::<BigEndian>().map_err(From::from)
     }
 
-    fn read_shortstr(&mut self) -> AMQPResult<String> {
+    pub fn read_shortstr(&mut self) -> AMQPResult<String> {
         let size = self.read_octet()? as usize;
         let mut buffer: Vec<u8> = vec![0u8; size];
         self.cursor.read(&mut buffer[..])?;
         Ok(String::from_utf8_lossy(&buffer[..]).to_string())
     }
 
-    fn read_longstr(&mut self) -> AMQPResult<String> {
+    pub fn read_longstr(&mut self) -> AMQPResult<String> {
         let size = self.read_long()? as usize;
+        debug!("Reading str of len {}", size);
         let mut buffer: Vec<u8> = vec![0u8; size];
         self.cursor.read(&mut buffer[..])?;
         Ok(String::from_utf8_lossy(&buffer[..]).to_string())
     }
 
-    // Always a last method, since it reads to the end
-    fn read_table(mut self) -> AMQPResult<Table> {
-        decode_table(&mut self.cursor.into_inner())
+    pub fn read_table(&mut self) -> AMQPResult<Table> {
+        decode_table(&mut self.cursor).map(|(table, table_size)| table)
     }
 
-    fn read_timestamp(&mut self) -> AMQPResult<u64>  {
+    pub fn read_timestamp(&mut self) -> AMQPResult<u64>  {
         self.read_longlong()
     }
 
     // TODO: Reset current_bit on all subsequent other type of data reads
-    fn read_bit(&mut self) -> AMQPResult<bool> {
+    pub fn read_bit(&mut self) -> AMQPResult<bool> {
         if self.current_bit == 0 {
             self.byte = self.read_octet()?;
             self.bits = BitVec::from_bytes(&[self.byte]);
@@ -69,6 +70,7 @@ impl <'data> ArgumentsReader<'data> {
     }
 }
 
+#[derive(Debug)]
 pub struct ArgumentsWriter {
     data: Vec<u8>,
     bits: BitVec,
@@ -76,49 +78,49 @@ pub struct ArgumentsWriter {
 }
 
 impl ArgumentsWriter {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self { data: vec![], bits: BitVec::from_bytes(&[0]), current_bit: 0 }
     }
 
-    fn write_octet(&mut self, data: &u8) -> AMQPResult<()>  {
+    pub fn write_octet(&mut self, data: &u8) -> AMQPResult<()>  {
         self.data.write_u8(*data).map_err(From::from)
     }
 
-    fn write_long(&mut self, data: &u32) -> AMQPResult<()>  {
+    pub fn write_long(&mut self, data: &u32) -> AMQPResult<()>  {
         self.data.write_u32::<BigEndian>(*data).map_err(From::from)
     }
 
-    fn write_longlong(&mut self, data: &u64) -> AMQPResult<()>  {
+    pub fn write_longlong(&mut self, data: &u64) -> AMQPResult<()>  {
         self.data.write_u64::<BigEndian>(*data).map_err(From::from)
     }
 
-    fn write_short(&mut self, data: &u16) -> AMQPResult<()>  {
+    pub fn write_short(&mut self, data: &u16) -> AMQPResult<()>  {
         self.data.write_u16::<BigEndian>(*data).map_err(From::from)
     }
 
-    fn write_shortstr(&mut self, data: &String) -> AMQPResult<()> {
+    pub fn write_shortstr(&mut self, data: &String) -> AMQPResult<()> {
         self.data.write_u8(data.len() as u8)?;
         self.data.write_all(data.as_bytes())?;
         Ok(())
     }
 
-    fn write_longstr(&mut self, data: &String) -> AMQPResult<()> {
+    pub fn write_longstr(&mut self, data: &String) -> AMQPResult<()> {
         self.data.write_u32::<BigEndian>(data.len() as u32)?;
         self.data.write_all(data.as_bytes())?;
         Ok(())
     }
 
-    // Always a last method, since it reads to the end
-    fn write_table(mut self, data: &Table) -> AMQPResult<()> {
+    // Always a last method, since it writes to the end
+    pub fn write_table(&mut self, data: &Table) -> AMQPResult<()> {
         encode_table(&mut self.data,&data)
     }
 
-    fn write_timestamp(&mut self, data: &u64) -> AMQPResult<()>  {
+    pub fn write_timestamp(&mut self, data: &u64) -> AMQPResult<()>  {
         self.write_longlong(data)
     }
 
     // TODO: Flush bytes on all subsequent other type of data writes
-    fn write_bit(&mut self, data: &bool) -> AMQPResult<()> {
+    pub fn write_bit(&mut self, data: &bool) -> AMQPResult<()> {
         println!("Setting bit: {} on a position {}", data, self.current_bit);
         self.current_bit += 1;
         self.bits.set(7 - (self.current_bit - 1) as usize, *data);
@@ -128,7 +130,7 @@ impl ArgumentsWriter {
         Ok(())
     }
 
-    fn flush_bits(&mut self) -> AMQPResult<()> {
+    pub fn flush_bits(&mut self) -> AMQPResult<()> {
         if self.current_bit > 0 {
             let res = self.data.write_all(&self.bits.to_bytes()).map_err(From::from);
             self.bits = BitVec::from_bytes(&[0]);
@@ -139,7 +141,7 @@ impl ArgumentsWriter {
         }
     }
 
-    fn as_bytes(mut self) -> Vec<u8> {
+    pub fn as_bytes(mut self) -> Vec<u8> {
         self.flush_bits();
         self.data
     }
@@ -184,8 +186,9 @@ macro_rules! write_type {
 
 macro_rules! method_struct {
     ($method_name:ident, $method_str:expr, $method_id:expr, $class_id:expr, $($arg_name:ident => $ty:ident),+) => (
-        struct $method_name {
-            $($arg_name: map_type!($ty),)*
+        #[derive(Debug)]
+        pub struct $method_name {
+            pub $($arg_name: map_type!($ty),)*
         }
 
         impl protocol::Method for $method_name {

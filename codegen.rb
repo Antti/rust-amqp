@@ -33,7 +33,7 @@ def read_type(type)
           String::from_utf8_lossy(&buffer[..]).to_string()
       }"
   when "table"
-    "try!(decode_table(reader))"
+    "try!(decode_table(reader)).0"
   when "timestamp"
     "try!(reader.read_u64::<BigEndian>())"
   else

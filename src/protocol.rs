@@ -44,7 +44,6 @@ pub mod connection {
     use codegen_macros::{ArgumentsReader, ArgumentsWriter};
 
 
-
     // Method 10:start
     method_struct!(Start, "connection.start", 10, 10,
         version_major => octet,
@@ -53,18 +52,6 @@ server_properties => table,
 mechanisms => longstr,
 locales => longstr
     );
-
-    impl Start {
-        pub fn with_default_values(server_properties: Table) -> Start {
-            Start {
-                version_major: 0,
-                version_minor: 9,
-                mechanisms: "PLAIN".to_owned(),
-                locales: "en_US".to_owned(),
-                server_properties: server_properties,
-            }
-        }
-    }
 
     unsafe impl Send for Start {}
     // Method 11:start-ok
@@ -75,30 +62,17 @@ response => longstr,
 locale => shortstr
     );
 
-    impl StartOk {
-        pub fn with_default_values(client_properties: Table, response: String) -> StartOk {
-            StartOk {
-                mechanism: "PLAIN".to_owned(),
-                locale: "en_US".to_owned(),
-                client_properties: client_properties,
-                response: response,
-            }
-        }
-    }
-
     unsafe impl Send for StartOk {}
     // Method 20:secure
     method_struct!(Secure, "connection.secure", 10, 20,
         challenge => longstr
     );
 
-
     unsafe impl Send for Secure {}
     // Method 21:secure-ok
     method_struct!(SecureOk, "connection.secure-ok", 10, 21,
         response => longstr
     );
-
 
     unsafe impl Send for SecureOk {}
     // Method 30:tune
@@ -108,16 +82,6 @@ frame_max => long,
 heartbeat => short
     );
 
-    impl Tune {
-        pub fn with_default_values() -> Tune {
-            Tune {
-                channel_max: 0,
-                frame_max: 0,
-                heartbeat: 0,
-            }
-        }
-    }
-
     unsafe impl Send for Tune {}
     // Method 31:tune-ok
     method_struct!(TuneOk, "connection.tune-ok", 10, 31,
@@ -125,16 +89,6 @@ heartbeat => short
 frame_max => long,
 heartbeat => short
     );
-
-    impl TuneOk {
-        pub fn with_default_values() -> TuneOk {
-            TuneOk {
-                channel_max: 0,
-                frame_max: 0,
-                heartbeat: 0,
-            }
-        }
-    }
 
     unsafe impl Send for TuneOk {}
     // Method 40:open
@@ -144,27 +98,11 @@ capabilities => shortstr,
 insist => bit
     );
 
-    impl Open {
-        pub fn with_default_values(insist: bool) -> Open {
-            Open {
-                virtual_host: "/".to_owned(),
-                capabilities: "".to_owned(),
-                insist: insist,
-            }
-        }
-    }
-
     unsafe impl Send for Open {}
     // Method 41:open-ok
     method_struct!(OpenOk, "connection.open-ok", 10, 41,
         known_hosts => shortstr
     );
-
-    impl OpenOk {
-        pub fn with_default_values() -> OpenOk {
-            OpenOk { known_hosts: "".to_owned() }
-        }
-    }
 
     unsafe impl Send for OpenOk {}
     // Method 50:close
@@ -175,23 +113,11 @@ class_id => short,
 method_id => short
     );
 
-    impl Close {
-        pub fn with_default_values(reply_code: u16, class_id: u16, method_id: u16) -> Close {
-            Close {
-                reply_text: "".to_owned(),
-                reply_code: reply_code,
-                class_id: class_id,
-                method_id: method_id,
-            }
-        }
-    }
-
     unsafe impl Send for Close {}
     // Method 51:close-ok
     method_struct!(CloseOk, "connection.close-ok", 10, 51,
 
     );
-
 
     unsafe impl Send for CloseOk {}
     // Method 60:blocked
@@ -199,18 +125,11 @@ method_id => short
         reason => shortstr
     );
 
-    impl Blocked {
-        pub fn with_default_values() -> Blocked {
-            Blocked { reason: "".to_owned() }
-        }
-    }
-
     unsafe impl Send for Blocked {}
     // Method 61:unblocked
     method_struct!(Unblocked, "connection.unblocked", 10, 61,
 
     );
-
 
     unsafe impl Send for Unblocked {}
 }
@@ -229,17 +148,10 @@ pub mod channel {
     use codegen_macros::{ArgumentsReader, ArgumentsWriter};
 
 
-
     // Method 10:open
     method_struct!(Open, "channel.open", 20, 10,
         out_of_band => shortstr
     );
-
-    impl Open {
-        pub fn with_default_values() -> Open {
-            Open { out_of_band: "".to_owned() }
-        }
-    }
 
     unsafe impl Send for Open {}
     // Method 11:open-ok
@@ -247,25 +159,17 @@ pub mod channel {
         channel_id => longstr
     );
 
-    impl OpenOk {
-        pub fn with_default_values() -> OpenOk {
-            OpenOk { channel_id: "".to_owned() }
-        }
-    }
-
     unsafe impl Send for OpenOk {}
     // Method 20:flow
     method_struct!(Flow, "channel.flow", 20, 20,
         active => bit
     );
 
-
     unsafe impl Send for Flow {}
     // Method 21:flow-ok
     method_struct!(FlowOk, "channel.flow-ok", 20, 21,
         active => bit
     );
-
 
     unsafe impl Send for FlowOk {}
     // Method 40:close
@@ -276,23 +180,11 @@ class_id => short,
 method_id => short
     );
 
-    impl Close {
-        pub fn with_default_values(reply_code: u16, class_id: u16, method_id: u16) -> Close {
-            Close {
-                reply_text: "".to_owned(),
-                reply_code: reply_code,
-                class_id: class_id,
-                method_id: method_id,
-            }
-        }
-    }
-
     unsafe impl Send for Close {}
     // Method 41:close-ok
     method_struct!(CloseOk, "channel.close-ok", 20, 41,
 
     );
-
 
     unsafe impl Send for CloseOk {}
 }
@@ -311,7 +203,6 @@ pub mod access {
     use codegen_macros::{ArgumentsReader, ArgumentsWriter};
 
 
-
     // Method 10:request
     method_struct!(Request, "access.request", 30, 10,
         realm => shortstr,
@@ -322,30 +213,11 @@ write => bit,
 read => bit
     );
 
-    impl Request {
-        pub fn with_default_values(exclusive: bool) -> Request {
-            Request {
-                realm: "/data".to_owned(),
-                passive: true,
-                active: true,
-                write: true,
-                read: true,
-                exclusive: exclusive,
-            }
-        }
-    }
-
     unsafe impl Send for Request {}
     // Method 11:request-ok
     method_struct!(RequestOk, "access.request-ok", 30, 11,
         ticket => short
     );
-
-    impl RequestOk {
-        pub fn with_default_values() -> RequestOk {
-            RequestOk { ticket: 1 }
-        }
-    }
 
     unsafe impl Send for RequestOk {}
 }
@@ -364,7 +236,6 @@ pub mod exchange {
     use codegen_macros::{ArgumentsReader, ArgumentsWriter};
 
 
-
     // Method 10:declare
     method_struct!(Declare, "exchange.declare", 40, 10,
         ticket => short,
@@ -378,34 +249,11 @@ nowait => bit,
 arguments => table
     );
 
-    impl Declare {
-        pub fn with_default_values(exchange: String,
-                                   passive: bool,
-                                   durable: bool,
-                                   auto_delete: bool,
-                                   internal: bool,
-                                   nowait: bool)
-                                   -> Declare {
-            Declare {
-                ticket: 0,
-                _type: "direct".to_owned(),
-                arguments: Table::new(),
-                exchange: exchange,
-                passive: passive,
-                durable: durable,
-                auto_delete: auto_delete,
-                internal: internal,
-                nowait: nowait,
-            }
-        }
-    }
-
     unsafe impl Send for Declare {}
     // Method 11:declare-ok
     method_struct!(DeclareOk, "exchange.declare-ok", 40, 11,
 
     );
-
 
     unsafe impl Send for DeclareOk {}
     // Method 20:delete
@@ -416,23 +264,11 @@ if_unused => bit,
 nowait => bit
     );
 
-    impl Delete {
-        pub fn with_default_values(exchange: String, if_unused: bool, nowait: bool) -> Delete {
-            Delete {
-                ticket: 0,
-                exchange: exchange,
-                if_unused: if_unused,
-                nowait: nowait,
-            }
-        }
-    }
-
     unsafe impl Send for Delete {}
     // Method 21:delete-ok
     method_struct!(DeleteOk, "exchange.delete-ok", 40, 21,
 
     );
-
 
     unsafe impl Send for DeleteOk {}
     // Method 30:bind
@@ -445,25 +281,11 @@ nowait => bit,
 arguments => table
     );
 
-    impl Bind {
-        pub fn with_default_values(destination: String, source: String, nowait: bool) -> Bind {
-            Bind {
-                ticket: 0,
-                routing_key: "".to_owned(),
-                arguments: Table::new(),
-                destination: destination,
-                source: source,
-                nowait: nowait,
-            }
-        }
-    }
-
     unsafe impl Send for Bind {}
     // Method 31:bind-ok
     method_struct!(BindOk, "exchange.bind-ok", 40, 31,
 
     );
-
 
     unsafe impl Send for BindOk {}
     // Method 40:unbind
@@ -476,25 +298,11 @@ nowait => bit,
 arguments => table
     );
 
-    impl Unbind {
-        pub fn with_default_values(destination: String, source: String, nowait: bool) -> Unbind {
-            Unbind {
-                ticket: 0,
-                routing_key: "".to_owned(),
-                arguments: Table::new(),
-                destination: destination,
-                source: source,
-                nowait: nowait,
-            }
-        }
-    }
-
     unsafe impl Send for Unbind {}
     // Method 51:unbind-ok
     method_struct!(UnbindOk, "exchange.unbind-ok", 40, 51,
 
     );
-
 
     unsafe impl Send for UnbindOk {}
 }
@@ -513,7 +321,6 @@ pub mod queue {
     use codegen_macros::{ArgumentsReader, ArgumentsWriter};
 
 
-
     // Method 10:declare
     method_struct!(Declare, "queue.declare", 50, 10,
         ticket => short,
@@ -526,26 +333,6 @@ nowait => bit,
 arguments => table
     );
 
-    impl Declare {
-        pub fn with_default_values(passive: bool,
-                                   durable: bool,
-                                   exclusive: bool,
-                                   auto_delete: bool,
-                                   nowait: bool)
-                                   -> Declare {
-            Declare {
-                ticket: 0,
-                queue: "".to_owned(),
-                arguments: Table::new(),
-                passive: passive,
-                durable: durable,
-                exclusive: exclusive,
-                auto_delete: auto_delete,
-                nowait: nowait,
-            }
-        }
-    }
-
     unsafe impl Send for Declare {}
     // Method 11:declare-ok
     method_struct!(DeclareOk, "queue.declare-ok", 50, 11,
@@ -553,7 +340,6 @@ arguments => table
 message_count => long,
 consumer_count => long
     );
-
 
     unsafe impl Send for DeclareOk {}
     // Method 20:bind
@@ -566,25 +352,11 @@ nowait => bit,
 arguments => table
     );
 
-    impl Bind {
-        pub fn with_default_values(exchange: String, nowait: bool) -> Bind {
-            Bind {
-                ticket: 0,
-                queue: "".to_owned(),
-                routing_key: "".to_owned(),
-                arguments: Table::new(),
-                exchange: exchange,
-                nowait: nowait,
-            }
-        }
-    }
-
     unsafe impl Send for Bind {}
     // Method 21:bind-ok
     method_struct!(BindOk, "queue.bind-ok", 50, 21,
 
     );
-
 
     unsafe impl Send for BindOk {}
     // Method 30:purge
@@ -594,22 +366,11 @@ queue => shortstr,
 nowait => bit
     );
 
-    impl Purge {
-        pub fn with_default_values(nowait: bool) -> Purge {
-            Purge {
-                ticket: 0,
-                queue: "".to_owned(),
-                nowait: nowait,
-            }
-        }
-    }
-
     unsafe impl Send for Purge {}
     // Method 31:purge-ok
     method_struct!(PurgeOk, "queue.purge-ok", 50, 31,
         message_count => long
     );
-
 
     unsafe impl Send for PurgeOk {}
     // Method 40:delete
@@ -621,24 +382,11 @@ if_empty => bit,
 nowait => bit
     );
 
-    impl Delete {
-        pub fn with_default_values(if_unused: bool, if_empty: bool, nowait: bool) -> Delete {
-            Delete {
-                ticket: 0,
-                queue: "".to_owned(),
-                if_unused: if_unused,
-                if_empty: if_empty,
-                nowait: nowait,
-            }
-        }
-    }
-
     unsafe impl Send for Delete {}
     // Method 41:delete-ok
     method_struct!(DeleteOk, "queue.delete-ok", 50, 41,
         message_count => long
     );
-
 
     unsafe impl Send for DeleteOk {}
     // Method 50:unbind
@@ -650,24 +398,11 @@ routing_key => shortstr,
 arguments => table
     );
 
-    impl Unbind {
-        pub fn with_default_values(exchange: String) -> Unbind {
-            Unbind {
-                ticket: 0,
-                queue: "".to_owned(),
-                routing_key: "".to_owned(),
-                arguments: Table::new(),
-                exchange: exchange,
-            }
-        }
-    }
-
     unsafe impl Send for Unbind {}
     // Method 51:unbind-ok
     method_struct!(UnbindOk, "queue.unbind-ok", 50, 51,
 
     );
-
 
     unsafe impl Send for UnbindOk {}
 }
@@ -684,7 +419,6 @@ pub mod basic {
     use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
     use std::io::{Read, Write};
     use codegen_macros::{ArgumentsReader, ArgumentsWriter};
-
 
     // properties struct for basic
     #[derive(Debug, Default, Clone)]
@@ -1038,22 +772,11 @@ prefetch_count => short,
 global => bit
     );
 
-    impl Qos {
-        pub fn with_default_values(global: bool) -> Qos {
-            Qos {
-                prefetch_size: 0,
-                prefetch_count: 0,
-                global: global,
-            }
-        }
-    }
-
     unsafe impl Send for Qos {}
     // Method 11:qos-ok
     method_struct!(QosOk, "basic.qos-ok", 60, 11,
 
     );
-
 
     unsafe impl Send for QosOk {}
     // Method 20:consume
@@ -1068,31 +791,11 @@ nowait => bit,
 arguments => table
     );
 
-    impl Consume {
-        pub fn with_default_values(no_local: bool,
-                                   no_ack: bool,
-                                   exclusive: bool,
-                                   nowait: bool)
-                                   -> Consume {
-            Consume {
-                ticket: 0,
-                queue: "".to_owned(),
-                consumer_tag: "".to_owned(),
-                arguments: Table::new(),
-                no_local: no_local,
-                no_ack: no_ack,
-                exclusive: exclusive,
-                nowait: nowait,
-            }
-        }
-    }
-
     unsafe impl Send for Consume {}
     // Method 21:consume-ok
     method_struct!(ConsumeOk, "basic.consume-ok", 60, 21,
         consumer_tag => shortstr
     );
-
 
     unsafe impl Send for ConsumeOk {}
     // Method 30:cancel
@@ -1101,13 +804,11 @@ arguments => table
 nowait => bit
     );
 
-
     unsafe impl Send for Cancel {}
     // Method 31:cancel-ok
     method_struct!(CancelOk, "basic.cancel-ok", 60, 31,
         consumer_tag => shortstr
     );
-
 
     unsafe impl Send for CancelOk {}
     // Method 40:publish
@@ -1119,18 +820,6 @@ mandatory => bit,
 immediate => bit
     );
 
-    impl Publish {
-        pub fn with_default_values(mandatory: bool, immediate: bool) -> Publish {
-            Publish {
-                ticket: 0,
-                exchange: "".to_owned(),
-                routing_key: "".to_owned(),
-                mandatory: mandatory,
-                immediate: immediate,
-            }
-        }
-    }
-
     unsafe impl Send for Publish {}
     // Method 50:return
     method_struct!(Return, "basic.return", 60, 50,
@@ -1139,20 +828,6 @@ reply_text => shortstr,
 exchange => shortstr,
 routing_key => shortstr
     );
-
-    impl Return {
-        pub fn with_default_values(reply_code: u16,
-                                   exchange: String,
-                                   routing_key: String)
-                                   -> Return {
-            Return {
-                reply_text: "".to_owned(),
-                reply_code: reply_code,
-                exchange: exchange,
-                routing_key: routing_key,
-            }
-        }
-    }
 
     unsafe impl Send for Return {}
     // Method 60:deliver
@@ -1164,7 +839,6 @@ exchange => shortstr,
 routing_key => shortstr
     );
 
-
     unsafe impl Send for Deliver {}
     // Method 70:get
     method_struct!(Get, "basic.get", 60, 70,
@@ -1172,16 +846,6 @@ routing_key => shortstr
 queue => shortstr,
 no_ack => bit
     );
-
-    impl Get {
-        pub fn with_default_values(no_ack: bool) -> Get {
-            Get {
-                ticket: 0,
-                queue: "".to_owned(),
-                no_ack: no_ack,
-            }
-        }
-    }
 
     unsafe impl Send for Get {}
     // Method 71:get-ok
@@ -1193,18 +857,11 @@ routing_key => shortstr,
 message_count => long
     );
 
-
     unsafe impl Send for GetOk {}
     // Method 72:get-empty
     method_struct!(GetEmpty, "basic.get-empty", 60, 72,
         cluster_id => shortstr
     );
-
-    impl GetEmpty {
-        pub fn with_default_values() -> GetEmpty {
-            GetEmpty { cluster_id: "".to_owned() }
-        }
-    }
 
     unsafe impl Send for GetEmpty {}
     // Method 80:ack
@@ -1213,15 +870,6 @@ message_count => long
 multiple => bit
     );
 
-    impl Ack {
-        pub fn with_default_values(multiple: bool) -> Ack {
-            Ack {
-                delivery_tag: 0,
-                multiple: multiple,
-            }
-        }
-    }
-
     unsafe impl Send for Ack {}
     // Method 90:reject
     method_struct!(Reject, "basic.reject", 60, 90,
@@ -1229,21 +877,11 @@ multiple => bit
 requeue => bit
     );
 
-    impl Reject {
-        pub fn with_default_values(delivery_tag: u64) -> Reject {
-            Reject {
-                requeue: true,
-                delivery_tag: delivery_tag,
-            }
-        }
-    }
-
     unsafe impl Send for Reject {}
     // Method 100:recover-async
     method_struct!(RecoverAsync, "basic.recover-async", 60, 100,
         requeue => bit
     );
-
 
     unsafe impl Send for RecoverAsync {}
     // Method 110:recover
@@ -1251,13 +889,11 @@ requeue => bit
         requeue => bit
     );
 
-
     unsafe impl Send for Recover {}
     // Method 111:recover-ok
     method_struct!(RecoverOk, "basic.recover-ok", 60, 111,
 
     );
-
 
     unsafe impl Send for RecoverOk {}
     // Method 120:nack
@@ -1266,16 +902,6 @@ requeue => bit
 multiple => bit,
 requeue => bit
     );
-
-    impl Nack {
-        pub fn with_default_values(multiple: bool) -> Nack {
-            Nack {
-                delivery_tag: 0,
-                requeue: true,
-                multiple: multiple,
-            }
-        }
-    }
 
     unsafe impl Send for Nack {}
 }
@@ -1294,12 +920,10 @@ pub mod tx {
     use codegen_macros::{ArgumentsReader, ArgumentsWriter};
 
 
-
     // Method 10:select
     method_struct!(Select, "tx.select", 90, 10,
 
     );
-
 
     unsafe impl Send for Select {}
     // Method 11:select-ok
@@ -1307,13 +931,11 @@ pub mod tx {
 
     );
 
-
     unsafe impl Send for SelectOk {}
     // Method 20:commit
     method_struct!(Commit, "tx.commit", 90, 20,
 
     );
-
 
     unsafe impl Send for Commit {}
     // Method 21:commit-ok
@@ -1321,20 +943,17 @@ pub mod tx {
 
     );
 
-
     unsafe impl Send for CommitOk {}
     // Method 30:rollback
     method_struct!(Rollback, "tx.rollback", 90, 30,
 
     );
 
-
     unsafe impl Send for Rollback {}
     // Method 31:rollback-ok
     method_struct!(RollbackOk, "tx.rollback-ok", 90, 31,
 
     );
-
 
     unsafe impl Send for RollbackOk {}
 }
@@ -1353,19 +972,16 @@ pub mod confirm {
     use codegen_macros::{ArgumentsReader, ArgumentsWriter};
 
 
-
     // Method 10:select
     method_struct!(Select, "confirm.select", 85, 10,
         nowait => bit
     );
-
 
     unsafe impl Send for Select {}
     // Method 11:select-ok
     method_struct!(SelectOk, "confirm.select-ok", 85, 11,
 
     );
-
 
     unsafe impl Send for SelectOk {}
 }

@@ -121,7 +121,6 @@ class SpecGenerator
       end
       klass["methods"].each do |method|
         method["method_name"] = camel_name titleize(method["name"])
-        method["method_struct_create"] = method["arguments"].map{|arg| "#{snake_name arg["name"]}: #{snake_name arg["name"]}"}
         method["fields"]= method["arguments"].map do |argument|
           type = argument["domain"] ? map_domain(argument["domain"]) : argument["type"]
           [snake_name(argument["name"]), type]
@@ -129,28 +128,6 @@ class SpecGenerator
       end
     end
   end #modify_spec
-
-  def value_to_rust_value(value)
-    case value
-    when String
-      "\"#{value}\".to_owned()"
-    when Fixnum
-      value
-    when TrueClass, FalseClass
-      value
-    when Hash
-      "Table::new()"
-    else
-      raise "Cant convert value #{value}"
-    end
-  end
-
-  def args_list(properties)
-    properties.map do |prop|
-      rust_type = map_type_to_rust prop["domain"] ? map_domain(prop["domain"]) : prop["type"]
-      "#{snake_name(prop["name"])}: #{rust_type}"
-    end
-  end
 
   def titleize(name)
     name[0].upcase+name[1..-1]

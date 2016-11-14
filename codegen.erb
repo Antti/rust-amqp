@@ -39,7 +39,6 @@ pub mod <%= klass["name"] %> {
     use std::io::{Read, Write};
     use codegen_macros::{ArgumentsReader, ArgumentsWriter};
 
-
 <% if klass["properties"] && klass["properties"].any? -%>
     //properties struct for <%= klass["name"] %>
     #[derive(Debug, Default, Clone)]
@@ -94,21 +93,6 @@ pub mod <%= klass["name"] %> {
     method_struct!(<%=method["method_name"] %>, "<%= klass["name"] %>.<%= method["name"] %>", <%= klass["id"] %>, <%= method["id"] %>,
         <%= method["fields"].map{ |f| "#{f[0]} => #{f[1]}" }.join(",\n") %>
     );
-
-<% if method["arguments"].any? && method["arguments"].count{|arg| arg["default-value"]} > 0 -%>
-    impl <%= method["method_name"] %> {
-        pub fn with_default_values(<%= args_list(method["arguments"].reject{|arg| arg["default-value"]}).join(", ") %>) -> <%= method["method_name"] %> {
-            <%= method["method_name"] %> {
-<% method["arguments"].select{|arg| arg["default-value"]}.each do |arg| -%>
-                <%= snake_name(arg["name"]) %>: <%= value_to_rust_value(arg["default-value"]) %>,
-<% end -%>
-<% method["arguments"].reject{|arg| arg["default-value"]}.each do |arg| -%>
-                <%= snake_name(arg["name"]) %>: <%= snake_name(arg["name"]) %>,
-<% end -%>
-            }
-        }
-    }
-<% end #method["arguments"].any-%>
 
 unsafe impl Send for  <%= method["method_name"] %> {}
 <% end #methods each-%>

@@ -45,7 +45,6 @@ impl <'data> ArgumentsReader<'data> {
 
     pub fn read_longstr(&mut self) -> AMQPResult<String> {
         let size = self.read_long()? as usize;
-        debug!("Reading str of len {}", size);
         let mut buffer: Vec<u8> = vec![0u8; size];
         self.cursor.read(&mut buffer[..])?;
         Ok(String::from_utf8_lossy(&buffer[..]).to_string())
@@ -66,7 +65,7 @@ impl <'data> ArgumentsReader<'data> {
             self.bits = BitVec::from_bytes(&[self.byte]);
         }
         self.current_bit += 1;
-        self.bits.get(8 - (self.current_bit - 1) as usize).ok_or(AMQPError::Protocol("Bitmap is not correct".to_owned()))
+        self.bits.get(7 - (self.current_bit - 1) as usize).ok_or(AMQPError::Protocol("Bitmap is not correct".to_owned()))
     }
 }
 

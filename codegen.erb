@@ -41,51 +41,9 @@ pub mod <%= klass["name"] %> {
 
 <% if klass["properties"] && klass["properties"].any? -%>
     //properties struct for <%= klass["name"] %>
-    #[derive(Debug, Default, Clone)]
-    pub struct <%= klass["properties_struct_name"] %> {
-<% klass["properties_fields"].join(",\n").split("\n").each do |f| -%>
-       <%= f %>
-<% end -%>
-    }
-
-    impl <%= klass["properties_struct_name"] %> {
-        pub fn decode(content_header_frame: ContentHeaderFrame) -> AMQPResult<<%=klass["properties_struct_name"]%>> {
-            let reader = &mut &content_header_frame.properties[..];
-            let properties_flags = BitVec::from_bytes(&[((content_header_frame.properties_flags >> 8) & 0xff) as u8,
-                (content_header_frame.properties_flags & 0xff) as u8]);
-<% klass["properties"].each.with_index do |prop, idx| -%>
-            let <%= prop["prop_name"] %> = match properties_flags.get(<%= idx %>) {
-              Some(flag) if flag => Some(<%=read_type(prop["prop_type"])%>),
-              None => return Err(AMQPError::Protocol("Properties flags are not correct".to_owned())),
-              _ => None
-            };
-<% end -%>
-            Ok(<%=klass["properties_struct_name"]%> { <%= klass["properties_struct_create"].join(", ") %> })
-        }
-
-        pub fn encode(self) -> AMQPResult<Vec<u8>> {
-            let mut writer = vec![];
-<% klass["properties"].each.with_index do |prop, idx| -%>
-              match self.<%= prop["prop_name"] %> {
-                  Some(prop) => {
-                      let <%= prop["prop_name"] %> =  prop;
-                      <%= write_type(prop["prop_name"], prop["prop_type"]) %>
-                  }
-                  None => {}
-              };
-<% end -%>
-            Ok(writer)
-        }
-
-        pub fn flags(&self) -> u16 {
-            let mut bits = BitVec::from_elem(16, false);
-<% klass["properties"].each.with_index do |prop, idx| -%>
-            bits.set(<%= idx %>, self.<%= prop["prop_name"] %>.is_some());
-<% end -%>
-            let flags : u16 = bits.to_bytes()[0] as u16;
-            (flags << 8 | bits.to_bytes()[1] as u16) as u16
-        }
-    }
+    properties_struct!(<%= klass["properties_struct_name"] %>,
+      <%= klass["properties_fields"].map{ |f| "#{f[0]} => #{f[1]}" }.join(",\n") %>
+    );
 <% end -%>
 
 <% klass["methods"].each do |method| -%>

@@ -6,68 +6,6 @@ require 'erb'
 #   str.lines.map{|line| "#{" "*count}#{line.lstrip}" }.join()
 # end
 
-def read_type(type)
-  case type
-  when "octet"
-    "try!(reader.read_u8())"
-  when "long"
-    "try!(reader.read_u32::<BigEndian>())"
-  when "longlong"
-    "try!(reader.read_u64::<BigEndian>())"
-  when "short"
-    "try!(reader.read_u16::<BigEndian>())"
-  when "bit"
-    raise "Cant read bit here..."
-  when "shortstr"
-    "{
-          let size = try!(reader.read_u8()) as usize;
-          let mut buffer: Vec<u8> = vec![0u8; size];
-          try!(reader.read(&mut buffer[..]));
-          String::from_utf8_lossy(&buffer[..]).to_string()
-     }"
-  when "longstr"
-    "{
-          let size = try!(reader.read_u32::<BigEndian>()) as usize;
-          let mut buffer: Vec<u8> = vec![0u8; size];
-          try!(reader.read(&mut buffer[..]));
-          String::from_utf8_lossy(&buffer[..]).to_string()
-      }"
-  when "table"
-    "try!(decode_table(reader)).0"
-  when "timestamp"
-    "try!(reader.read_u64::<BigEndian>())"
-  else
-    raise "Unknown type: #{type}"
-  end
-end
-
-def write_type(name, type)
-  case type
-  when "octet"
-    "try!(writer.write_u8(#{name}));"
-  when "long"
-    "try!(writer.write_u32::<BigEndian>(#{name}));"
-  when "longlong"
-    "try!(writer.write_u64::<BigEndian>(#{name}));"
-  when "short"
-    "try!(writer.write_u16::<BigEndian>(#{name}));"
-  when "bit"
-    raise "Cant write bit here..."
-  when "shortstr"
-    "try!(writer.write_u8(#{name}.len() as u8));
-    try!(writer.write_all(#{name}.as_bytes()));"
-  when "longstr"
-    "try!(writer.write_u32::<BigEndian>(#{name}.len() as u32));
-    try!(writer.write_all(#{name}.as_bytes()));"
-  when "table"
-    "try!(encode_table(&mut writer, &#{name}));"
-  when "timestamp"
-    "try!(writer.write_u64::<BigEndian>(#{name}));"
-  else
-    raise "Unknown type: #{type}"
-  end
-end
-
 spec_file = 'amqp-rabbitmq-0.9.1.json'
 SPEC = JSON.load(File.read(spec_file))
 DOMAINS = Hash[SPEC["domains"]]
@@ -106,17 +44,11 @@ class SpecGenerator
   private
   def modify_spec
     @spec["classes"].each do |klass|
-      klass["struct_name"] = titleize(klass["name"])
       if klass["properties"] && klass["properties"].any?
-        klass["properties_struct_name"] = "#{klass["struct_name"]}Properties"
-        klass["properties_fields"] = klass["properties"].map do |prop|
-          rust_type = map_type_to_rust prop["domain"] ? map_domain(prop["domain"]) : prop["type"]
-          "pub #{snake_name prop["name"]}: Option<#{rust_type}>"
-        end
-        klass["properties_struct_create"] = klass["properties"].map{|arg| "#{snake_name arg["name"]}: #{snake_name arg["name"]}"}
-        klass["properties"].each do |prop|
-          prop["prop_name"] = snake_name prop["name"]
-          prop["prop_type"] = prop["domain"] ? map_domain(prop["domain"]) : prop["type"]
+        klass["properties_struct_name"] = "#{titleize(klass["name"])}Properties"
+        klass["properties_fields"] = klass["properties"].map do |argument|
+          type = argument["domain"] ? map_domain(argument["domain"]) : argument["type"]
+          [snake_name(argument["name"]), type]
         end
       end
       klass["methods"].each do |method|
@@ -127,7 +59,7 @@ class SpecGenerator
         end
       end
     end
-  end #modify_spec
+  end
 
   def titleize(name)
     name[0].upcase+name[1..-1]
@@ -143,33 +75,6 @@ class SpecGenerator
 
   def map_domain(domain)
     DOMAINS[domain]
-  end
-
-  def map_type_to_rust(type)
-    case type
-    when "octet"
-      "u8"
-    when "long"
-      "u32"
-    when "longlong"
-      "u64"
-    when "short"
-      "u16"
-    when "bit"
-      'bool'
-    when "shortstr"
-      # 'Vec<u8>'
-      String
-    when "longstr"
-      # 'Vec<u8>'
-      String
-    when "table"
-      "Table"
-    when "timestamp"
-      "u64"
-    else
-      raise "Uknown type: #{type}"
-    end
   end
 end
 

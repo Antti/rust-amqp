@@ -201,7 +201,7 @@ macro_rules! write_type {
 
 macro_rules! method_struct {
     ($method_name:ident, $method_str:expr, $class_id:expr, $method_id:expr, ) => (
-        #[derive(Debug)]
+        #[derive(Debug, PartialEq, Clone)]
         pub struct $method_name;
         impl protocol::Method for $method_name {
             fn decode(_method_frame: MethodFrame) -> AMQPResult<Self> where Self: Sized {
@@ -226,7 +226,7 @@ macro_rules! method_struct {
         }
     );
     ($method_name:ident, $method_str:expr, $class_id:expr, $method_id:expr, $($arg_name:ident => $ty:ident),+) => (
-        #[derive(Debug)]
+        #[derive(Debug, PartialEq)]
         pub struct $method_name {
             $(pub $arg_name: map_type!($ty),)*
         }
@@ -263,7 +263,7 @@ macro_rules! method_struct {
 
 macro_rules! properties_struct {
     ($struct_name:ident, $($arg_name:ident => $ty:ident),+) => (
-        #[derive(Debug, Default, Clone)]
+        #[derive(Debug, Default, PartialEq, Clone)]
         pub struct $struct_name {
             $(pub $arg_name: Option<map_type!($ty)>,)*
         }
@@ -276,7 +276,7 @@ macro_rules! properties_struct {
                 let mut idx = 0;
                 Ok($struct_name {
                     $($arg_name: {
-                        idx = idx +1;
+                        idx = idx + 1;
                         match properties_flags.get(idx - 1) {
                             Some(flag) if flag => Some(read_type!(reader, $ty)?),
                             Some(_) => None,
@@ -319,6 +319,7 @@ mod test {
     use framing::{FrameType, Frame, MethodFrame, ContentHeaderFrame};
     use protocol;
     use super::*;
+    use protocol::Method;
 
     method_struct!(Foo, "test.foo", 1, 2, a => octet, b => shortstr, c => longstr, d => bit, e => bit, f => long);
     method_struct!(FooNoFields, "test.foo_no_fields", 1, 2, );
@@ -326,8 +327,7 @@ mod test {
     properties_struct!(Test, a => octet, b => shortstr, c => longstr, d => bit, e => bit, f => long);
 
     #[test]
-    fn test_foo(){
-        use protocol::Method;
+    fn test_encoding(){
         let f = Foo { a: 1, b: "test".to_string(), c: "bar".to_string(), d: false, e: true, f: 0xDEADBEEF };
         assert_eq!(f.encode().unwrap(), vec![
             1, // 1
@@ -338,5 +338,21 @@ mod test {
             2, // false, true => 0b00000010
             0xDE, 0xAD, 0xBE, 0xEF, // 0xDEADBEEF
         ]);
+    }
+
+    #[test]
+    fn test_decoding(){
+        use protocol::Method;
+        let f = Foo { a: 1, b: "test".to_string(), c: "bar".to_string(), d: false, e: true, f: 0xDEADBEEF };
+        let frame = MethodFrame { class_id: 1, method_id: 2, arguments: vec![
+            1, // 1
+            4, // "test".len()
+            116, 101, 115, 116, // "test"
+            0, 0, 0, 3, // "bar".len()
+            98, 97, 114, // "bar"
+            2, // false, true => 0b00000010
+            0xDE, 0xAD, 0xBE, 0xEF, // 0xDEADBEEF
+        ] };
+        assert_eq!(Foo::decode(frame).unwrap(), f);
     }
 }

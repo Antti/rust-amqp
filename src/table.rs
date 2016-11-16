@@ -3,7 +3,7 @@ use amqp_error::{AMQPError, AMQPResult};
 use std::io::{Read, Write};
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum TableEntry {
     Bool(bool),
     ShortShortInt(i8),

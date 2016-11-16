@@ -1,11 +1,9 @@
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use bit_vec::BitVec;
-use std::io::{self, Cursor, Read, Write};
+use std::io::{Cursor, Read, Write};
 
 use table::{Table, decode_table, encode_table};
 use amqp_error::{AMQPError, AMQPResult};
-use framing::{FrameType, Frame, MethodFrame, ContentHeaderFrame};
-use method;
 
 #[derive(Debug)]
 pub struct ArgumentsReader<'data> {
@@ -310,13 +308,9 @@ macro_rules! properties_struct {
 
 #[cfg(test)]
 mod test {
-    use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
     use bit_vec::BitVec;
-    use std::io::{self, Cursor, Read, Write};
-
-    use table::{Table, decode_table, encode_table};
     use amqp_error::{AMQPError, AMQPResult};
-    use framing::{FrameType, Frame, MethodFrame, ContentHeaderFrame};
+    use framing::{MethodFrame, ContentHeaderFrame};
     use super::*;
     use method::{self, Method};
 

@@ -6,9 +6,7 @@
 #[allow(missing_copy_implementations)]
 pub mod <%= klass["name"] %> {
     use bit_vec::BitVec;
-    use table;
     use table::{Table, decode_table, encode_table};
-    use protocol;
     use framing::{ContentHeaderFrame, MethodFrame};
     use amqp_error::{AMQPResult, AMQPError};
     use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};

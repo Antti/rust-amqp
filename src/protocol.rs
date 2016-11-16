@@ -6,9 +6,7 @@
 #[allow(missing_copy_implementations)]
 pub mod connection {
     use bit_vec::BitVec;
-    use table;
     use table::{Table, decode_table, encode_table};
-    use protocol;
     use framing::{ContentHeaderFrame, MethodFrame};
     use amqp_error::{AMQPResult, AMQPError};
     use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
@@ -111,9 +109,7 @@ method_id => short
 #[allow(missing_copy_implementations)]
 pub mod channel {
     use bit_vec::BitVec;
-    use table;
     use table::{Table, decode_table, encode_table};
-    use protocol;
     use framing::{ContentHeaderFrame, MethodFrame};
     use amqp_error::{AMQPResult, AMQPError};
     use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
@@ -167,9 +163,7 @@ method_id => short
 #[allow(missing_copy_implementations)]
 pub mod access {
     use bit_vec::BitVec;
-    use table;
     use table::{Table, decode_table, encode_table};
-    use protocol;
     use framing::{ContentHeaderFrame, MethodFrame};
     use amqp_error::{AMQPResult, AMQPError};
     use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
@@ -201,9 +195,7 @@ read => bit
 #[allow(missing_copy_implementations)]
 pub mod exchange {
     use bit_vec::BitVec;
-    use table;
     use table::{Table, decode_table, encode_table};
-    use protocol;
     use framing::{ContentHeaderFrame, MethodFrame};
     use amqp_error::{AMQPResult, AMQPError};
     use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
@@ -287,9 +279,7 @@ arguments => table
 #[allow(missing_copy_implementations)]
 pub mod queue {
     use bit_vec::BitVec;
-    use table;
     use table::{Table, decode_table, encode_table};
-    use protocol;
     use framing::{ContentHeaderFrame, MethodFrame};
     use amqp_error::{AMQPResult, AMQPError};
     use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
@@ -388,9 +378,7 @@ arguments => table
 #[allow(missing_copy_implementations)]
 pub mod basic {
     use bit_vec::BitVec;
-    use table;
     use table::{Table, decode_table, encode_table};
-    use protocol;
     use framing::{ContentHeaderFrame, MethodFrame};
     use amqp_error::{AMQPResult, AMQPError};
     use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
@@ -561,9 +549,7 @@ requeue => bit
 #[allow(missing_copy_implementations)]
 pub mod tx {
     use bit_vec::BitVec;
-    use table;
     use table::{Table, decode_table, encode_table};
-    use protocol;
     use framing::{ContentHeaderFrame, MethodFrame};
     use amqp_error::{AMQPResult, AMQPError};
     use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
@@ -614,9 +600,7 @@ pub mod tx {
 #[allow(missing_copy_implementations)]
 pub mod confirm {
     use bit_vec::BitVec;
-    use table;
     use table::{Table, decode_table, encode_table};
-    use protocol;
     use framing::{ContentHeaderFrame, MethodFrame};
     use amqp_error::{AMQPResult, AMQPError};
     use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};

@@ -5,7 +5,7 @@ use std::io::{self, Cursor, Read, Write};
 use table::{Table, decode_table, encode_table};
 use amqp_error::{AMQPError, AMQPResult};
 use framing::{FrameType, Frame, MethodFrame, ContentHeaderFrame};
-use protocol;
+use method;
 
 #[derive(Debug)]
 pub struct ArgumentsReader<'data> {
@@ -203,7 +203,7 @@ macro_rules! method_struct {
     ($method_name:ident, $method_str:expr, $class_id:expr, $method_id:expr, ) => (
         #[derive(Debug, PartialEq, Clone)]
         pub struct $method_name;
-        impl protocol::Method for $method_name {
+        impl method::Method for $method_name {
             fn decode(_method_frame: MethodFrame) -> AMQPResult<Self> where Self: Sized {
                 Ok($method_name)
             }
@@ -231,7 +231,7 @@ macro_rules! method_struct {
             $(pub $arg_name: map_type!($ty),)*
         }
 
-        impl protocol::Method for $method_name {
+        impl method::Method for $method_name {
             fn decode(method_frame: MethodFrame) -> AMQPResult<Self> where Self: Sized {
                 debug!("Decoding {}", $method_str);
                 let mut reader = ArgumentsReader::new(&method_frame.arguments);
@@ -317,9 +317,8 @@ mod test {
     use table::{Table, decode_table, encode_table};
     use amqp_error::{AMQPError, AMQPResult};
     use framing::{FrameType, Frame, MethodFrame, ContentHeaderFrame};
-    use protocol;
     use super::*;
-    use protocol::Method;
+    use method::{self, Method};
 
     method_struct!(Foo, "test.foo", 1, 2, a => octet, b => shortstr, c => longstr, d => bit, e => bit, f => long);
     method_struct!(FooNoFields, "test.foo_no_fields", 1, 2, );
@@ -342,7 +341,6 @@ mod test {
 
     #[test]
     fn test_decoding(){
-        use protocol::Method;
         let f = Foo { a: 1, b: "test".to_string(), c: "bar".to_string(), d: false, e: true, f: 0xDEADBEEF };
         let frame = MethodFrame { class_id: 1, method_id: 2, arguments: vec![
             1, // 1

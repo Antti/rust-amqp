@@ -4,6 +4,7 @@ use protocol;
 use table::Table;
 use table::TableEntry::{FieldTable, Bool, LongString};
 use framing::{Frame, MethodFrame};
+use method;
 
 use amqp_error::{AMQPResult, AMQPError};
 use super::VERSION;
@@ -116,7 +117,7 @@ impl Session {
         let frame = try!(self.channel_zero.read()); //Start
         let method_frame = try!(MethodFrame::decode(&frame));
         let start: protocol::connection::Start = match method_frame.method_name() {
-            "connection.start" => try!(protocol::Method::decode(method_frame)),
+            "connection.start" => try!(method::Method::decode(method_frame)),
             meth => return Err(AMQPError::Protocol(format!("Unexpected method frame: {:?}", meth))),
         };
         debug!("Received connection.start: {:?}", start);
@@ -154,10 +155,10 @@ impl Session {
         };
         let response = try!(self.channel_zero.raw_rpc(&start_ok));
         let tune: protocol::connection::Tune = match response.method_name() {
-            "connection.tune" => try!(protocol::Method::decode(response)),
+            "connection.tune" => try!(method::Method::decode(response)),
             "connection.close" => {
                 let close_frame: protocol::connection::Close =
-                    try!(protocol::Method::decode(response));
+                    try!(method::Method::decode(response));
                 return Err(AMQPError::Protocol(format!("Connection was closed: {:?}",
                                                        close_frame)));
             }

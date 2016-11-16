@@ -1,10 +1,11 @@
 use channel::Channel;
 use channel::Consumer;
 use table::Table;
-use protocol::{basic, Method};
+use protocol::basic;
 use protocol::basic::{BasicProperties, GetOk, QosOk, CancelOk};
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
 use amqp_error::{AMQPResult, AMQPError};
+use method::Method;
 
 pub enum AckAction {
     Ack(u64),

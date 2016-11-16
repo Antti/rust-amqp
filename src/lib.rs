@@ -101,6 +101,7 @@ mod session;
 mod basic;
 mod amqp_error;
 mod table;
+mod method;
 #[macro_use] mod codegen_macros;
 
 pub const VERSION: &'static str = env!("CARGO_PKG_VERSION");

@@ -15,7 +15,7 @@ pub mod <%= klass["name"] %> {
     use method;
 
 <% if klass["properties"] && klass["properties"].any? -%>
-    //properties struct for <%= klass["name"] %>
+    // properties struct for <%= klass["name"] %>
     properties_struct!(<%= klass["properties_struct_name"] %>,
       <%= klass["properties_fields"].map{ |f| "#{f[0]} => #{f[1]}" }.join(",\n") %>
     );
@@ -23,7 +23,7 @@ pub mod <%= klass["name"] %> {
 
 <% klass["methods"].each do |method| -%>
     // Method <%= method["id"] %>:<%=method["name"] %>
-    method_struct!(<%=method["method_name"] %>, "<%= klass["name"] %>.<%= method["name"] %>", <%= klass["id"] %>, <%= method["id"] %>,
+    method_struct!(<%= method["method_name"] %>, "<%= klass["name"] %>.<%= method["name"] %>", <%= klass["id"] %>, <%= method["id"] %>,
         <%= method["fields"].map{ |f| "#{f[0]} => #{f[1]}" }.join(",\n") %>
     );
 

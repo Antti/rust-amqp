@@ -36,7 +36,6 @@ class SpecGenerator
     end
   end
 
-
   def get_binding
     binding
   end
@@ -47,34 +46,33 @@ class SpecGenerator
       if klass["properties"] && klass["properties"].any?
         klass["properties_struct_name"] = "#{titleize(klass["name"])}Properties"
         klass["properties_fields"] = klass["properties"].map do |argument|
-          type = argument["domain"] ? map_domain(argument["domain"]) : argument["type"]
-          [snake_name(argument["name"]), type]
+          [snake_name(argument["name"]), argument_type(argument)]
         end
       end
       klass["methods"].each do |method|
         method["method_name"] = camel_name titleize(method["name"])
         method["fields"]= method["arguments"].map do |argument|
-          type = argument["domain"] ? map_domain(argument["domain"]) : argument["type"]
-          [snake_name(argument["name"]), type]
+          [snake_name(argument["name"]), argument_type(argument)]
         end
       end
     end
   end
 
+  def argument_type(argument)
+    argument["domain"] ? DOMAINS[argument["domain"]] : argument["type"]
+  end
+
   def titleize(name)
-    name[0].upcase+name[1..-1]
+    "#{name[0].upcase}#{name[1..-1]}"
   end
 
   def snake_name(name)
     name.tr("-","_").gsub(/^type$/, "_type")
   end
 
+  # foo-bar => fooBar
   def camel_name(klass)
     klass.gsub(/(\-.)/){|c| c[1].upcase}
-  end
-
-  def map_domain(domain)
-    DOMAINS[domain]
   end
 end
 

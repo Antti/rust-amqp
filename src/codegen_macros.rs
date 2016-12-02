@@ -232,6 +232,10 @@ macro_rules! method_struct {
         impl method::Method for $method_name {
             fn decode(method_frame: MethodFrame) -> AMQPResult<Self> where Self: Sized {
                 debug!("Decoding {}", $method_str);
+                match (method_frame.class_id, method_frame.method_id) {
+                    ($class_id, $method_id) => {},
+                    _ => return Err(AMQPError::DecodeError("Unexpected method method class and id"))
+                }
                 let mut reader = ArgumentsReader::new(&method_frame.arguments);
                 Ok($method_name {
                     $($arg_name: read_type!(reader, $ty)?,)*
@@ -346,5 +350,20 @@ mod test {
             0xDE, 0xAD, 0xBE, 0xEF, // 0xDEADBEEF
         ] };
         assert_eq!(Foo::decode(frame).unwrap(), f);
+    }
+
+    #[test]
+    fn test_decoding_wrong_ids(){
+        let f = Foo { a: 1, b: "test".to_string(), c: "bar".to_string(), d: false, e: true, f: 0xDEADBEEF };
+        let frame = MethodFrame { class_id: 42, method_id: 55, arguments: vec![
+            1, // 1
+            4, // "test".len()
+            116, 101, 115, 116, // "test"
+            0, 0, 0, 3, // "bar".len()
+            98, 97, 114, // "bar"
+            2, // false, true => 0b00000010
+            0xDE, 0xAD, 0xBE, 0xEF, // 0xDEADBEEF
+        ] };
+        assert_eq!(Foo::decode(frame).is_err(), true);
     }
 }

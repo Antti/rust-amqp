@@ -1,5 +1,6 @@
 use amqp_error::{AMQPResult, AMQPError};
 use std::sync::mpsc::Receiver;
+use std::sync::{Arc, Mutex};
 
 use framing::{MethodFrame, ContentHeaderFrame, Frame, FrameType};
 use table::Table;
@@ -54,13 +55,13 @@ pub struct Channel {
     pub id: u16,
     consumers: Rc<RefCell<HashMap<String, Box<Consumer>>>>,
     receiver: Receiver<AMQPResult<Frame>>,
-    connection: Connection,
+    connection: Arc<Mutex<Connection>>,
 }
 
 unsafe impl Send for Channel {}
 
 impl Channel {
-    pub fn new(id: u16, receiver: Receiver<AMQPResult<Frame>>, connection: Connection) -> Channel {
+    pub fn new(id: u16, receiver: Receiver<AMQPResult<Frame>>, connection: Arc<Mutex<Connection>>) -> Channel {
         Channel {
             id: id,
             receiver: receiver,
@@ -99,7 +100,7 @@ impl Channel {
     }
 
     pub fn write(&mut self, frame: Frame) -> AMQPResult<()> {
-        self.connection.write(frame)
+        try!(self.connection.lock()).write(frame)
     }
 
     pub fn send_method_frame<T>(&mut self, method: &T) -> AMQPResult<()>
@@ -238,10 +239,6 @@ impl Channel {
             arguments: arguments,
         };
         self.rpc(&bind, "queue.bind-ok")
-    }
-
-    pub fn set_frame_max_limit(&mut self, size: u32) {
-        self.connection.frame_max_limit = size;
     }
 
     // Will run the infinite loop, which will receive frames on the given channel &

@@ -60,7 +60,7 @@ impl Default for Options {
 }
 
 pub struct Session {
-    connection: Connection,
+    connection: Arc<Mutex<Connection>>,
     channels: Arc<Mutex<HashMap<u16, SyncSender<AMQPResult<Frame>>>>>,
     channel_max_limit: u16,
     channel_zero: channel::Channel,
@@ -93,7 +93,7 @@ impl Session {
     /// };
     /// ```
     pub fn new(options: Options) -> AMQPResult<Session> {
-        let connection = try!(get_connection(&options));
+        let connection = Arc::new(Mutex::new(try!(get_connection(&options))));
         let channels = Arc::new(Mutex::new(HashMap::new()));
         let (channel_zero_sender, channel_receiver) = sync_channel(CHANNEL_BUFFER_SIZE); //channel0
         let channel_zero = channel::Channel::new(0, channel_receiver, connection.clone());
@@ -168,9 +168,8 @@ impl Session {
         debug!("Received tune request: {:?}", tune);
 
         self.channel_max_limit = negotiate(tune.channel_max, self.channel_max_limit);
-        self.connection.frame_max_limit = negotiate(tune.frame_max, options.frame_max_limit);
-        self.channel_zero.set_frame_max_limit(self.connection.frame_max_limit);
-        let frame_max_limit = self.connection.frame_max_limit;
+        let frame_max_limit = negotiate(tune.frame_max, options.frame_max_limit);
+        try!(self.connection.lock()).frame_max_limit = frame_max_limit;
         let tune_ok = protocol::connection::TuneOk {
             channel_max: self.channel_max_limit,
             frame_max: frame_max_limit,
@@ -243,12 +242,12 @@ impl Session {
 
     // Receives and dispatches frames from the connection to the corresponding
     // channels.
-    fn reading_loop(mut connection: Connection,
+    fn reading_loop(connection: Arc<Mutex<Connection>>,
                     channels: Arc<Mutex<HashMap<u16, SyncSender<AMQPResult<Frame>>>>>)
-                    -> () {
+                    -> AMQPResult<()> {
         debug!("Starting reading loop");
         loop {
-            match connection.read() {
+            match try!(connection.lock()).read() {
                 Ok(frame) => {
                     // TODO: If channel 0 -> send to channel_zero_handler
                     // If channel != 0 and FrameType == METHOD and method class =='connection',
@@ -280,6 +279,7 @@ impl Session {
             }
         }
         debug!("Exiting reading loop");
+        Ok(())
     }
 }
 

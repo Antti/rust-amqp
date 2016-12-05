@@ -49,7 +49,7 @@ impl From<io::Error> for AMQPError {
 }
 
 impl <T> From<::std::sync::PoisonError<T>> for AMQPError {
-    fn from(err: ::std::sync::PoisonError<T>) -> AMQPError {
+    fn from(_err: ::std::sync::PoisonError<T>) -> AMQPError {
         AMQPError::SyncError
     }
 }
@@ -61,8 +61,15 @@ impl From<url::ParseError> for AMQPError {
 }
 
 #[cfg(feature = "tls")]
-impl From<openssl::ssl::error::SslError> for AMQPError {
-    fn from(err: openssl::ssl::error::SslError) -> AMQPError {
-        AMQPError::Protocol(format!("{}", err))
+impl From<openssl::error::ErrorStack> for AMQPError {
+    fn from(err: openssl::error::ErrorStack) -> AMQPError {
+        AMQPError::Protocol(format!("TLS Error: {:?}", err))
+    }
+}
+
+#[cfg(feature = "tls")]
+impl <T>From<openssl::ssl::HandshakeError<T>> for AMQPError where T: ::std::fmt::Debug {
+    fn from(err: openssl::ssl::HandshakeError<T>) -> AMQPError {
+        AMQPError::Protocol(format!("TLS Handshake Error: {:?}", err))
     }
 }

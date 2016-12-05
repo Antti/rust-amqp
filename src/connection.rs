@@ -2,8 +2,10 @@ use std::net::TcpStream;
 use std::io::Write;
 use std::cmp;
 
+
+// use openssl::ssl::{SslContext, SslMethod, SslStream};
 #[cfg(feature = "tls")]
-use openssl::ssl::{SslContext, SslMethod, SslStream};
+use openssl::ssl::{SslStream, SslMethod, SslConnectorBuilder};
 
 use amqp_error::AMQPResult;
 use framing::{Frame, FrameType};
@@ -19,32 +21,13 @@ pub struct Connection {
     pub frame_max_limit: u32,
 }
 
-impl Clone for Connection {
-    fn clone(&self) -> Connection {
-        match self.socket {
-            AMQPStream::Cleartext(ref stream) => {
-                Connection {
-                    socket: AMQPStream::Cleartext(stream.try_clone().unwrap()),
-                    frame_max_limit: self.frame_max_limit,
-                }
-            }
-            #[cfg(feature = "tls")]
-            AMQPStream::Tls(ref stream) => {
-                Connection {
-                    socket: AMQPStream::Tls(stream.try_clone().unwrap()),
-                    frame_max_limit: self.frame_max_limit,
-                }
-            }
-        }
-    }
-}
-
 impl Connection {
     #[cfg(feature = "tls")]
     pub fn open_tls(host: &str, port: u16) -> AMQPResult<Connection> {
+        let connector = try!(SslConnectorBuilder::new(SslMethod::tls())).build();
+
         let socket = try!(TcpStream::connect((host, port)));
-        let ctx = try!(SslContext::new(SslMethod::Sslv23));
-        let mut tls_socket = try!(SslStream::connect(&ctx, socket));
+        let mut tls_socket = try!(connector.connect("foo", socket));
         try!(init_connection(&mut tls_socket));
         Ok(Connection {
             socket: AMQPStream::Tls(tls_socket),

@@ -27,9 +27,8 @@ log = "0.3"
 url = "1.2"
 
 [dependencies.openssl]
-version = "0.7.*"
+version = "0.9.*"
 optional = true
-features = ["tlsv1_1", "tlsv1_2"]
 
 [dev-dependencies]
 # clippy  = "*"

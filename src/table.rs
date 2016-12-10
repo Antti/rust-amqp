@@ -39,7 +39,7 @@ impl Init for Table {
 
 fn read_table_entry(reader: &mut &[u8]) -> AMQPResult<TableEntry> {
     let entry = match try!(reader.read_u8()) {
-        b't' => TableEntry::Bool(!try!(reader.read_u8()) == 0),
+        b't' => TableEntry::Bool(try!(reader.read_u8()) != 0),
         b'b' => TableEntry::ShortShortInt(try!(reader.read_i8())),
         b'B' => TableEntry::ShortShortUint(try!(reader.read_u8())),
         b'U' => TableEntry::ShortInt(try!(reader.read_i16::<BigEndian>())),

@@ -3,7 +3,7 @@ use amqp_error::{AMQPError, AMQPResult};
 use std::io::{Read, Write};
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum TableEntry {
     Bool(bool),
     ShortShortInt(i8),
@@ -37,22 +37,22 @@ impl Init for Table {
     }
 }
 
-fn read_table_entry(reader: &mut &[u8]) -> AMQPResult<TableEntry> {
-    let entry = match try!(reader.read_u8()) {
-        b't' => TableEntry::Bool(try!(reader.read_u8()) != 0),
-        b'b' => TableEntry::ShortShortInt(try!(reader.read_i8())),
-        b'B' => TableEntry::ShortShortUint(try!(reader.read_u8())),
-        b'U' => TableEntry::ShortInt(try!(reader.read_i16::<BigEndian>())),
-        b'u' => TableEntry::ShortUint(try!(reader.read_u16::<BigEndian>())),
-        b'I' => TableEntry::LongInt(try!(reader.read_i32::<BigEndian>())),
-        b'i' => TableEntry::LongUint(try!(reader.read_u32::<BigEndian>())),
-        b'L' => TableEntry::LongLongInt(try!(reader.read_i64::<BigEndian>())),
-        b'l' => TableEntry::LongLongUint(try!(reader.read_u64::<BigEndian>())),
-        b'f' => TableEntry::Float(try!(reader.read_f32::<BigEndian>())),
-        b'd' => TableEntry::Double(try!(reader.read_f64::<BigEndian>())),
-        b'D' => {
+fn read_table_entry<T>(reader: &mut T) -> AMQPResult<(TableEntry, usize)> where T: Read {
+    let (entry, entry_size) = match try!(reader.read_u8()) {
+        b't' => (TableEntry::Bool(!try!(reader.read_u8()) != 0), 1),
+        b'b' => (TableEntry::ShortShortInt(try!(reader.read_i8())), 1),
+        b'B' => (TableEntry::ShortShortUint(try!(reader.read_u8())), 1),
+        b'U' => (TableEntry::ShortInt(try!(reader.read_i16::<BigEndian>())), 2),
+        b'u' => (TableEntry::ShortUint(try!(reader.read_u16::<BigEndian>())), 2),
+        b'I' => (TableEntry::LongInt(try!(reader.read_i32::<BigEndian>())), 4),
+        b'i' => (TableEntry::LongUint(try!(reader.read_u32::<BigEndian>())), 4),
+        b'L' => (TableEntry::LongLongInt(try!(reader.read_i64::<BigEndian>())), 8),
+        b'l' => (TableEntry::LongLongUint(try!(reader.read_u64::<BigEndian>())), 8),
+        b'f' => (TableEntry::Float(try!(reader.read_f32::<BigEndian>())), 4),
+        b'd' => (TableEntry::Double(try!(reader.read_f64::<BigEndian>())), 8),
+        b'D' => ({
             TableEntry::DecimalValue(try!(reader.read_u8()), try!(reader.read_u32::<BigEndian>()))
-        }
+        }, 5),
         // b's' => {
         //  let size = try!(reader.read_u8()) as usize;
         // let str =
@@ -63,29 +63,35 @@ fn read_table_entry(reader: &mut &[u8]) -> AMQPResult<TableEntry> {
             let size = try!(reader.read_u32::<BigEndian>()) as usize;
             let mut buffer: Vec<u8> = vec![0u8; size];
             try!(reader.read(&mut buffer[..]));
-            let str = String::from_utf8_lossy(&buffer).to_string();
-            TableEntry::LongString(str)
-        }
+            let string = String::from_utf8_lossy(&buffer).to_string();
+            let entry = TableEntry::LongString(string);
+            (entry, 4 + size)
+        },
         b'A' => {
-            let size = try!(reader.read_u32::<BigEndian>()) as usize;
-            let len_after = reader.len() - size;
-
+            let array_len = try!(reader.read_u32::<BigEndian>()) as usize;
+            let mut read_len = 0;
             let mut arr = Vec::new();
-            while reader.len() > len_after {
-                let entry = try!(read_table_entry(reader));
+            while read_len < array_len {
+                let (entry, entry_len) = try!(read_table_entry(reader));
+                read_len += entry_len;
                 arr.push(entry)
             }
-            TableEntry::FieldArray(arr)
-        }
-        b'T' => TableEntry::Timestamp(try!(reader.read_u64::<BigEndian>())),
-        b'F' => TableEntry::FieldTable(try!(decode_table(reader))),
-        b'V' => TableEntry::Void,
+            let entry = TableEntry::FieldArray(arr);
+            (entry, 4 + array_len)
+        },
+        b'T' => (TableEntry::Timestamp(try!(reader.read_u64::<BigEndian>())), 8),
+        b'F' => {
+            let (table, table_size) = try!(decode_table(reader));
+            let entry = TableEntry::FieldTable(table);
+            (entry, table_size)
+        },
+        b'V' => (TableEntry::Void, 0),
         x => {
             debug!("Unknown type: {}", x);
             return Err(AMQPError::DecodeError("Unknown type"));
         }
     };
-    Ok(entry)
+    Ok((entry, entry_size + 1)) // including entry_type
 }
 
 fn write_table_entry(writer: &mut Vec<u8>, table_entry: &TableEntry) -> AMQPResult<()> {
@@ -171,22 +177,25 @@ fn write_table_entry(writer: &mut Vec<u8>, table_entry: &TableEntry) -> AMQPResu
     Ok(())
 }
 
-pub fn decode_table(reader: &mut &[u8]) -> AMQPResult<Table> {
-    debug!("decoding table");
+pub fn decode_table<T>(reader: &mut T) -> AMQPResult<(Table, usize)> where T: Read {
     let mut table = Table::new();
-    let size = try!(reader.read_u32::<BigEndian>()) as usize;
-    let total_len = reader.len();
+    let table_len = try!(reader.read_u32::<BigEndian>()) as usize;
+    debug!("decoding table, len: {}", table_len);
+    let mut bytes_read = 0;
 
-    while reader.len() > total_len - size {
-        let field_name_size = try!(reader.read_u8()) as usize;
-        let mut field_name: Vec<u8> = vec![0u8; field_name_size];
+    while bytes_read < table_len {
+        let field_name_len = try!(reader.read_u8()) as usize;
+        let mut field_name: Vec<u8> = vec![0u8; field_name_len];
         try!(reader.read(&mut field_name[..]));
-        let table_entry = try!(read_table_entry(reader));
-        debug!("Read table entry: {:?} = {:?}", field_name, table_entry);
-        table.insert(String::from_utf8_lossy(&field_name).to_string(),
-                     table_entry);
+        let (table_entry, table_entry_size) = try!(read_table_entry(reader));
+        let stringified_field_name = String::from_utf8_lossy(&field_name).to_string();
+        debug!("Read table entry: {:?}:{} = {:?}", stringified_field_name, table_entry_size, table_entry);
+        table.insert(stringified_field_name, table_entry);
+        bytes_read += 1 + field_name_len + table_entry_size; // a byte for length of the field_name
+        debug!("bytes_read: {} of {}", bytes_read, table_len);
     }
-    Ok(table)
+    debug!("table decoded, table len: {}, bytes_read: {}", table_len, bytes_read);
+    Ok((table, bytes_read + 4)) // 4 bytes for the table_len
 }
 
 pub fn encode_table<T: Write>(writer: &mut T, table: &Table) -> AMQPResult<()> {

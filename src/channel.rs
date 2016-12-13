@@ -13,7 +13,7 @@ use connection::Connection;
 use std::collections::HashMap;
 use std::cell::RefCell;
 use std::rc::Rc;
-use protocol::Method;
+use method::Method;
 
 pub trait Consumer: Send {
     fn handle_delivery(&mut self,
@@ -103,7 +103,7 @@ impl Channel {
     }
 
     pub fn send_method_frame<T>(&mut self, method: &T) -> AMQPResult<()>
-        where T: protocol::Method
+        where T: Method
     {
         debug!("Sending method {} to channel {}", method.name(), self.id);
         let id = self.id;
@@ -117,12 +117,12 @@ impl Channel {
     // Send method frame, receive method frame, try to return expected method frame
     // or return error.
     pub fn rpc<I, O>(&mut self, method: &I, expected_reply: &str) -> AMQPResult<O>
-        where I: protocol::Method,
-              O: protocol::Method
+        where I: Method,
+              O: Method
     {
         let method_frame = try!(self.raw_rpc(method));
         match method_frame.method_name() {
-            m_name if m_name == expected_reply => protocol::Method::decode(method_frame),
+            m_name if m_name == expected_reply => Method::decode(method_frame),
             m_name => {
                 Err(AMQPError::Protocol(format!("Unexpected method frame: {}, expected: {}",
                                                 m_name,
@@ -133,7 +133,7 @@ impl Channel {
 
     // Send method frame, receive and return method frame.
     pub fn raw_rpc<T>(&mut self, method: &T) -> AMQPResult<MethodFrame>
-        where T: protocol::Method
+        where T: Method
     {
         try!(self.send_method_frame(method));
         MethodFrame::decode(&try!(self.read()))

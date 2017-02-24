@@ -15,6 +15,7 @@ use std::collections::HashMap;
 use std::sync::mpsc::{SyncSender, sync_channel};
 use std::thread;
 use std::cmp;
+use std::sync::atomic::AtomicBool;
 
 
 use url::{Url, percent_encoding};
@@ -65,6 +66,7 @@ pub struct Session {
     channels: Arc<Mutex<HashMap<u16, SyncSender<AMQPResult<Frame>>>>>,
     channel_max_limit: u16,
     channel_zero: channel::Channel,
+    control: Arc<AtomicBool>,
 }
 
 impl Session {
@@ -77,9 +79,9 @@ impl Session {
     /// `"amqp://localhost//"` and it will connect to rabbitmq server,
     /// running on `localhost` on port `5672`,
     /// with login `"guest"`, password: `"guest"` to vhost `"/"`
-    pub fn open_url(url_string: &str) -> AMQPResult<Session> {
+    pub fn open_url(url_string: &str, control: Arc<AtomicBool>) -> AMQPResult<Session> {
         let options = try!(parse_url(url_string));
-        Session::new(options)
+        Session::new(options, control)
     }
 
     /// Initialize new rabbitmq session.
@@ -93,11 +95,11 @@ impl Session {
     ///     Err(error) => panic!("Failed openning an amqp session: {:?}", error)
     /// };
     /// ```
-    pub fn new(options: Options) -> AMQPResult<Session> {
+    pub fn new(options: Options, control: Arc<AtomicBool>) -> AMQPResult<Session> {
         let connection = try!(get_connection(&options));
         let channels = Arc::new(Mutex::new(HashMap::new()));
         let (channel_zero_sender, channel_receiver) = sync_channel(CHANNEL_BUFFER_SIZE); //channel0
-        let channel_zero = channel::Channel::new(0, channel_receiver, connection.clone());
+        let channel_zero = channel::Channel::new(0, channel_receiver, connection.clone(), control.clone());
         try!(channels.lock().map_err(|_| AMQPError::SyncError)).insert(0, channel_zero_sender);
         let con1 = connection.clone();
         let channels_clone = channels.clone();
@@ -107,6 +109,7 @@ impl Session {
             channels: channels,
             channel_max_limit: 65535,
             channel_zero: channel_zero,
+            control: control,
         };
         try!(session.init(options));
         Ok(session)
@@ -217,7 +220,7 @@ impl Session {
     pub fn open_channel(&mut self, channel_id: u16) -> AMQPResult<channel::Channel> {
         debug!("Openning channel: {}", channel_id);
         let (sender, receiver) = sync_channel(CHANNEL_BUFFER_SIZE);
-        let mut channel = channel::Channel::new(channel_id, receiver, self.connection.clone());
+        let mut channel = channel::Channel::new(channel_id, receiver, self.connection.clone(), self.control.clone());
         try!(self.channels.lock().map_err(|_| AMQPError::SyncError)).insert(channel_id, sender);
         try!(channel.open());
         Ok(channel)
@@ -236,10 +239,9 @@ impl Session {
             class_id: 0,
             method_id: 0,
         };
-        let _: protocol::connection::CloseOk = self.channel_zero
+        let _: Option<protocol::connection::CloseOk> = self.channel_zero
             .rpc(&close, "connection.close-ok")
-            .ok()
-            .unwrap();
+            .ok();
     }
 
     // Receives and dispatches frames from the connection to the corresponding

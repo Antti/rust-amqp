@@ -1,5 +1,6 @@
 use amqp_error::{AMQPResult, AMQPError};
 use std::sync::mpsc::Receiver;
+use std::thread;
 
 use framing::{MethodFrame, ContentHeaderFrame, Frame, FrameType};
 use table::Table;
@@ -13,7 +14,10 @@ use connection::Connection;
 use std::collections::HashMap;
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::time::Duration;
 use method::Method;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 pub trait Consumer: Send {
     fn handle_delivery(&mut self,
@@ -55,17 +59,19 @@ pub struct Channel {
     consumers: Rc<RefCell<HashMap<String, Box<Consumer>>>>,
     receiver: Receiver<AMQPResult<Frame>>,
     connection: Connection,
+    control: Arc<AtomicBool>
 }
 
 unsafe impl Send for Channel {}
 
 impl Channel {
-    pub fn new(id: u16, receiver: Receiver<AMQPResult<Frame>>, connection: Connection) -> Channel {
+    pub fn new(id: u16, receiver: Receiver<AMQPResult<Frame>>, connection: Connection, control: Arc<AtomicBool>) -> Channel {
         Channel {
             id: id,
             receiver: receiver,
             consumers: Rc::new(RefCell::new(HashMap::new())),
             connection: connection,
+            control: control,
         }
     }
 
@@ -88,14 +94,25 @@ impl Channel {
     /// Will block until it reads a frame, other than `basic.deliver`.
     pub fn read(&mut self) -> AMQPResult<Frame> {
         let mut unprocessed_frame = None;
-        while unprocessed_frame.is_none() {
-            let frame = try!(self.receiver
-                .recv()
-                .map_err(|_| AMQPError::Protocol("Error reading packet from channel".to_owned()))
-                .and_then(|frame| frame));
-            unprocessed_frame = try!(self.try_consume(frame));
+
+        while self.control.load(Ordering::Relaxed) && unprocessed_frame.is_none() {
+            match self.receiver.try_recv() {
+                Ok(Ok(frame)) => {
+                    unprocessed_frame = try!(self.try_consume(frame));
+                },
+                Ok(Err(e)) => {
+                    return Err(AMQPError::Protocol("Error reading packet from channel".to_owned()));
+                },
+                Err(_) => {
+                    thread::park_timeout(Duration::from_millis(100));
+                },
+            };
         }
-        Ok(unprocessed_frame.unwrap())
+
+        match unprocessed_frame {
+            Some(frame) => Ok(frame),
+            None => Err(AMQPError::Protocol("Exiting...".to_owned()))
+        }
     }
 
     pub fn write(&mut self, frame: Frame) -> AMQPResult<()> {
@@ -247,7 +264,7 @@ impl Channel {
     // Will run the infinite loop, which will receive frames on the given channel &
     // call consumers.
     pub fn start_consuming(&mut self) {
-        loop {
+        while self.control.load(Ordering::Relaxed) {
             if let Err(err) = self.read() {
                 error!("Error consuming {:?}", err);
                 return;

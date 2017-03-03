@@ -6,7 +6,7 @@ use std::cmp;
 use openssl::ssl::{SslContext, SslMethod, SslStream};
 
 use amqp_error::AMQPResult;
-use framing::{Frame, FrameType};
+use framing::{Frame, FrameType, FramePayload};
 
 enum AMQPStream {
     Cleartext(TcpStream),
@@ -67,13 +67,15 @@ impl Connection {
             FrameType::BODY => {
                 // TODO: Check if need to include frame header + end octet into calculation. (9
                 // bytes extra)
-                for content_frame in split_content_into_frames(frame.payload,
+                let frame_type = frame.frame_type;
+                let channel = frame.channel;
+                for content_frame in split_content_into_frames(frame.payload.into_inner(),
                                                                self.frame_max_limit)
                     .into_iter() {
                     try!(self.write_frame(Frame {
-                        frame_type: frame.frame_type,
-                        channel: frame.channel,
-                        payload: content_frame,
+                        frame_type: frame_type,
+                        channel: channel,
+                        payload: FramePayload::new(content_frame),
                     }))
                 }
                 Ok(())

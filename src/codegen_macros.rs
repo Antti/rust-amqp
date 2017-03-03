@@ -206,8 +206,8 @@ macro_rules! method_struct {
                 Ok($method_name)
             }
 
-            fn encode(&self) -> AMQPResult<Vec<u8>> {
-                Ok(vec![])
+            fn encode(&self) -> AMQPResult<method::EncodedMethod> {
+                Ok(method::EncodedMethod::new(vec![]))
             }
 
             fn name(&self) -> &'static str {
@@ -236,16 +236,17 @@ macro_rules! method_struct {
                     ($class_id, $method_id) => {},
                     _ => return Err(AMQPError::DecodeError("Unexpected method method class and id"))
                 }
-                let mut reader = ArgumentsReader::new(&method_frame.arguments);
+                let data = method_frame.arguments.into_inner();
+                let mut reader = ArgumentsReader::new(&data);
                 Ok($method_name {
                     $($arg_name: read_type!(reader, $ty)?,)*
                 })
             }
 
-            fn encode(&self) -> AMQPResult<Vec<u8>> {
+            fn encode(&self) -> AMQPResult<method::EncodedMethod> {
                 let mut writer = ArgumentsWriter::new();
                 $(write_type!(writer, $ty, &self.$arg_name)?;)*
-                Ok(writer.as_bytes())
+                Ok(method::EncodedMethod::new(writer.as_bytes()))
             }
 
             fn name(&self) -> &'static str {
@@ -272,7 +273,7 @@ macro_rules! properties_struct {
 
         impl $struct_name {
             pub fn decode(content_header_frame: ContentHeaderFrame) -> AMQPResult<$struct_name> {
-                let mut reader = ArgumentsReader::new(&content_header_frame.properties);
+                let mut reader = ArgumentsReader::new(content_header_frame.properties.inner());
                 let properties_flags = BitVec::from_bytes(&[((content_header_frame.properties_flags >> 8) & 0xff) as u8,
                     (content_header_frame.properties_flags & 0xff) as u8]);
                 let mut idx = 0;
@@ -316,7 +317,7 @@ mod test {
     use amqp_error::{AMQPError, AMQPResult};
     use framing::{MethodFrame, ContentHeaderFrame};
     use super::*;
-    use method::{self, Method};
+    use method::{self, Method, EncodedMethod};
 
     method_struct!(Foo, "test.foo", 1, 2, a => octet, b => shortstr, c => longstr, d => bit, e => bit, f => long);
     method_struct!(FooNoFields, "test.foo_no_fields", 1, 2, );
@@ -326,7 +327,7 @@ mod test {
     #[test]
     fn test_encoding(){
         let f = Foo { a: 1, b: "test".to_string(), c: "bar".to_string(), d: false, e: true, f: 0xDEADBEEF };
-        assert_eq!(f.encode().unwrap(), vec![
+        assert_eq!(f.encode().unwrap().into_inner(), vec![
             1, // 1
             4, // "test".len()
             116, 101, 115, 116, // "test"
@@ -340,7 +341,7 @@ mod test {
     #[test]
     fn test_decoding(){
         let f = Foo { a: 1, b: "test".to_string(), c: "bar".to_string(), d: false, e: true, f: 0xDEADBEEF };
-        let frame = MethodFrame { class_id: 1, method_id: 2, arguments: vec![
+        let frame = MethodFrame { class_id: 1, method_id: 2, arguments: EncodedMethod::new(vec![
             1, // 1
             4, // "test".len()
             116, 101, 115, 116, // "test"
@@ -348,14 +349,14 @@ mod test {
             98, 97, 114, // "bar"
             2, // false, true => 0b00000010
             0xDE, 0xAD, 0xBE, 0xEF, // 0xDEADBEEF
-        ] };
+        ]) };
         assert_eq!(Foo::decode(frame).unwrap(), f);
     }
 
     #[test]
     fn test_decoding_wrong_ids(){
         let f = Foo { a: 1, b: "test".to_string(), c: "bar".to_string(), d: false, e: true, f: 0xDEADBEEF };
-        let frame = MethodFrame { class_id: 42, method_id: 55, arguments: vec![
+        let frame = MethodFrame { class_id: 42, method_id: 55, arguments: EncodedMethod::new(vec![
             1, // 1
             4, // "test".len()
             116, 101, 115, 116, // "test"
@@ -363,7 +364,7 @@ mod test {
             98, 97, 114, // "bar"
             2, // false, true => 0b00000010
             0xDE, 0xAD, 0xBE, 0xEF, // 0xDEADBEEF
-        ] };
+        ]) };
         assert_eq!(Foo::decode(frame).is_err(), true);
     }
 }

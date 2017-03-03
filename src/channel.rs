@@ -1,7 +1,7 @@
 use amqp_error::{AMQPResult, AMQPError};
 use std::sync::mpsc::Receiver;
 
-use framing::{MethodFrame, ContentHeaderFrame, Frame, FrameType};
+use framing::{MethodFrame, ContentHeaderFrame, Frame, FramePayload, FrameType, EncodedProperties};
 use table::Table;
 use protocol;
 use basic::{Basic, GetIterator};
@@ -107,11 +107,7 @@ impl Channel {
     {
         debug!("Sending method {} to channel {}", method.name(), self.id);
         let id = self.id;
-        self.write(Frame {
-            frame_type: FrameType::METHOD,
-            channel: id,
-            payload: try!(method.encode_method_frame()),
-        })
+        self.write(method.to_frame(id)?)
     }
 
     // Send method frame, receive method frame, try to return expected method frame
@@ -146,7 +142,7 @@ impl Channel {
     pub fn read_body(&mut self, size: u64) -> AMQPResult<Vec<u8>> {
         let mut body = Vec::with_capacity(size as usize);
         while body.len() < size as usize {
-            body.extend(try!(self.read()).payload.into_iter())
+            body.extend(try!(self.read()).payload.into_inner().into_iter())
         }
         Ok(body)
     }
@@ -369,17 +365,17 @@ impl<'a> Basic<'a> for Channel {
             weight: 0,
             body_size: content.len() as u64,
             properties_flags: properties_flags,
-            properties: try!(properties.encode()),
+            properties: EncodedProperties::new(properties.encode()?),
         };
         let content_header_frame = Frame {
             frame_type: FrameType::HEADERS,
             channel: self.id,
-            payload: try!(content_header.encode()),
+            payload: FramePayload::new(content_header.encode()?),
         };
         let content_frame = Frame {
             frame_type: FrameType::BODY,
             channel: self.id,
-            payload: content,
+            payload: FramePayload::new(content),
         };
 
         try!(self.send_method_frame(publish));

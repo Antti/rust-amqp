@@ -49,7 +49,7 @@ impl From<io::Error> for AMQPError {
 }
 
 impl <T> From<::std::sync::PoisonError<T>> for AMQPError {
-    fn from(err: ::std::sync::PoisonError<T>) -> AMQPError {
+    fn from(_ : ::std::sync::PoisonError<T>) -> AMQPError {
         AMQPError::SyncError
     }
 }

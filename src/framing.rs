@@ -2,6 +2,7 @@ use amqp_error::{AMQPResult, AMQPError};
 use std::io::{Read, Write, Cursor};
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use enum_primitive::FromPrimitive;
+use method::EncodedMethod;
 
 enum_from_primitive! {
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -15,11 +16,45 @@ pub enum FrameType {
 
 impl Copy for FrameType {}
 
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct FramePayload(Vec<u8>);
+
+impl FramePayload {
+    pub fn new(data: Vec<u8>) -> Self {
+        FramePayload(data)
+    }
+
+    pub fn into_inner(self) -> Vec<u8> {
+        self.0
+    }
+
+    pub fn inner(&self) -> &[u8] {
+        &self.0
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct EncodedProperties(Vec<u8>);
+
+impl EncodedProperties {
+    pub fn new(data: Vec<u8>) -> Self {
+        EncodedProperties(data)
+    }
+
+    pub fn into_inner(self) -> Vec<u8> {
+        self.0
+    }
+
+    pub fn inner(&self) -> &[u8] {
+        &self.0
+    }
+}
+
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Frame {
     pub frame_type: FrameType,
     pub channel: u16,
-    pub payload: Vec<u8>,
+    pub payload: FramePayload,
 }
 
 pub struct FrameHeader {
@@ -43,16 +78,16 @@ impl FrameHeader {
 pub struct MethodFrame {
     pub class_id: u16,
     pub method_id: u16,
-    pub arguments: Vec<u8>
+    pub arguments: EncodedMethod
 }
 
 impl MethodFrame {
-    pub fn encode(&self) -> AMQPResult<Vec<u8>> {
-        let mut writer = vec![];
+    pub fn encode(&self) -> AMQPResult<FramePayload> {
+        let mut writer = Vec::with_capacity(self.arguments.inner().len() + 4);
         try!(writer.write_u16::<BigEndian>(self.class_id));
         try!(writer.write_u16::<BigEndian>(self.method_id));
-        try!(writer.write_all(&self.arguments));
-        Ok(writer)
+        try!(writer.write_all(self.arguments.inner()));
+        Ok(FramePayload::new(writer))
     }
 
     // We need this method, so we can match on class_id & method_id
@@ -60,12 +95,12 @@ impl MethodFrame {
         if frame.frame_type != FrameType::METHOD {
             return Err(AMQPError::DecodeError("Not a method frame"))
         }
-        let reader = &mut &frame.payload[..];
+        let reader = &mut frame.payload.inner();
         let class_id = try!(reader.read_u16::<BigEndian>());
         let method_id = try!(reader.read_u16::<BigEndian>());
         let mut arguments = vec![];
         try!(reader.read_to_end(&mut arguments));
-        Ok(MethodFrame { class_id: class_id, method_id: method_id, arguments: arguments})
+        Ok(MethodFrame { class_id: class_id, method_id: method_id, arguments: EncodedMethod::new(arguments) })
     }
 
     pub fn method_name(&self) -> &'static str {
@@ -102,17 +137,17 @@ impl Frame {
         let frame = Frame {
             frame_type: frame_type,
             channel: channel,
-            payload: payload,
+            payload: FramePayload::new(payload),
         };
         Ok(frame)
     }
 
     pub fn encode(&self) -> AMQPResult<Vec<u8>> {
-        let mut writer = vec![];
+        let mut writer = Vec::with_capacity(self.payload.inner().len() + 8);
         try!(writer.write_u8(self.frame_type as u8));
         try!(writer.write_u16::<BigEndian>(self.channel));
-        try!(writer.write_u32::<BigEndian>(self.payload.len() as u32));
-        try!(writer.write_all(&self.payload));
+        try!(writer.write_u32::<BigEndian>(self.payload.inner().len() as u32));
+        try!(writer.write_all(self.payload.inner()));
         try!(writer.write_u8(0xCE));
         Ok(writer)
     }
@@ -124,12 +159,12 @@ pub struct ContentHeaderFrame {
     pub weight: u16,
     pub body_size: u64,
     pub properties_flags: u16,
-    pub properties: Vec<u8>,
+    pub properties: EncodedProperties,
 }
 
 impl ContentHeaderFrame {
     pub fn decode(frame: &Frame) -> AMQPResult<ContentHeaderFrame> {
-        let mut reader = Cursor::new(&(frame.payload));
+        let mut reader = Cursor::new(frame.payload.inner());
         let content_class = try!(reader.read_u16::<BigEndian>());
         let weight = try!(reader.read_u16::<BigEndian>()); //0 all the time for now
         let body_size = try!(reader.read_u64::<BigEndian>());
@@ -141,17 +176,17 @@ impl ContentHeaderFrame {
             weight: weight,
             body_size: body_size,
             properties_flags: properties_flags,
-            properties: properties,
+            properties: EncodedProperties::new(properties),
         })
     }
 
     pub fn encode(&self) -> AMQPResult<Vec<u8>> {
-        let mut writer = vec![];
+        let mut writer = Vec::with_capacity(self.properties.inner().len() + 14);;
         try!(writer.write_u16::<BigEndian>(self.content_class));
         try!(writer.write_u16::<BigEndian>(self.weight)); //0 all the time for now
         try!(writer.write_u64::<BigEndian>(self.body_size));
         try!(writer.write_u16::<BigEndian>(self.properties_flags));
-        try!(writer.write_all(&self.properties));
+        try!(writer.write_all(self.properties.inner()));
         Ok(writer)
     }
 }
@@ -161,7 +196,7 @@ fn test_encode_decode() {
     let frame = Frame {
         frame_type: FrameType::METHOD,
         channel: 5,
-        payload: vec![1, 2, 3, 4, 5],
+        payload: FramePayload::new(vec![1, 2, 3, 4, 5]),
     };
     let frame_encoded = frame.encode().ok().unwrap();
     assert_eq!(frame,

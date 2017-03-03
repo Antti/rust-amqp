@@ -19,12 +19,10 @@ tls = ["openssl"]
 default = ["tls"]
 
 [dependencies]
-bit-vec = "0.4"
-byteorder = "0.5"
-enum_primitive = "0.1"
 env_logger = "0.3"
 log = "0.3"
 url = "1.2"
+amq-proto = "0.1.0"
 
 [dependencies.openssl]
 version = "0.7.*"

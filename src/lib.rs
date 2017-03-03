@@ -80,36 +80,26 @@
 #![cfg_attr(feature="clippy", feature(plugin))]
 #![cfg_attr(feature="clippy", plugin(clippy))]
 
-// extern crate bst;
 extern crate url;
-extern crate byteorder;
-extern crate bit_vec;
 
 #[cfg(feature = "tls")]
 extern crate openssl;
 
 #[macro_use]
 extern crate log;
-
-#[macro_use]
-extern crate enum_primitive;
+extern crate amq_proto;
 
 mod connection;
 mod channel;
-mod framing;
 mod session;
 mod basic;
 mod amqp_error;
-mod table;
-mod method;
-#[macro_use] mod codegen_macros;
 
 pub const VERSION: &'static str = env!("CARGO_PKG_VERSION");
-pub mod protocol;
 
 pub use session::{Session, Options};
 pub use channel::{Channel, ConsumerCallBackFn, Consumer};
-pub use table::{Table, TableEntry};
 pub use basic::{Basic, GetResult};
 pub use session::AMQPScheme;
 pub use amqp_error::AMQPError;
+pub use amq_proto::{protocol, Table, TableEntry};

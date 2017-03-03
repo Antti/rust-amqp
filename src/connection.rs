@@ -6,7 +6,7 @@ use std::cmp;
 use openssl::ssl::{SslContext, SslMethod, SslStream};
 
 use amqp_error::AMQPResult;
-use framing::{Frame, FrameType, FramePayload};
+use amq_proto::{Frame, FrameType, FramePayload};
 
 enum AMQPStream {
     Cleartext(TcpStream),
@@ -86,9 +86,9 @@ impl Connection {
 
     pub fn read(&mut self) -> AMQPResult<Frame> {
         match self.socket {
-            AMQPStream::Cleartext(ref mut stream) => Frame::decode(stream),
+            AMQPStream::Cleartext(ref mut stream) => Frame::decode(stream).map_err(From::from),
             #[cfg(feature = "tls")]
-            AMQPStream::Tls(ref mut stream) => Frame::decode(stream),
+            AMQPStream::Tls(ref mut stream) => Frame::decode(stream).map_err(From::from),
         }
     }
 

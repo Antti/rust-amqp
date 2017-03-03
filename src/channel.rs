@@ -1,8 +1,8 @@
 use amqp_error::{AMQPResult, AMQPError};
 use std::sync::mpsc::Receiver;
 
-use framing::{MethodFrame, ContentHeaderFrame, Frame, FramePayload, FrameType, EncodedProperties};
-use table::Table;
+use amq_proto::{MethodFrame, ContentHeaderFrame, Frame, FramePayload, FrameType, EncodedProperties};
+use amq_proto::Table;
 use protocol;
 use basic::{Basic, GetIterator};
 use protocol::{channel, basic};
@@ -13,7 +13,7 @@ use connection::Connection;
 use std::collections::HashMap;
 use std::cell::RefCell;
 use std::rc::Rc;
-use method::Method;
+use amq_proto::Method;
 
 pub trait Consumer: Send {
     fn handle_delivery(&mut self,
@@ -118,7 +118,7 @@ impl Channel {
     {
         let method_frame = try!(self.raw_rpc(method));
         match method_frame.method_name() {
-            m_name if m_name == expected_reply => Method::decode(method_frame),
+            m_name if m_name == expected_reply => Method::decode(method_frame).map_err(From::from),
             m_name => {
                 Err(AMQPError::Protocol(format!("Unexpected method frame: {}, expected: {}",
                                                 m_name,
@@ -132,11 +132,11 @@ impl Channel {
         where T: Method
     {
         try!(self.send_method_frame(method));
-        MethodFrame::decode(&try!(self.read()))
+        MethodFrame::decode(&try!(self.read())).map_err(From::from)
     }
 
     pub fn read_headers(&mut self) -> AMQPResult<ContentHeaderFrame> {
-        ContentHeaderFrame::decode(&try!(self.read()))
+        ContentHeaderFrame::decode(&try!(self.read())).map_err(From::from)
     }
 
     pub fn read_body(&mut self, size: u64) -> AMQPResult<Vec<u8>> {

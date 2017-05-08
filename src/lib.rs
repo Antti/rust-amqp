@@ -98,7 +98,7 @@ mod amqp_error;
 pub const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
 pub use session::{Session, Options};
-pub use channel::{Channel, ConsumerCallBackFn, Consumer};
+pub use channel::{Channel, Consumer};
 pub use basic::{Basic, GetResult};
 pub use session::AMQPScheme;
 pub use amqp_error::AMQPError;

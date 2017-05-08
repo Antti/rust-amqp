@@ -23,12 +23,9 @@ pub trait Consumer: Send {
                        body: Vec<u8>);
 }
 
-pub type ConsumerCallBackFn = fn(channel: &mut Channel,
-                                 method: basic::Deliver,
-                                 headers: BasicProperties,
-                                 body: Vec<u8>);
-
-impl Consumer for ConsumerCallBackFn {
+impl<F> Consumer for F
+    where F: FnMut(&mut Channel, basic::Deliver, BasicProperties, Vec<u8>) + Send + 'static
+{
     fn handle_delivery(&mut self,
                        channel: &mut Channel,
                        method: basic::Deliver,
@@ -38,15 +35,14 @@ impl Consumer for ConsumerCallBackFn {
     }
 }
 
-impl<T> Consumer for Box<T>
-    where T: FnMut(&mut Channel, basic::Deliver, BasicProperties, Vec<u8>) + Send
+impl Consumer for Box<Consumer>
 {
     fn handle_delivery(&mut self,
                        channel: &mut Channel,
                        method: basic::Deliver,
                        headers: BasicProperties,
                        body: Vec<u8>) {
-        self(channel, method, headers, body);
+        (**self).handle_delivery(channel, method, headers, body);
     }
 }
 

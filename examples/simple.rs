@@ -1,7 +1,7 @@
 extern crate amqp;
 extern crate env_logger;
 
-use amqp::{Basic, Session, Channel, ConsumerCallBackFn, Table, protocol};
+use amqp::{Basic, Session, Channel, Table, protocol};
 use std::default::Default;
 use std::thread;
 
@@ -39,7 +39,7 @@ fn main() {
 
     //queue: &str, consumer_tag: &str, no_local: bool, no_ack: bool, exclusive: bool, nowait: bool, arguments: Table
     println!("Declaring consumer...");
-    let consumer_name = channel.basic_consume(consumer_function as ConsumerCallBackFn, queue_name, "", false, false, false, false, Table::new());
+    let consumer_name = channel.basic_consume(consumer_function, queue_name, "", false, false, false, false, Table::new());
     println!("Starting consumer {:?}", consumer_name);
 
     let consumers_thread = thread::spawn(move || {

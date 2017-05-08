@@ -1,7 +1,7 @@
 extern crate amqp;
 extern crate env_logger;
 
-use amqp::{Session, Options, Table, Basic, protocol, Channel, ConsumerCallBackFn};
+use amqp::{Session, Options, Table, Basic, protocol, Channel};
 use amqp::protocol::basic;
 use std::default::Default;
 
@@ -46,7 +46,7 @@ fn main() {
     //consumer, queue: &str, consumer_tag: &str, no_local: bool, no_ack: bool, exclusive: bool, nowait: bool, arguments: Table
     println!("Declaring consumers...");
 
-    let consumer_name = channel.basic_consume(consumer_function  as ConsumerCallBackFn, queue_name, "", false, false, false, false, Table::new());
+    let consumer_name = channel.basic_consume(consumer_function, queue_name, "", false, false, false, false, Table::new());
     println!("Starting consumer {:?}", consumer_name);
 
     let my_consumer = MyConsumer { deliveries_number: 0 };
@@ -54,14 +54,13 @@ fn main() {
     println!("Starting consumer {:?}", consumer_name);
 
     let mut delivery_log = vec![];
-    let closure_consumer = Box::new(move |_chan: &mut Channel, deliver: basic::Deliver, headers: basic::BasicProperties, data: Vec<u8>|
-        {
-            println!("[closure] Deliver info: {:?}", deliver);
-            println!("[closure] Content headers: {:?}", headers);
-            println!("[closure] Content body: {:?}", data);
-            delivery_log.push(deliver);
-        }
-    );
+    let closure_consumer = move |_chan: &mut Channel, deliver: basic::Deliver, headers: basic::BasicProperties, data: Vec<u8>|
+    {
+        println!("[closure] Deliver info: {:?}", deliver);
+        println!("[closure] Content headers: {:?}", headers);
+        println!("[closure] Content body: {:?}", data);
+        delivery_log.push(deliver);
+    };
     let consumer_name = channel.basic_consume(closure_consumer, queue_name, "", false, false, false, false, Table::new());
     println!("Starting consumer {:?}", consumer_name);
 

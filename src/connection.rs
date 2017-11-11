@@ -3,7 +3,7 @@ use std::io::Write;
 use std::cmp;
 
 #[cfg(feature = "tls")]
-use openssl::ssl::{SslContext, SslMethod, SslStream};
+use openssl::ssl::{SslConnectorBuilder, SslContext, SslMethod, SslStream};
 
 use amqp_error::AMQPResult;
 use amq_proto::{Frame, FrameType, FramePayload};
@@ -43,8 +43,11 @@ impl Connection {
     #[cfg(feature = "tls")]
     pub fn open_tls(host: &str, port: u16) -> AMQPResult<Connection> {
         let socket = try!(TcpStream::connect((host, port)));
-        let ctx = try!(SslContext::new(SslMethod::Sslv23));
-        let mut tls_socket = try!(SslStream::connect(&ctx, socket));
+
+        let connector = SslConnectorBuilder::new(SslMethod::tls()).unwrap().build();
+
+        let mut tls_socket = try!(connector.connect(host, socket));
+
         try!(init_connection(&mut tls_socket));
         Ok(Connection {
             socket: AMQPStream::Tls(tls_socket),

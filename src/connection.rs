@@ -3,6 +3,7 @@ use std::io::Write;
 use std::cmp;
 use std::sync::{Arc, Mutex};
 use std::ops::DerefMut;
+use std::time;
 
 #[cfg(feature = "tls")]
 use openssl::ssl::{SslConnectorBuilder, SslMethod, SslStream};
@@ -45,7 +46,7 @@ impl Connection {
     #[cfg(feature = "tls")]
     pub fn open_tls(host: &str, port: u16) -> AMQPResult<Connection> {
         let socket = try!(TcpStream::connect((host, port)));
-
+        socket.set_read_timeout(Some(time::Duration::from_secs(1)));
         let connector = SslConnectorBuilder::new(SslMethod::tls()).unwrap().build();
 
         let mut tls_socket = try!(connector.connect(host, socket));
@@ -92,12 +93,14 @@ impl Connection {
     pub fn read(&mut self) -> AMQPResult<Frame> {
         match self.socket {
             AMQPStream::Cleartext(ref mut stream) => {
+                trace!("Getting read lock");
                 let mut s = stream.lock().unwrap();
 
                 Frame::decode(s.deref_mut()).map_err(From::from)
             },
             #[cfg(feature = "tls")]
             AMQPStream::Tls(ref mut stream) => {
+                trace!("Getting read lock");
                 let mut s = stream.lock().unwrap();
 
                 Frame::decode(s.deref_mut()).map_err(From::from)
@@ -108,12 +111,14 @@ impl Connection {
     fn write_frame(&mut self, frame: Frame) -> AMQPResult<()> {
         match self.socket {
             AMQPStream::Cleartext(ref mut stream) => {
+                trace!("Getting write lock");
                 let mut s = stream.lock().unwrap();
 
                 Ok(try!(s.deref_mut().write_all(&try!(frame.encode()))))
             }
             #[cfg(feature = "tls")]
             AMQPStream::Tls(ref mut stream) => {
+                trace!("Getting write lock");
                 let mut s = stream.lock().unwrap();
 
                 Ok(try!(s.deref_mut().write_all(&try!(frame.encode()))))

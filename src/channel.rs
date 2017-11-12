@@ -1,6 +1,7 @@
 use amqp_error::{AMQPResult, AMQPError};
-use std::sync::mpsc::Receiver;
+use std::sync::mpsc::{SyncSender, Receiver};
 
+use session::EventFrame;
 use amq_proto::{MethodFrame, ContentHeaderFrame, Frame, FramePayload, FrameType, EncodedProperties};
 use amq_proto::Table;
 use protocol;
@@ -50,18 +51,18 @@ pub struct Channel {
     pub id: u16,
     consumers: Rc<RefCell<HashMap<String, Box<Consumer>>>>,
     receiver: Receiver<AMQPResult<Frame>>,
-    connection: Connection,
+    sender: SyncSender<EventFrame>,
 }
 
 unsafe impl Send for Channel {}
 
 impl Channel {
-    pub fn new(id: u16, receiver: Receiver<AMQPResult<Frame>>, connection: Connection) -> Channel {
+    pub fn new(id: u16, receiver: Receiver<AMQPResult<Frame>>, sender: SyncSender<EventFrame>) -> Channel {
         Channel {
             id: id,
             receiver: receiver,
             consumers: Rc::new(RefCell::new(HashMap::new())),
-            connection: connection,
+            sender: sender,
         }
     }
 
@@ -88,14 +89,18 @@ impl Channel {
             let frame = try!(self.receiver
                 .recv()
                 .map_err(|_| AMQPError::Protocol("Error reading packet from channel".to_owned()))
-                .and_then(|frame| frame));
+                             .and_then(|frame| frame));
+            trace!("Got a frame: {:?}", frame);
             unprocessed_frame = try!(self.try_consume(frame));
         }
         Ok(unprocessed_frame.unwrap())
     }
 
     pub fn write(&mut self, frame: Frame) -> AMQPResult<()> {
-        self.connection.write(frame)
+        trace!("Sending frame to sender: {:?}", frame);
+        self.sender.send(EventFrame::Frame(frame)).unwrap();
+        trace!("(Sent frame to sender)");
+        return Ok(())
     }
 
     pub fn send_method_frame<T>(&mut self, method: &T) -> AMQPResult<()>
@@ -128,6 +133,7 @@ impl Channel {
         where T: Method
     {
         try!(self.send_method_frame(method));
+        trace!("Waiting on a frame back...");
         MethodFrame::decode(&try!(self.read())).map_err(From::from)
     }
 
@@ -233,7 +239,7 @@ impl Channel {
     }
 
     pub fn set_frame_max_limit(&mut self, size: u32) {
-        self.connection.frame_max_limit = size;
+        self.sender.send(EventFrame::FrameMaxLimit(size)).unwrap();
     }
 
     // Will run the infinite loop, which will receive frames on the given channel &

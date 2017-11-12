@@ -89,7 +89,7 @@ impl Channel {
             let frame = try!(self.receiver
                 .recv()
                 .map_err(|_| AMQPError::Protocol("Error reading packet from channel".to_owned()))
-                             .and_then(|frame| frame));
+                .and_then(|frame| frame));
             trace!("Got a frame: {:?}", frame);
             unprocessed_frame = try!(self.try_consume(frame));
         }

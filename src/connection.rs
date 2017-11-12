@@ -1,8 +1,6 @@
 use std::net::TcpStream;
 use std::io::Write;
 use std::cmp;
-use std::sync::{Arc, Mutex};
-use std::ops::DerefMut;
 use std::time;
 
 #[cfg(feature = "tls")]
@@ -12,34 +10,14 @@ use amqp_error::AMQPResult;
 use amq_proto::{Frame, FrameType, FramePayload};
 
 enum AMQPStream {
-    Cleartext(Arc<Mutex<TcpStream>>),
+    Cleartext(TcpStream),
     #[cfg(feature = "tls")]
-    Tls(Arc<Mutex<SslStream<TcpStream>>>),
+    Tls(SslStream<TcpStream>),
 }
 
 pub struct Connection {
     socket: AMQPStream,
     pub frame_max_limit: u32,
-}
-
-impl Clone for Connection {
-    fn clone(&self) -> Connection {
-        match self.socket {
-            AMQPStream::Cleartext(ref stream) => {
-                Connection {
-                    socket: AMQPStream::Cleartext(stream.clone()),
-                    frame_max_limit: self.frame_max_limit,
-                }
-            }
-            #[cfg(feature = "tls")]
-            AMQPStream::Tls(ref stream) => {
-                Connection {
-                    socket: AMQPStream::Tls(stream.clone()),
-                    frame_max_limit: self.frame_max_limit,
-                }
-            }
-        }
-    }
 }
 
 impl Connection {
@@ -53,7 +31,7 @@ impl Connection {
 
         try!(init_connection(&mut tls_socket));
         Ok(Connection {
-            socket: AMQPStream::Tls(Arc::new(Mutex::new(tls_socket))),
+            socket: AMQPStream::Tls(tls_socket),
             frame_max_limit: 131072,
         })
     }
@@ -62,7 +40,7 @@ impl Connection {
         let mut socket = try!(TcpStream::connect((host, port)));
         try!(init_connection(&mut socket));
         Ok(Connection {
-            socket: AMQPStream::Cleartext(Arc::new(Mutex::new(socket))),
+            socket: AMQPStream::Cleartext(socket),
             frame_max_limit: 131072,
         })
     }
@@ -93,17 +71,11 @@ impl Connection {
     pub fn read(&mut self) -> AMQPResult<Frame> {
         match self.socket {
             AMQPStream::Cleartext(ref mut stream) => {
-                trace!("Getting read lock");
-                let mut s = stream.lock().unwrap();
-
-                Frame::decode(s.deref_mut()).map_err(From::from)
+                Frame::decode(stream).map_err(From::from)
             },
             #[cfg(feature = "tls")]
             AMQPStream::Tls(ref mut stream) => {
-                trace!("Getting read lock");
-                let mut s = stream.lock().unwrap();
-
-                Frame::decode(s.deref_mut()).map_err(From::from)
+                Frame::decode(stream).map_err(From::from)
             }
         }
     }
@@ -111,17 +83,11 @@ impl Connection {
     fn write_frame(&mut self, frame: Frame) -> AMQPResult<()> {
         match self.socket {
             AMQPStream::Cleartext(ref mut stream) => {
-                trace!("Getting write lock");
-                let mut s = stream.lock().unwrap();
-
-                Ok(try!(s.deref_mut().write_all(&try!(frame.encode()))))
+                Ok(try!(stream.write_all(&try!(frame.encode()))))
             }
             #[cfg(feature = "tls")]
             AMQPStream::Tls(ref mut stream) => {
-                trace!("Getting write lock");
-                let mut s = stream.lock().unwrap();
-
-                Ok(try!(s.deref_mut().write_all(&try!(frame.encode()))))
+                Ok(try!(stream.write_all(&try!(frame.encode()))))
             }
 
         }

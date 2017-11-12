@@ -66,7 +66,6 @@ impl Default for Options {
 }
 
 pub struct Session {
-    connection: Connection,
     channels: Arc<Mutex<HashMap<u16, SyncSender<AMQPResult<Frame>>>>>,
     send_sender: SyncSender<EventFrame>,
     channel_max_limit: u16,
@@ -108,11 +107,9 @@ impl Session {
         let (channel_zero_sender, channel_receiver) = sync_channel(CHANNEL_BUFFER_SIZE); //channel0
         let channel_zero = channel::Channel::new(0, channel_receiver, send_sender.clone());
         try!(channels.lock().map_err(|_| AMQPError::SyncError)).insert(0, channel_zero_sender);
-        let con1 = connection.clone();
         let channels_clone = channels.clone();
-        thread::spawn(|| Session::reading_loop(con1, channels_clone, send_receiver));
+        thread::spawn(|| Session::reading_loop(connection, channels_clone, send_receiver));
         let mut session = Session {
-            connection: connection,
             channels: channels,
             send_sender: send_sender,
             channel_max_limit: 65535,
@@ -180,9 +177,9 @@ impl Session {
         debug!("Received tune request: {:?}", tune);
 
         self.channel_max_limit = negotiate(tune.channel_max, self.channel_max_limit);
-        self.connection.frame_max_limit = negotiate(tune.frame_max, options.frame_max_limit);
-        self.channel_zero.set_frame_max_limit(self.connection.frame_max_limit);
-        let frame_max_limit = self.connection.frame_max_limit;
+        let frame_max_limit = negotiate(tune.frame_max, options.frame_max_limit);
+        self.channel_zero.set_frame_max_limit(frame_max_limit);
+
         let tune_ok = protocol::connection::TuneOk {
             channel_max: self.channel_max_limit,
             frame_max: frame_max_limit,

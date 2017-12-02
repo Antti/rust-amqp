@@ -24,7 +24,7 @@ impl Connection {
     #[cfg(feature = "tls")]
     pub fn open_tls(host: &str, port: u16) -> AMQPResult<Connection> {
         let socket = try!(TcpStream::connect((host, port)));
-        socket.set_read_timeout(Some(time::Duration::from_millis(50)));
+        socket.set_read_timeout(Some(time::Duration::from_millis(75)));
         let connector = SslConnectorBuilder::new(SslMethod::tls()).unwrap().build();
 
         let mut tls_socket = try!(connector.connect(host, socket));

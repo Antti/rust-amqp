@@ -298,7 +298,7 @@ impl Session {
                     dispatch.map_err(|e| error!("{}", e)).ok();
                 }
                 Err(read_err) => {
-                    error!("Error in reading loop: {:?}", read_err);
+                    trace!("Error in reading loop: {:?}", read_err);
 
                     let mut send_err = false;
 
@@ -316,7 +316,7 @@ impl Session {
                             }
                         }
                         e => {
-                            panic!("Mystery problem! {:?}", e);
+                            error!("Mystery problem! {:?}", e);
                             send_err = true;
                         }
                     }

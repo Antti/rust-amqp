@@ -1,5 +1,6 @@
 use std::net::TcpStream;
 use std::io::Write;
+use std::io;
 use std::cmp;
 use std::time;
 
@@ -76,6 +77,18 @@ impl Connection {
             #[cfg(feature = "tls")]
             AMQPStream::Tls(ref mut stream) => {
                 Frame::decode(stream).map_err(From::from)
+            }
+        }
+    }
+
+    pub fn take_error(&mut self) -> Result<Option<io::Error>, io::Error> {
+        match self.socket {
+            AMQPStream::Cleartext(ref mut stream) => {
+                stream.take_error()
+            },
+            #[cfg(feature = "tls")]
+            AMQPStream::Tls(ref mut stream) => {
+                stream.get_ref().take_error()
             }
         }
     }

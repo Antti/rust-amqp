@@ -7,6 +7,7 @@ use amq_proto::TableEntry::{FieldTable, Bool, LongString};
 use amqp_error::{AMQPResult, AMQPError};
 use super::VERSION;
 
+use std::io::ErrorKind;
 use std::sync::{Arc, Mutex};
 use std::default::Default;
 use std::collections::HashMap;
@@ -261,7 +262,8 @@ impl Session {
         loop {
             // thread::sleep(time::Duration::from_secs(1));
             trace!("Start of the read loop");
-            if let Ok(frame) = send_receiver.try_recv() {
+            let recvd = send_receiver.try_recv();
+            if let Ok(frame) = recvd {
                 match frame {
                     EventFrame::Frame(frame) => {
                         trace!("Writing frame: {:?}", frame);
@@ -296,19 +298,43 @@ impl Session {
                     dispatch.map_err(|e| error!("{}", e)).ok();
                 }
                 Err(read_err) => {
-                    // error!("Error in reading loop: {:?}", read_err);
-                    /*
-                    let chans = channels.lock().unwrap();
-                    for chan in chans.values() {
-                        // Propagate error to every channel, so they can close
-                        if chan.send(Err(read_err.clone())).is_err() {
-                            error!("Error dispatching closing packet to a channel");
+                    error!("Error in reading loop: {:?}", read_err);
+
+                    let mut send_err = false;
+
+                    match connection.take_error() {
+                        Ok(None) => {},
+                        Ok(Some(err)) => {
+                            let kind = err.kind();
+
+                            match kind {
+                                ErrorKind::WouldBlock => {},
+                                kind => {
+                                    error!("Connection error ({:?}): {:?}", kind, err);
+                                    send_err = true;
+                                }
+                            }
+                        }
+                        e => {
+                            panic!("Mystery problem! {:?}", e);
+                            send_err = true;
                         }
                     }
-                    break;
-                    */
+
+                    if send_err {
+                        let chans = channels.lock().unwrap();
+                        for chan in chans.values() {
+                            // Propagate error to every channel, so they can close
+                            if chan.send(Err(read_err.clone())).is_err() {
+                                error!("Error dispatching closing packet to a channel");
+                            }
+                        }
+                        break;
+                    }
                 }
             }
+
+
         }
         debug!("Exiting reading loop");
     }

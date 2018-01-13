@@ -1,3 +1,5 @@
+
+use time::{Duration, PreciseTime};
 use channel;
 use connection::Connection;
 use protocol;
@@ -14,9 +16,7 @@ use std::collections::HashMap;
 use std::sync::mpsc::{Receiver, SyncSender, sync_channel};
 
 use std::thread;
-use std::time;
 use std::cmp;
-
 
 use url::{Url, percent_encoding};
 
@@ -262,21 +262,29 @@ impl Session {
         loop {
             // thread::sleep(time::Duration::from_secs(1));
             trace!("Start of the read loop");
-            let recvd = send_receiver.try_recv();
-            if let Ok(frame) = recvd {
-                match frame {
-                    EventFrame::Frame(frame) => {
-                        trace!("Writing frame: {:?}", frame);
-                        connection.write(frame);
+            let mut sent = 0;
+            while sent < 100 {
+                let recvd = send_receiver.try_recv();
+                if let Ok(frame) = recvd {
+                    sent += 1;
+                    match frame {
+                        EventFrame::Frame(frame) => {
+                            trace!("Writing frame: {:?}", frame);
+                            connection.write(frame);
+                        }
+                        EventFrame::FrameMaxLimit(limit) => {
+                            trace!("Max frame limit: {:?}", limit);
+                            connection.frame_max_limit = limit;
+                        }
                     }
-                    EventFrame::FrameMaxLimit(limit) => {
-                        // panic!("set_frame_max_limit issn't working, lol");
-                        connection.frame_max_limit = limit;
-                    }
-
-                    // EventFrame::
+                } else {
+                    break;
                 }
             }
+
+            debug!("Sent {:?} frames", sent);
+
+            let start = PreciseTime::now();
 
             match connection.read() {
                 Ok(frame) => {
@@ -334,6 +342,7 @@ impl Session {
                 }
             }
 
+            debug!("In the read portion of the loop for: {:?}", start.to(PreciseTime::now()));
 
         }
         debug!("Exiting reading loop");

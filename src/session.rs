@@ -310,21 +310,14 @@ impl Session {
 
                     let mut send_err = false;
 
-                    match connection.take_error() {
-                        Ok(None) => {},
-                        Ok(Some(err)) => {
-                            let kind = err.kind();
-
-                            match kind {
-                                ErrorKind::WouldBlock => {},
-                                kind => {
-                                    error!("Connection error ({:?}): {:?}", kind, err);
-                                    send_err = true;
-                                }
-                            }
-                        }
-                        e => {
-                            error!("Mystery problem! {:?}", e);
+                    match &read_err {
+                        &AMQPError::IoError(ErrorKind::WouldBlock) => {},
+                        &AMQPError::IoError(kind) => {
+                            error!("Connection IOError ({:?}): {:?}", kind, read_err);
+                            send_err = true;
+                        },
+                        ref e => {
+                            error!("Mystery error! {:?}", e);
                             send_err = true;
                         }
                     }

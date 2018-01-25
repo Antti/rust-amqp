@@ -270,7 +270,7 @@ impl Session {
                     match frame {
                         EventFrame::Frame(frame) => {
                             trace!("Writing frame: {:?}", frame);
-                            connection.write(frame);
+                            connection.write(frame).expect("failed to write frame");
                         }
                         EventFrame::FrameMaxLimit(limit) => {
                             trace!("Max frame limit: {:?}", limit);
@@ -294,6 +294,11 @@ impl Session {
                     // then reply code 503 (command invalid).
                     let chans = channels.lock().unwrap();
                     let chan_id = frame.channel;
+
+                    if chan_id == 0 {
+                        info!("Dropping mesesage to channel 0: {:?}", frame);
+                    }
+
                     let target = chans.get(&chan_id);
                     let dispatch = match target {
                         Some(target_channel) => {

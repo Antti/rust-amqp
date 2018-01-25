@@ -7,8 +7,9 @@ use std::time;
 #[cfg(feature = "tls")]
 use openssl::ssl::{SslConnectorBuilder, SslMethod, SslStream};
 
-use amqp_error::AMQPResult;
+use amqp_error::{AMQPResult,AMQPError};
 use amq_proto::{Frame, FrameType, FramePayload};
+use amq_proto;
 
 enum AMQPStream {
     Cleartext(TcpStream),
@@ -76,7 +77,19 @@ impl Connection {
             },
             #[cfg(feature = "tls")]
             AMQPStream::Tls(ref mut stream) => {
-                Frame::decode(stream).map_err(From::from)
+                match Frame::decode(stream) {
+                    Ok(e) => Ok(e),
+
+                    Err(amq_proto::Error(
+                        amq_proto::ErrorKind::Io(e),
+                        _
+                    )) => Err(AMQPError::IoError(e.kind())),
+
+                    Err(e) => {
+                        println!("Mystery err!!! {:?}", e);
+                        Err(e).map_err(From::from)
+                    }
+                }
             }
         }
     }

@@ -94,18 +94,6 @@ impl Connection {
         }
     }
 
-    pub fn take_error(&mut self) -> Result<Option<io::Error>, io::Error> {
-        match self.socket {
-            AMQPStream::Cleartext(ref mut stream) => {
-                stream.take_error()
-            },
-            #[cfg(feature = "tls")]
-            AMQPStream::Tls(ref mut stream) => {
-                stream.get_ref().take_error()
-            }
-        }
-    }
-
     fn write_frame(&mut self, frame: Frame) -> AMQPResult<()> {
         match self.socket {
             AMQPStream::Cleartext(ref mut stream) => {

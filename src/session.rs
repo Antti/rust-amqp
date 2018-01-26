@@ -296,7 +296,10 @@ impl Session {
                     let chan_id = frame.channel;
 
                     if chan_id == 0 {
-                        info!("Dropping mesesage to channel 0: {:?}", frame);
+                        info!(
+                            "Dropping frame to channel 0: {:?}",
+                            String::from_utf8_lossy(frame.payload.inner())
+                        );
                     }
 
                     let target = chans.get(&chan_id);

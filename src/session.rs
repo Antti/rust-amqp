@@ -10,7 +10,8 @@ use super::VERSION;
 use std::sync::{Arc, Mutex};
 use std::default::Default;
 use std::collections::HashMap;
-use std::sync::mpsc::{SyncSender, sync_channel};
+
+use std::sync::mpsc::{SyncSender, TrySendError, sync_channel};
 use std::thread;
 use std::cmp;
 
@@ -255,15 +256,35 @@ impl Session {
                     let chans = channels.lock().unwrap();
                     let chan_id = frame.channel;
                     let target = chans.get(&chan_id);
-                    let dispatch = match target {
+
+                    match target {
                         Some(target_channel) => {
-                            target_channel.send(Ok(frame)).map_err(|_| {
-                                format!("Error dispatching packet to channel {}", chan_id)
-                            })
-                        }
-                        None => Err(format!("Received frame for an unknown channel: {}", chan_id)),
-                    };
-                    dispatch.map_err(|e| error!("{}", e)).ok();
+                            match target_channel.try_send(Ok(frame)) {
+                                Ok(()) => {},
+                                Err(TrySendError::Disconnected(frame)) => {
+                                    warn!(
+                                        "Error dispatching packet to channel {}: Receiver is gone.",
+                                        &chan_id
+                                    );
+                                },
+                                Err(TrySendError::Full(frame)) => {
+                                    warn!(
+                                        "Error dispatching packet to channel {}: Full! Blocking until there is space.",
+                                        &chan_id
+                                    );
+
+                                    if let Err(err) = target_channel.send(frame) {
+                                        warn!(
+                                            "Error dispatching packet to channel {}, Even after waiting for a blocked write: {:?}",
+                                            &chan_id,
+                                            err
+                                        );
+                                    }
+                                }
+                            }
+                        },
+                        None => error!("Received frame for an unknown channel: {}", chan_id),
+                    }
                 }
                 Err(read_err) => {
                     error!("Error in reading loop: {:?}", read_err);

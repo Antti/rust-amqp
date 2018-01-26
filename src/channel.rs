@@ -354,6 +354,14 @@ impl<'a> Basic<'a> for Channel {
                         -> AMQPResult<()>
         where S: Into<String>
     {
+        if mandatory {
+            warn!("basic_publish(mandatory=true) failures are not handled and result in blocked channels!");
+        }
+
+        if immediate {
+            warn!("basic_publish(immediate=true) failures are not handled and result in blocked channels!");
+        }
+
         let publish = &Publish {
             ticket: 0,
             exchange: exchange.into(),

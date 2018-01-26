@@ -23,11 +23,12 @@ env_logger = "0.3"
 log = "0.3"
 url = "1.2"
 amq-proto = "0.1.0"
+time = "0.1.38"
 
 [dependencies.openssl]
-version = "0.7.*"
+version = "0.9.*"
 optional = true
-features = ["tlsv1_1", "tlsv1_2"]
+# features = ["tlsv1_1", "tlsv1_2"]
 
 [dev-dependencies]
 # clippy  = "*"

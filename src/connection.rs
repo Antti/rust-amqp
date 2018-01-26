@@ -1,12 +1,15 @@
 use std::net::TcpStream;
 use std::io::Write;
+use std::io;
 use std::cmp;
+use std::time;
 
 #[cfg(feature = "tls")]
-use openssl::ssl::{SslContext, SslMethod, SslStream};
+use openssl::ssl::{SslConnectorBuilder, SslMethod, SslStream};
 
-use amqp_error::AMQPResult;
+use amqp_error::{AMQPResult,AMQPError};
 use amq_proto::{Frame, FrameType, FramePayload};
+use amq_proto;
 
 enum AMQPStream {
     Cleartext(TcpStream),
@@ -19,32 +22,15 @@ pub struct Connection {
     pub frame_max_limit: u32,
 }
 
-impl Clone for Connection {
-    fn clone(&self) -> Connection {
-        match self.socket {
-            AMQPStream::Cleartext(ref stream) => {
-                Connection {
-                    socket: AMQPStream::Cleartext(stream.try_clone().unwrap()),
-                    frame_max_limit: self.frame_max_limit,
-                }
-            }
-            #[cfg(feature = "tls")]
-            AMQPStream::Tls(ref stream) => {
-                Connection {
-                    socket: AMQPStream::Tls(stream.try_clone().unwrap()),
-                    frame_max_limit: self.frame_max_limit,
-                }
-            }
-        }
-    }
-}
-
 impl Connection {
     #[cfg(feature = "tls")]
     pub fn open_tls(host: &str, port: u16) -> AMQPResult<Connection> {
         let socket = try!(TcpStream::connect((host, port)));
-        let ctx = try!(SslContext::new(SslMethod::Sslv23));
-        let mut tls_socket = try!(SslStream::connect(&ctx, socket));
+        socket.set_read_timeout(Some(time::Duration::from_millis(250)));
+        let connector = SslConnectorBuilder::new(SslMethod::tls()).unwrap().build();
+
+        let mut tls_socket = try!(connector.connect(host, socket));
+
         try!(init_connection(&mut tls_socket));
         Ok(Connection {
             socket: AMQPStream::Tls(tls_socket),
@@ -86,9 +72,25 @@ impl Connection {
 
     pub fn read(&mut self) -> AMQPResult<Frame> {
         match self.socket {
-            AMQPStream::Cleartext(ref mut stream) => Frame::decode(stream).map_err(From::from),
+            AMQPStream::Cleartext(ref mut stream) => {
+                Frame::decode(stream).map_err(From::from)
+            },
             #[cfg(feature = "tls")]
-            AMQPStream::Tls(ref mut stream) => Frame::decode(stream).map_err(From::from),
+            AMQPStream::Tls(ref mut stream) => {
+                match Frame::decode(stream) {
+                    Ok(e) => Ok(e),
+
+                    Err(amq_proto::Error(
+                        amq_proto::ErrorKind::Io(e),
+                        _
+                    )) => Err(AMQPError::IoError(e.kind())),
+
+                    Err(e) => {
+                        println!("Mystery err!!! {:?}", e);
+                        Err(e).map_err(From::from)
+                    }
+                }
+            }
         }
     }
 
@@ -98,7 +100,10 @@ impl Connection {
                 Ok(try!(stream.write_all(&try!(frame.encode()))))
             }
             #[cfg(feature = "tls")]
-            AMQPStream::Tls(ref mut stream) => Ok(try!(stream.write_all(&try!(frame.encode())))),
+            AMQPStream::Tls(ref mut stream) => {
+                Ok(try!(stream.write_all(&try!(frame.encode()))))
+            }
+
         }
     }
 }

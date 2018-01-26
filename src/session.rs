@@ -1,3 +1,5 @@
+
+use time::{Duration, PreciseTime};
 use channel;
 use connection::Connection;
 use protocol;
@@ -7,13 +9,14 @@ use amq_proto::TableEntry::{FieldTable, Bool, LongString};
 use amqp_error::{AMQPResult, AMQPError};
 use super::VERSION;
 
+use std::io::ErrorKind;
 use std::sync::{Arc, Mutex};
 use std::default::Default;
 use std::collections::HashMap;
-use std::sync::mpsc::{SyncSender, sync_channel};
+use std::sync::mpsc::{Receiver, SyncSender, TrySendError, sync_channel};
+
 use std::thread;
 use std::cmp;
-
 
 use url::{Url, percent_encoding};
 
@@ -27,6 +30,11 @@ pub enum AMQPScheme {
     AMQP,
     #[cfg(feature = "tls")]
     AMQPS,
+}
+
+pub enum EventFrame {
+    Frame(Frame),
+    FrameMaxLimit(u32),
 }
 
 #[derive(Debug)]
@@ -59,8 +67,8 @@ impl Default for Options {
 }
 
 pub struct Session {
-    connection: Connection,
     channels: Arc<Mutex<HashMap<u16, SyncSender<AMQPResult<Frame>>>>>,
+    send_sender: SyncSender<EventFrame>,
     channel_max_limit: u16,
     channel_zero: channel::Channel,
 }
@@ -93,19 +101,22 @@ impl Session {
     /// ```
     pub fn new(options: Options) -> AMQPResult<Session> {
         let connection = try!(get_connection(&options));
+
+        let (send_sender, send_receiver) = sync_channel(CHANNEL_BUFFER_SIZE); //writes
+
         let channels = Arc::new(Mutex::new(HashMap::new()));
         let (channel_zero_sender, channel_receiver) = sync_channel(CHANNEL_BUFFER_SIZE); //channel0
-        let channel_zero = channel::Channel::new(0, channel_receiver, connection.clone());
+        let channel_zero = channel::Channel::new(0, channel_receiver, send_sender.clone());
         try!(channels.lock().map_err(|_| AMQPError::SyncError)).insert(0, channel_zero_sender);
-        let con1 = connection.clone();
         let channels_clone = channels.clone();
-        thread::spawn(|| Session::reading_loop(con1, channels_clone));
+        thread::spawn(|| Session::reading_loop(connection, channels_clone, send_receiver));
         let mut session = Session {
-            connection: connection,
             channels: channels,
+            send_sender: send_sender,
             channel_max_limit: 65535,
             channel_zero: channel_zero,
         };
+
         try!(session.init(options));
         Ok(session)
     }
@@ -167,9 +178,9 @@ impl Session {
         debug!("Received tune request: {:?}", tune);
 
         self.channel_max_limit = negotiate(tune.channel_max, self.channel_max_limit);
-        self.connection.frame_max_limit = negotiate(tune.frame_max, options.frame_max_limit);
-        self.channel_zero.set_frame_max_limit(self.connection.frame_max_limit);
-        let frame_max_limit = self.connection.frame_max_limit;
+        let frame_max_limit = negotiate(tune.frame_max, options.frame_max_limit);
+        self.channel_zero.set_frame_max_limit(frame_max_limit);
+
         let tune_ok = protocol::connection::TuneOk {
             channel_max: self.channel_max_limit,
             frame_max: frame_max_limit,
@@ -215,7 +226,7 @@ impl Session {
     pub fn open_channel(&mut self, channel_id: u16) -> AMQPResult<channel::Channel> {
         debug!("Openning channel: {}", channel_id);
         let (sender, receiver) = sync_channel(CHANNEL_BUFFER_SIZE);
-        let mut channel = channel::Channel::new(channel_id, receiver, self.connection.clone());
+        let mut channel = channel::Channel::new(channel_id, receiver, self.send_sender.clone());
         try!(self.channels.lock().map_err(|_| AMQPError::SyncError)).insert(channel_id, sender);
         try!(channel.open());
         Ok(channel)
@@ -243,40 +254,117 @@ impl Session {
     // Receives and dispatches frames from the connection to the corresponding
     // channels.
     fn reading_loop(mut connection: Connection,
-                    channels: Arc<Mutex<HashMap<u16, SyncSender<AMQPResult<Frame>>>>>)
+                    channels: Arc<Mutex<HashMap<u16, SyncSender<AMQPResult<Frame>>>>>,
+                    send_receiver: Receiver<EventFrame>
+    )
                     -> () {
         debug!("Starting reading loop");
         loop {
+            // thread::sleep(time::Duration::from_secs(1));
+            trace!("Start of the read loop");
+            let mut sent = 0;
+            while sent < 100 {
+                let recvd = send_receiver.try_recv();
+                if let Ok(frame) = recvd {
+                    sent += 1;
+                    match frame {
+                        EventFrame::Frame(frame) => {
+                            trace!("Writing frame: {:?}", frame);
+                            connection.write(frame).expect("failed to write frame");
+                        }
+                        EventFrame::FrameMaxLimit(limit) => {
+                            trace!("Max frame limit: {:?}", limit);
+                            connection.frame_max_limit = limit;
+                        }
+                    }
+                } else {
+                    break;
+                }
+            }
+
+            debug!("Sent {:?} frames", sent);
+
+            let start = PreciseTime::now();
+
             match connection.read() {
                 Ok(frame) => {
+                    trace!("got frame: {:?}", frame);
                     // TODO: If channel 0 -> send to channel_zero_handler
                     // If channel != 0 and FrameType == METHOD and method class =='connection',
                     // then reply code 503 (command invalid).
                     let chans = channels.lock().unwrap();
                     let chan_id = frame.channel;
+
+                    if chan_id == 0 {
+                        info!(
+                            "Dropping frame to channel 0: {:?}",
+                            String::from_utf8_lossy(frame.payload.inner())
+                        );
+                    }
+
                     let target = chans.get(&chan_id);
-                    let dispatch = match target {
+
+                    match target {
                         Some(target_channel) => {
-                            target_channel.send(Ok(frame)).map_err(|_| {
-                                format!("Error dispatching packet to channel {}", chan_id)
-                            })
-                        }
-                        None => Err(format!("Received frame for an unknown channel: {}", chan_id)),
-                    };
-                    dispatch.map_err(|e| error!("{}", e)).ok();
+                            match target_channel.try_send(Ok(frame)) {
+                                Ok(()) => {},
+                                Err(TrySendError::Disconnected(frame)) => {
+                                    warn!(
+                                        "Error dispatching packet to channel {}: Receiver is gone.",
+                                        &chan_id
+                                    );
+                                },
+                                Err(TrySendError::Full(frame)) => {
+                                    warn!(
+                                        "Error dispatching packet to channel {}: Full! Blocking until there is space.",
+                                        &chan_id
+                                    );
+
+                                    if let Err(err) = target_channel.send(frame) {
+                                        warn!(
+                                            "Error dispatching packet to channel {}, Even after waiting for a blocked write: {:?}",
+                                            &chan_id,
+                                            err
+                                        );
+                                    }
+                                }
+                            }
+                        },
+                        None => error!("Received frame for an unknown channel: {}", chan_id),
+                    }
                 }
                 Err(read_err) => {
-                    error!("Error in reading loop: {:?}", read_err);
-                    let chans = channels.lock().unwrap();
-                    for chan in chans.values() {
-                        // Propagate error to every channel, so they can close
-                        if chan.send(Err(read_err.clone())).is_err() {
-                            error!("Error dispatching closing packet to a channel");
+                    trace!("Error in reading loop: {:?}", read_err);
+
+                    let mut send_err = false;
+
+                    match &read_err {
+                        &AMQPError::IoError(ErrorKind::WouldBlock) => {},
+                        &AMQPError::IoError(kind) => {
+                            error!("Connection IOError ({:?}): {:?}", kind, read_err);
+                            send_err = true;
+                        },
+                        ref e => {
+                            error!("Mystery error! {:?}", e);
+                            send_err = true;
                         }
                     }
-                    break;
+
+                    if send_err {
+                        let chans = channels.lock().unwrap();
+                        for chan in chans.values() {
+                            // Propagate error to every channel, so they can close
+                            if chan.send(Err(read_err.clone())).is_err() {
+                                error!("Error dispatching closing packet to a channel");
+                            }
+                        }
+                        break;
+                    }
                 }
             }
+
+            debug!("In the read portion of the loop for: {:?}", start.to(PreciseTime::now()));
+
         }
         debug!("Exiting reading loop");
     }

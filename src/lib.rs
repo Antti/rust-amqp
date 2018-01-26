@@ -81,6 +81,7 @@
 #![cfg_attr(feature="clippy", plugin(clippy))]
 
 extern crate url;
+extern crate time;
 
 #[cfg(feature = "tls")]
 extern crate openssl;

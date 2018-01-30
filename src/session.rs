@@ -41,6 +41,7 @@ pub struct Options {
     pub channel_max_limit: u16,
     pub locale: String,
     pub scheme: AMQPScheme,
+    pub properties: Table,
 }
 
 impl Default for Options {
@@ -55,6 +56,7 @@ impl Default for Options {
             channel_max_limit: 65535,
             locale: "en_US".to_string(),
             scheme: AMQPScheme::AMQP,
+            properties: Table::new(),
         }
     }
 }
@@ -144,6 +146,7 @@ impl Session {
         client_properties.insert("version".to_owned(), LongString(VERSION.to_owned()));
         client_properties.insert("information".to_owned(),
                                  LongString("https://github.com/Antti/rust-amqp".to_owned()));
+        client_properties.extend(options.properties);
 
         debug!("Sending connection.start-ok");
         let start_ok = protocol::connection::StartOk {

@@ -2,6 +2,7 @@ extern crate amqp;
 extern crate env_logger;
 
 use amqp::{Session, Options, Table, Basic, protocol, Channel};
+use amqp::TableEntry::LongString;
 use amqp::protocol::basic;
 use std::default::Default;
 
@@ -33,7 +34,13 @@ impl amqp::Consumer for MyConsumer {
 
 fn main() {
     env_logger::init().unwrap();
-    let mut session = Session::new(Options{ vhost: "/".to_string(), .. Default::default()}).ok().expect("Can't create session");
+    let mut props = Table::new();
+    props.insert("example-name".to_owned(), LongString("consumer".to_owned()));
+    let mut session = Session::new(Options{
+        properties: props,
+        vhost: "/".to_string(),
+        .. Default::default()
+    }).ok().expect("Can't create session");
     let mut channel = session.open_channel(1).ok().expect("Error openning channel 1");
     println!("Openned channel: {:?}", channel.id);
 

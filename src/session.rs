@@ -334,7 +334,7 @@ fn parse_url(url_string: &str) -> AMQPResult<Options> {
     }
 
     let vhost = clean_vhost(url.path());
-    let host = url.domain().map(|s| s.to_string()).unwrap_or(default.host);
+    let host = url.host().map(|s| s.to_string()).unwrap_or(default.host);
     let login = match url.username() {
         "" => String::from(default.login),
         username => username.to_string()
@@ -369,6 +369,17 @@ mod test {
     fn test_full_parse_url() {
         let options = parse_url("amqp://username:password@hostname:12345/vhost").expect("Failed parsing url");
         assert_eq!(options.host, "hostname");
+        assert_eq!(options.login, "username");
+        assert_eq!(options.password, "password");
+        assert_eq!(options.port, 12345);
+        assert_eq!(options.vhost, "vhost");
+        assert!(match options.scheme { AMQPScheme::AMQP => true, _ => false });
+    }
+
+    #[test]
+    fn test_full_parse_url_with_ip() {
+        let options = parse_url("amqp://username:password@123.123.123.123:12345/vhost").expect("Failed parsing url");
+        assert_eq!(options.host, "123.123.123.123");
         assert_eq!(options.login, "username");
         assert_eq!(options.password, "password");
         assert_eq!(options.port, 12345);

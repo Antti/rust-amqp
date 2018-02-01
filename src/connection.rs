@@ -89,7 +89,7 @@ impl Connection {
         match self.socket {
             AMQPStream::Cleartext(ref mut stream) => stream.shutdown(Shutdown::Both).map_err(From::from),
             #[cfg(feature = "tls")]
-            AMQPStream::Tls(ref mut stream) => stream.shutdown().map_err(From::from),
+            AMQPStream::Tls(ref mut stream) => stream.get_mut().shutdown(Shutdown::Both).map_err(From::from),
         }
     }
 

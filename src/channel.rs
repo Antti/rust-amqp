@@ -11,8 +11,7 @@ use protocol::basic::{Consume, ConsumeOk, Deliver, Publish, Ack, Nack, Reject, Q
                       CancelOk};
 use connection::Connection;
 use std::collections::HashMap;
-use std::cell::RefCell;
-use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 use amq_proto::Method;
 
 pub trait Consumer: Send {
@@ -48,7 +47,7 @@ impl Consumer for Box<Consumer>
 
 pub struct Channel {
     pub id: u16,
-    consumers: Rc<RefCell<HashMap<String, Box<Consumer>>>>,
+    consumers: Arc<Mutex<HashMap<String, Box<Consumer>>>>,
     receiver: Receiver<AMQPResult<Frame>>,
     connection: Connection,
 }
@@ -60,7 +59,7 @@ impl Channel {
         Channel {
             id: id,
             receiver: receiver,
-            consumers: Rc::new(RefCell::new(HashMap::new())),
+            consumers: Arc::new(Mutex::new(HashMap::new())),
             connection: connection,
         }
     }
@@ -258,8 +257,8 @@ impl Channel {
                         let body = try!(self.read_body(headers.body_size));
                         let properties = try!(BasicProperties::decode(headers));
                         let conss1 = self.consumers.clone();
-                        let mut conss = conss1.borrow_mut();
-                        let cons = conss.get_mut(&deliver_method.consumer_tag);
+                        let mut consumers_guard = conss1.lock().unwrap_or_else(|err| err.into_inner());
+                        let cons = consumers_guard.get_mut(&deliver_method.consumer_tag);
                         match cons {
                             Some(mut consumer) => {
                                 consumer.handle_delivery(self, deliver_method, properties, body);
@@ -334,7 +333,8 @@ impl<'a> Basic<'a> for Channel {
             arguments: arguments,
         };
         let reply: ConsumeOk = try!(self.rpc(consume, "basic.consume-ok"));
-        self.consumers.borrow_mut().insert(reply.consumer_tag.clone(), Box::new(callback));
+        self.consumers.lock().unwrap_or_else(|err| err.into_inner())
+            .insert(reply.consumer_tag.clone(), Box::new(callback));
         Ok(reply.consumer_tag)
     }
 

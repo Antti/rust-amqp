@@ -1,4 +1,4 @@
-use std::net::TcpStream;
+use std::net::{Shutdown, TcpStream};
 use std::io::Write;
 use std::cmp;
 
@@ -42,10 +42,10 @@ impl Clone for Connection {
 impl Connection {
     #[cfg(feature = "tls")]
     pub fn open_tls(host: &str, port: u16) -> AMQPResult<Connection> {
-        let socket = try!(TcpStream::connect((host, port)));
-        let ctx = try!(SslContext::new(SslMethod::Sslv23));
-        let mut tls_socket = try!(SslStream::connect(&ctx, socket));
-        try!(init_connection(&mut tls_socket));
+        let socket = TcpStream::connect((host, port))?;
+        let ctx = SslContext::new(SslMethod::Sslv23)?;
+        let mut tls_socket = SslStream::connect(&ctx, socket)?;
+        init_connection(&mut tls_socket)?;
         Ok(Connection {
             socket: AMQPStream::Tls(tls_socket),
             frame_max_limit: 131072,
@@ -53,8 +53,8 @@ impl Connection {
     }
 
     pub fn open(host: &str, port: u16) -> AMQPResult<Connection> {
-        let mut socket = try!(TcpStream::connect((host, port)));
-        try!(init_connection(&mut socket));
+        let mut socket = TcpStream::connect((host, port))?;
+        init_connection(&mut socket)?;
         Ok(Connection {
             socket: AMQPStream::Cleartext(socket),
             frame_max_limit: 131072,
@@ -72,15 +72,24 @@ impl Connection {
                 for content_frame in split_content_into_frames(frame.payload.into_inner(),
                                                                self.frame_max_limit)
                     .into_iter() {
-                    try!(self.write_frame(Frame {
+                    self.write_frame(Frame {
                         frame_type: frame_type,
                         channel: channel,
                         payload: FramePayload::new(content_frame),
-                    }))
+                    })?
                 }
                 Ok(())
             }
             _ => self.write_frame(frame),
+        }
+    }
+
+    /// Shutdown the underlying TCP stream.
+    pub fn shutdown(&mut self) -> AMQPResult<()> {
+        match self.socket {
+            AMQPStream::Cleartext(ref mut stream) => stream.shutdown(Shutdown::Both).map_err(From::from),
+            #[cfg(feature = "tls")]
+            AMQPStream::Tls(ref mut stream) => stream.shutdown().map_err(From::from),
         }
     }
 
@@ -95,10 +104,10 @@ impl Connection {
     fn write_frame(&mut self, frame: Frame) -> AMQPResult<()> {
         match self.socket {
             AMQPStream::Cleartext(ref mut stream) => {
-                Ok(try!(stream.write_all(&try!(frame.encode()))))
+                Ok(stream.write_all(&frame.encode()?)?)
             }
             #[cfg(feature = "tls")]
-            AMQPStream::Tls(ref mut stream) => Ok(try!(stream.write_all(&try!(frame.encode())))),
+            AMQPStream::Tls(ref mut stream) => Ok(stream.write_all(&frame.encode()?)?),
         }
     }
 }

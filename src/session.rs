@@ -49,7 +49,7 @@ impl Default for Options {
         Options {
             host: "127.0.0.1".to_string(),
             port: AMQP_PORT,
-            vhost: "".to_string(),
+            vhost: "/".to_string(),
             login: "guest".to_string(),
             password: "guest".to_string(),
             frame_max_limit: 131072,
@@ -264,7 +264,7 @@ impl Session {
                         Some(target_channel) => {
                             match target_channel.try_send(Ok(frame)) {
                                 Ok(()) => {},
-                                Err(TrySendError::Disconnected(frame)) => {
+                                Err(TrySendError::Disconnected(_frame)) => {
                                     warn!(
                                         "Error dispatching packet to channel {}: Receiver is gone.",
                                         &chan_id
@@ -322,13 +322,6 @@ fn percent_decode(string: &str) -> String {
 }
 
 fn parse_url(url_string: &str) -> AMQPResult<Options> {
-    fn clean_vhost(vhost: &str) -> &str {
-        match vhost.chars().next() {
-            Some('/') => &vhost[1..],
-            _ => vhost
-        }
-    }
-
     let default: Options = Default::default();
 
     let url = try!(Url::parse(url_string));
@@ -336,13 +329,7 @@ fn parse_url(url_string: &str) -> AMQPResult<Options> {
         return Err(AMQPError::SchemeError("Must have relative scheme".to_string()));
     }
 
-    let vhost = clean_vhost(url.path());
     let host = url.host().map(|s| s.to_string()).unwrap_or(default.host);
-    let login = match url.username() {
-        "" => String::from(default.login),
-        username => username.to_string()
-    };
-    let password = url.password().map_or(String::from(default.password), ToString::to_string);
     let (scheme, default_port) = match url.scheme() {
         "amqp" => (AMQPScheme::AMQP, AMQP_PORT),
         #[cfg(feature = "tls")]
@@ -353,6 +340,19 @@ fn parse_url(url_string: &str) -> AMQPResult<Options> {
     };
     let port = url.port().unwrap_or(default_port);
 
+    let path = url.path();
+    let vhost = if path.len() == 1 && !url_string.ends_with("/") {
+        &default.vhost
+    } else {
+        &path[1..]
+    };
+
+    let login = match url.username() {
+        "" => String::from(default.login),
+        username => username.to_string()
+    };
+    let password = url.password().map_or(String::from(default.password), ToString::to_string);
+
     Ok(Options {
         host: host.to_string(),
         port: port,
@@ -360,7 +360,7 @@ fn parse_url(url_string: &str) -> AMQPResult<Options> {
         login: login,
         password: password,
         vhost: vhost.to_string(),
-        ..Default::default()
+        ..default
     })
 }
 
@@ -394,7 +394,7 @@ mod test {
     fn test_full_parse_url_without_vhost() {
         let options = parse_url("amqp://host").expect("Failed parsing url");
         assert_eq!(options.host, "host");
-        assert_eq!(options.vhost, "");
+        assert_eq!(options.vhost, "/");
     }
 
     #[test]

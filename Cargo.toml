@@ -1,8 +1,8 @@
 [package]
 
 name = "amqp"
-version = "0.1.0"
-authors = ["Andrii Dmytrenko <andrey@reevoo.com>"]
+version = "0.1.1"
+authors = ["Andrii Dmytrenko <refresh.xss@gmail.com>"]
 description = "AMQP/RabbitMQ protocol client"
 repository = "https://github.com/Antti/rust-amqp"
 license = "MIT/Apache-2.0"

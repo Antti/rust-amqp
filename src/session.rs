@@ -258,6 +258,14 @@ impl Session {
                     // then reply code 503 (command invalid).
                     let chans = channels.lock().unwrap();
                     let chan_id = frame.channel;
+
+                    if chan_id == 0 {
+                        info!(
+                            "Dropping frame to channel 0: {:?}",
+                            String::from_utf8_lossy(frame.payload.inner())
+                        );
+                    }
+
                     let target = chans.get(&chan_id);
 
                     match target {

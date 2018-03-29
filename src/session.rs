@@ -79,7 +79,7 @@ impl Session {
     /// running on `localhost` on port `5672`,
     /// with login `"guest"`, password: `"guest"` to vhost `"/"`
     pub fn open_url(url_string: &str) -> AMQPResult<Session> {
-        let options = try!(parse_url(url_string));
+        let options = parse_url(url_string)?;
         Session::new(options)
     }
 
@@ -95,11 +95,11 @@ impl Session {
     /// };
     /// ```
     pub fn new(options: Options) -> AMQPResult<Session> {
-        let connection = try!(get_connection(&options));
+        let connection = get_connection(&options)?;
         let channels = Arc::new(Mutex::new(HashMap::new()));
         let (channel_zero_sender, channel_receiver) = sync_channel(CHANNEL_BUFFER_SIZE); //channel0
         let channel_zero = channel::Channel::new(0, channel_receiver, connection.clone());
-        try!(channels.lock().map_err(|_| AMQPError::SyncError)).insert(0, channel_zero_sender);
+        channels.lock().map_err(|_| AMQPError::SyncError)?.insert(0, channel_zero_sender);
         let con1 = connection.clone();
         let channels_clone = channels.clone();
         thread::spawn(|| Session::reading_loop(con1, channels_clone));
@@ -109,16 +109,16 @@ impl Session {
             channel_max_limit: 65535,
             channel_zero: channel_zero,
         };
-        try!(session.init(options));
+        session.init(options)?;
         Ok(session)
     }
 
     fn init(&mut self, options: Options) -> AMQPResult<()> {
         debug!("Starting init session");
-        let frame = try!(self.channel_zero.read()); //Start
-        let method_frame = try!(MethodFrame::decode(&frame));
+        let frame = self.channel_zero.read()?; //Start
+        let method_frame = MethodFrame::decode(&frame)?;
         let start: protocol::connection::Start = match method_frame.method_name() {
-            "connection.start" => try!(Method::decode(method_frame)),
+            "connection.start" => Method::decode(method_frame)?,
             meth => return Err(AMQPError::Protocol(format!("Unexpected method frame: {:?}", meth))),
         };
         debug!("Received connection.start: {:?}", start);
@@ -155,12 +155,12 @@ impl Session {
             response: format!("\0{}\0{}", options.login, options.password),
             locale: options.locale.to_owned(),
         };
-        let response = try!(self.channel_zero.raw_rpc(&start_ok));
+        let response = self.channel_zero.raw_rpc(&start_ok)?;
         let tune: protocol::connection::Tune = match response.method_name() {
-            "connection.tune" => try!(amq_proto::Method::decode(response)),
+            "connection.tune" => amq_proto::Method::decode(response)?,
             "connection.close" => {
                 let close_frame: protocol::connection::Close =
-                    try!(amq_proto::Method::decode(response));
+                    amq_proto::Method::decode(response)?;
                 return Err(AMQPError::Protocol(format!("Connection was closed: {:?}",
                                                        close_frame)));
             }
@@ -180,7 +180,7 @@ impl Session {
             heartbeat: 0,
         };
         debug!("Sending connection.tune-ok: {:?}", tune_ok);
-        try!(self.channel_zero.send_method_frame(&tune_ok));
+        self.channel_zero.send_method_frame(&tune_ok)?;
 
         let open = protocol::connection::Open {
             virtual_host: percent_decode(&options.vhost),
@@ -220,8 +220,8 @@ impl Session {
         debug!("Openning channel: {}", channel_id);
         let (sender, receiver) = sync_channel(CHANNEL_BUFFER_SIZE);
         let mut channel = channel::Channel::new(channel_id, receiver, self.connection.clone());
-        try!(self.channels.lock().map_err(|_| AMQPError::SyncError)).insert(channel_id, sender);
-        try!(channel.open());
+        self.channels.lock().map_err(|_| AMQPError::SyncError)?.insert(channel_id, sender);
+        channel.open()?;
         Ok(channel)
     }
 
@@ -324,7 +324,7 @@ fn percent_decode(string: &str) -> String {
 fn parse_url(url_string: &str) -> AMQPResult<Options> {
     let default: Options = Default::default();
 
-    let url = try!(Url::parse(url_string));
+    let url = Url::parse(url_string)?;
     if url.cannot_be_a_base() {
         return Err(AMQPError::SchemeError("Must have relative scheme".to_string()));
     }

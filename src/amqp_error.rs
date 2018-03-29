@@ -68,8 +68,8 @@ impl From<amq_proto::Error> for AMQPError {
 }
 
 #[cfg(feature = "tls")]
-impl From<openssl::ssl::error::SslError> for AMQPError {
-    fn from(err: openssl::ssl::error::SslError) -> AMQPError {
+impl From<openssl::ssl::Error> for AMQPError {
+    fn from(err: openssl::ssl::Error) -> AMQPError {
         AMQPError::Protocol(format!("{}", err))
     }
 }

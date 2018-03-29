@@ -1,17 +1,21 @@
 use std::net::TcpStream;
 use std::io::Write;
+use std::sync::Arc;
+use std::ops::DerefMut;
 use std::cmp;
 
 #[cfg(feature = "tls")]
-use openssl::ssl::{SslContext, SslMethod, SslStream};
+use openssl::ssl::{SslContext, SslMethod, SslStream, SslConnectorBuilder};
 
 use amqp_error::AMQPResult;
+use amqp_error::AMQPError;
 use amq_proto::{Frame, FrameType, FramePayload};
 
+#[derive(Clone)]
 enum AMQPStream {
-    Cleartext(TcpStream),
+    Cleartext(Arc<TcpStream>),
     #[cfg(feature = "tls")]
-    Tls(SslStream<TcpStream>),
+    Tls(Arc<SslStream<TcpStream>>),
 }
 
 pub struct Connection {
@@ -21,20 +25,9 @@ pub struct Connection {
 
 impl Clone for Connection {
     fn clone(&self) -> Connection {
-        match self.socket {
-            AMQPStream::Cleartext(ref stream) => {
-                Connection {
-                    socket: AMQPStream::Cleartext(stream.try_clone().unwrap()),
-                    frame_max_limit: self.frame_max_limit,
-                }
-            }
-            #[cfg(feature = "tls")]
-            AMQPStream::Tls(ref stream) => {
-                Connection {
-                    socket: AMQPStream::Tls(stream.try_clone().unwrap()),
-                    frame_max_limit: self.frame_max_limit,
-                }
-            }
+        Connection {
+            socket: self.socket.clone(),
+            frame_max_limit: self.frame_max_limit,
         }
     }
 }
@@ -42,21 +35,27 @@ impl Clone for Connection {
 impl Connection {
     #[cfg(feature = "tls")]
     pub fn open_tls(host: &str, port: u16) -> AMQPResult<Connection> {
-        let socket = try!(TcpStream::connect((host, port)));
-        let ctx = try!(SslContext::new(SslMethod::Sslv23));
-        let mut tls_socket = try!(SslStream::connect(&ctx, socket));
-        try!(init_connection(&mut tls_socket));
+        let socket = TcpStream::connect((host, port))?;
+        let connector = match SslConnectorBuilder::new(SslMethod::tls()) {
+            Ok(builder) => builder.build(),
+            Err(_) => return Err(AMQPError::Protocol(String::from("Unable to connect to the provided host")))
+        };
+        let mut tls_socket = match connector.danger_connect_without_providing_domain_for_certificate_verification_and_server_name_indication(socket) {
+            Ok(tls) => tls,
+            Err(_) => return Err(AMQPError::Protocol(String::from("Unable to connect to the provided host")))
+        };
+        init_connection(&mut tls_socket)?;
         Ok(Connection {
-            socket: AMQPStream::Tls(tls_socket),
+            socket: AMQPStream::Tls(Arc::new(tls_socket)),
             frame_max_limit: 131072,
         })
     }
 
     pub fn open(host: &str, port: u16) -> AMQPResult<Connection> {
-        let mut socket = try!(TcpStream::connect((host, port)));
-        try!(init_connection(&mut socket));
+        let mut socket = TcpStream::connect((host, port))?;
+        init_connection(&mut socket)?;
         Ok(Connection {
-            socket: AMQPStream::Cleartext(socket),
+            socket: AMQPStream::Cleartext(Arc::new(socket)),
             frame_max_limit: 131072,
         })
     }
@@ -72,11 +71,11 @@ impl Connection {
                 for content_frame in split_content_into_frames(frame.payload.into_inner(),
                                                                self.frame_max_limit)
                     .into_iter() {
-                    try!(self.write_frame(Frame {
+                    self.write_frame(Frame {
                         frame_type: frame_type,
                         channel: channel,
                         payload: FramePayload::new(content_frame),
-                    }))
+                    })?
                 }
                 Ok(())
             }
@@ -86,19 +85,41 @@ impl Connection {
 
     pub fn read(&mut self) -> AMQPResult<Frame> {
         match self.socket {
-            AMQPStream::Cleartext(ref mut stream) => Frame::decode(stream).map_err(From::from),
+            AMQPStream::Cleartext(ref mut stream) => {
+                let s = match Arc::<TcpStream>::get_mut(stream) {
+                    Some(s) => s,
+                    _ => return Err(AMQPError::FramingError(String::from("unable to access stream context"))),
+                };
+                Frame::decode(s).map_err(From::from)
+            },
             #[cfg(feature = "tls")]
-            AMQPStream::Tls(ref mut stream) => Frame::decode(stream).map_err(From::from),
+            AMQPStream::Tls(ref mut stream) => {
+                let s = match Arc::<SslStream<TcpStream>>::get_mut(stream) {
+                    Some(s) => s,
+                    _ => return Err(AMQPError::FramingError(String::from("unable to access stream context"))),
+                };
+                Frame::decode(s).map_err(From::from)
+            },
         }
     }
 
     fn write_frame(&mut self, frame: Frame) -> AMQPResult<()> {
         match self.socket {
             AMQPStream::Cleartext(ref mut stream) => {
-                Ok(try!(stream.write_all(&try!(frame.encode()))))
+                let s = match Arc::<TcpStream>::get_mut(stream) {
+                    Some(s) => s,
+                    _ => return Err(AMQPError::FramingError(String::from("unable to access stream context"))),
+                };
+                Ok(s.write_all(&frame.encode()?)?)
             }
             #[cfg(feature = "tls")]
-            AMQPStream::Tls(ref mut stream) => Ok(try!(stream.write_all(&try!(frame.encode())))),
+            AMQPStream::Tls(ref mut stream) => {
+                let s = match Arc::<SslStream<TcpStream>>::get_mut(stream) {
+                    Some(s) => s,
+                    _ => return Err(AMQPError::FramingError(String::from("unable to access stream context"))),
+                };
+                Ok(s.write_all(&frame.encode()?)?)
+            },
         }
     }
 }

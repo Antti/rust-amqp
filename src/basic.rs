@@ -130,13 +130,13 @@ impl<'a> GetIterator<'a> {
             Ok(ack_action) => {
                 match ack_action {
                     AckAction::Ack(delivery_tag) => {
-                        try!(self.channel.basic_ack(delivery_tag, false))
+                        self.channel.basic_ack(delivery_tag, false)?
                     }
                     AckAction::Nack(delivery_tag, requeue) => {
-                        try!(self.channel.basic_nack(delivery_tag, false, requeue))
+                        self.channel.basic_nack(delivery_tag, false, requeue)?
                     }
                     AckAction::Reject(delivery_tag, requeue) => {
-                        try!(self.channel.basic_reject(delivery_tag, requeue))
+                        self.channel.basic_reject(delivery_tag, requeue)?
                     }
                 }
             }

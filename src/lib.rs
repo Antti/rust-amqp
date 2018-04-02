@@ -94,6 +94,7 @@ mod channel;
 mod session;
 mod basic;
 mod amqp_error;
+mod builders;
 
 pub const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
@@ -103,3 +104,4 @@ pub use basic::{Basic, GetResult};
 pub use session::AMQPScheme;
 pub use amqp_error::AMQPError;
 pub use amq_proto::{protocol, Table, TableEntry};
+pub use builders::{QueueBuilder, ConsumeBuilder};

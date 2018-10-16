@@ -2,6 +2,8 @@ extern crate amqp;
 extern crate env_logger;
 
 use amqp::{Session, Options, Table, Basic, protocol, Channel};
+use amqp::QueueBuilder;
+use amqp::ConsumeBuilder;
 use amqp::TableEntry::LongString;
 use amqp::protocol::basic;
 use std::default::Default;
@@ -45,15 +47,16 @@ fn main() {
     println!("Openned channel: {:?}", channel.id);
 
     let queue_name = "test_queue";
-    //queue: &str, passive: bool, durable: bool, exclusive: bool, auto_delete: bool, nowait: bool, arguments: Table
-    let queue_declare = channel.queue_declare(queue_name, false, true, false, false, false, Table::new());
+    let queue_builder = QueueBuilder::named(queue_name).durable();
+    let queue_declare = queue_builder.declare(&mut channel);
 
     println!("Queue declare: {:?}", queue_declare);
     channel.basic_prefetch(10).ok().expect("Failed to prefetch");
     //consumer, queue: &str, consumer_tag: &str, no_local: bool, no_ack: bool, exclusive: bool, nowait: bool, arguments: Table
     println!("Declaring consumers...");
 
-    let consumer_name = channel.basic_consume(consumer_function, queue_name, "", false, false, false, false, Table::new());
+    let consume_builder = ConsumeBuilder::new(consumer_function, queue_name);
+    let consumer_name = consume_builder.basic_consume(&mut channel);
     println!("Starting consumer {:?}", consumer_name);
 
     let my_consumer = MyConsumer { deliveries_number: 0 };

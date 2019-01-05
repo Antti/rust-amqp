@@ -3,7 +3,7 @@ use std::io::Write;
 use std::cmp;
 
 #[cfg(feature = "tls")]
-use openssl::ssl::{SslContext, SslMethod, SslStream};
+use openssl::ssl::{SslConnector, SslMethod, SslStream};
 
 use amqp_error::AMQPResult;
 use amq_proto::{Frame, FrameType, FramePayload};
@@ -30,10 +30,7 @@ impl Clone for Connection {
             }
             #[cfg(feature = "tls")]
             AMQPStream::Tls(ref stream) => {
-                Connection {
-                    socket: AMQPStream::Tls(stream.try_clone().unwrap()),
-                    frame_max_limit: self.frame_max_limit,
-                }
+                panic!("SslStream cannot be cloned");
             }
         }
     }
@@ -43,8 +40,8 @@ impl Connection {
     #[cfg(feature = "tls")]
     pub fn open_tls(host: &str, port: u16) -> AMQPResult<Connection> {
         let socket = try!(TcpStream::connect((host, port)));
-        let ctx = try!(SslContext::new(SslMethod::Sslv23));
-        let mut tls_socket = try!(SslStream::connect(&ctx, socket));
+        let ctx = SslConnector::builder(SslMethod::tls())?.build();
+        let mut tls_socket = try!(ctx.connect(host, socket));
         try!(init_connection(&mut tls_socket));
         Ok(Connection {
             socket: AMQPStream::Tls(tls_socket),

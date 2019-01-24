@@ -1,7 +1,7 @@
 [package]
 
 name = "amqp"
-version = "0.1.2"
+version = "0.1.3"
 authors = ["Andrii Dmytrenko <refresh.xss@gmail.com>"]
 description = "AMQP/RabbitMQ protocol client"
 repository = "https://github.com/Antti/rust-amqp"
@@ -16,7 +16,7 @@ name = "amqp"
 
 [features]
 tls = ["openssl"]
-default = ["tls"]
+default = []
 
 [dependencies]
 env_logger = "0.3"

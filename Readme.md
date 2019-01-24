@@ -86,9 +86,18 @@ cargo run --example interactive
 
 ## OpenSSL
 
+## Current TLS implementation using openssl crate 0.7.x is **not secure** and it is advised not to use it
+https://rustsec.org/advisories/RUSTSEC-2016-0001.html
+
+If for any reason you still want to use it, add a following feature to your `Cargo.toml`:
+```toml
+[dependencies]
+amqp = { version="0.1.3", features=["tls"] }
+```
+
 On MacOS X If you have problems with OpenSSL during complication, regarding missing headers or linkage, try:
 
-```
+```sh
 brew install openssl
 export OPENSSL_INCLUDE_DIR=`brew --prefix openssl`/include
 export OPENSSL_LIB_DIR=`brew --prefix openssl`/lib

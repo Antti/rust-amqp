@@ -1,7 +1,7 @@
 use channel;
 use connection::Connection;
 use protocol;
-use amq_proto::{self, Table, Method, Frame, MethodFrame};
+use amq_proto::{self, Table, Method, Frame, FrameType, FramePayload, MethodFrame};
 use amq_proto::TableEntry::{FieldTable, Bool, LongString};
 
 use amqp_error::{AMQPResult, AMQPError};
@@ -13,6 +13,7 @@ use std::collections::HashMap;
 
 use std::sync::mpsc::{SyncSender, TrySendError, sync_channel};
 use std::thread;
+use std::time::Duration;
 use std::cmp;
 
 
@@ -42,6 +43,9 @@ pub struct Options {
     pub locale: String,
     pub scheme: AMQPScheme,
     pub properties: Table,
+
+    /// In seconds.
+    pub heartbeat: u16,
 }
 
 impl Default for Options {
@@ -57,6 +61,7 @@ impl Default for Options {
             locale: "en_US".to_string(),
             scheme: AMQPScheme::AMQP,
             properties: Table::new(),
+            heartbeat: 30,
         }
     }
 }
@@ -79,7 +84,7 @@ impl Session {
     /// running on `localhost` on port `5672`,
     /// with login `"guest"`, password: `"guest"` to vhost `"/"`
     pub fn open_url(url_string: &str) -> AMQPResult<Session> {
-        let options = try!(parse_url(url_string));
+        let options = parse_url(url_string)?;
         Session::new(options)
     }
 
@@ -95,21 +100,30 @@ impl Session {
     /// };
     /// ```
     pub fn new(options: Options) -> AMQPResult<Session> {
-        let connection = try!(get_connection(&options));
+        let connection = get_connection(&options)?;
         let channels = Arc::new(Mutex::new(HashMap::new()));
         let (channel_zero_sender, channel_receiver) = sync_channel(CHANNEL_BUFFER_SIZE); //channel0
         let channel_zero = channel::Channel::new(0, channel_receiver, connection.clone());
-        try!(channels.lock().map_err(|_| AMQPError::SyncError)).insert(0, channel_zero_sender);
+        channels.lock().map_err(|_| AMQPError::SyncError)?.insert(0, channel_zero_sender);
         let con1 = connection.clone();
-        let channels_clone = channels.clone();
+        let channels_clone = Arc::clone(&channels);
         thread::spawn(|| Session::reading_loop(con1, channels_clone));
+
+        // If the caller has configured heartbeats, then begin the heartbeat loop.
+        if options.heartbeat > 0 {
+            let conn = connection.clone();
+            let chans = Arc::clone(&channels);
+            let heartbeat_interval = options.heartbeat.clone();
+            thread::spawn(move || Session::heartbeat_loop(conn, heartbeat_interval));
+        }
+
         let mut session = Session {
             connection: connection,
             channels: channels,
             channel_max_limit: 65535,
             channel_zero: channel_zero,
         };
-        try!(session.init(options));
+        session.init(options)?;
         Ok(session)
     }
 
@@ -244,8 +258,34 @@ impl Session {
             .unwrap();
     }
 
-    // Receives and dispatches frames from the connection to the corresponding
-    // channels.
+    /// Executes the heartbeat routine for the given connection.
+    ///
+    /// Calling this function should not take place on the main thread. Will block indefinitely.
+    fn heartbeat_loop(mut connection: Connection, heartbeat_interval: u16) -> () {
+        debug!("Starting heartbeat loop.");
+        let sleep_interval = Duration::from_secs(heartbeat_interval as u64);
+        let heartbeat_frame = Frame {
+            frame_type: FrameType::HEARTBEAT,
+            channel: 0,
+            payload: FramePayload::new(vec![]),
+        };
+
+        loop {
+            // Emit a new heartbeat frame & panic if any failure occurred.
+            let res = connection.write(heartbeat_frame.clone());
+            if let Err(err) = res {
+                connection.shutdown();
+                panic!("Failed to send heartbeat.");
+            }
+
+            // Sleep this thread for the configured interval, then loop.
+            thread::sleep(sleep_interval);
+        }
+    }
+
+    /// Receives and dispatches frames from the connection to the corresponding channels.
+    ///
+    /// Calling this function should not take place on the main thread. Will block indefinitely.
     fn reading_loop(mut connection: Connection,
                     channels: Arc<Mutex<HashMap<u16, SyncSender<AMQPResult<Frame>>>>>)
                     -> () {
@@ -376,6 +416,7 @@ mod test {
         assert_eq!(options.password, "password");
         assert_eq!(options.port, 12345);
         assert_eq!(options.vhost, "vhost");
+        assert_eq!(options.heartbeat, 30);
         assert!(match options.scheme { AMQPScheme::AMQP => true, _ => false });
     }
 
@@ -419,5 +460,6 @@ mod test {
         assert_eq!(options.login, "guest");
         assert_eq!(options.password, "guest");
         assert_eq!(options.port, 5672);
+        assert_eq!(options.heartbeat, 30);
     }
 }
